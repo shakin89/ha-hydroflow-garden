@@ -68,9 +68,15 @@ CONFIG_SCHEMA = vol.Schema(
 
 
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
-    if DOMAIN in config and not hass.config_entries.async_entries(DOMAIN):
-        hass.async_create_task(hass.config_entries.flow.async_init(
-            DOMAIN, context={"source": SOURCE_IMPORT}, data=config[DOMAIN]))
+    if DOMAIN in config:
+        if hass.config_entries.async_entries(DOMAIN):
+            _LOGGER.warning(
+                "'%s:' in configuration.yaml ignored: the integration is already set up. "
+                "The YAML block is a one-time import; remove it, or delete the entry "
+                "and restart to import again", DOMAIN)
+        else:
+            hass.async_create_task(hass.config_entries.flow.async_init(
+                DOMAIN, context={"source": SOURCE_IMPORT}, data=config[DOMAIN]))
     _register_services(hass)
     return True
 

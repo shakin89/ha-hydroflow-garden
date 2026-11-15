@@ -21,7 +21,6 @@ def controller_device(entry_id: str, ctrl: Controller) -> DeviceInfo:
         name=ctrl.name,
         manufacturer="Irrigation Manager",
         model="Controller",
-        via_device=(DOMAIN, f"{entry_id}_{HUB_DEVICE}"),
     )
 
 
