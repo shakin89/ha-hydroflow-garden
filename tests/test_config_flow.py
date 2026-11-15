@@ -16,7 +16,7 @@ HUB = {
     "dashboard_title": "Irrigazione",
 }
 CTRL = {
-    "name": "Orto", "iu_controller_id": "", "entity_id": "switch.pump",
+    "name": "Orto", "entity_id": "switch.pump",
     "max_zone_duration": "00:30",
     "zones": [{"id": 1, "name": "Pomodori", "entity_id": "switch.v1"},
               {"id": 2, "name": "Insalata", "entity_id": "switch.v2"}],

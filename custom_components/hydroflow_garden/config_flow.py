@@ -158,13 +158,11 @@ PROGRAM_FIELDS = {
 
 
 def controller_schema(v: dict, creating: bool) -> vol.Schema:
-    fields: dict = {}
+    fields: dict = {vol.Required("name", default=v.get("name", "")): sel.TextSelector()}
     if creating:
-        fields[vol.Required("name", default=v.get("name", ""))] = sel.TextSelector()
-    else:
-        fields[vol.Required("name", default=v["name"])] = sel.TextSelector()
+        fields[_opt("id", v)] = sel.TextSelector()
     fields.update({
-        vol.Required("iu_controller_id", default=v.get("iu_controller_id", "")): sel.TextSelector(),
+        _opt("iu_controller_id", v): sel.TextSelector(),
         vol.Required("entity_id", default=v.get("entity_id", "")): sel.EntitySelector(
             sel.EntitySelectorConfig(domain=["switch", "valve"])),
         vol.Required("max_zone_duration", default=v.get("max_zone_duration", "00:40")): sel.TextSelector(),
@@ -239,8 +237,7 @@ class ControllerSubentryFlow(ConfigSubentryFlow):
                 data["order"] = 1 + max(
                     [int(s.data.get("order", 0)) for s in entry.subentries.values()], default=-1)
                 return self.async_create_entry(title=data["name"], data=data, unique_id=data["id"])
-        schema = controller_schema(user_input or {}, creating=True).extend(
-            {vol.Optional("id"): sel.TextSelector()})
+        schema = controller_schema(user_input or {}, creating=True)
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
     async def async_step_reconfigure(self, user_input: dict | None = None) -> SubentryFlowResult:
