@@ -19,7 +19,7 @@ def controller_device(entry_id: str, ctrl: Controller) -> DeviceInfo:
     return DeviceInfo(
         identifiers={(DOMAIN, f"{entry_id}_{ctrl.id}")},
         name=ctrl.name,
-        manufacturer="Irrigation Manager",
+        manufacturer="HydroFlow Garden",
         model="Controller",
     )
 
@@ -27,8 +27,8 @@ def controller_device(entry_id: str, ctrl: Controller) -> DeviceInfo:
 def hub_device(entry_id: str) -> DeviceInfo:
     return DeviceInfo(
         identifiers={(DOMAIN, f"{entry_id}_{HUB_DEVICE}")},
-        name="Irrigation Manager",
-        manufacturer="Irrigation Manager",
+        name="HydroFlow Garden",
+        manufacturer="HydroFlow Garden",
         model="Hub",
     )
 

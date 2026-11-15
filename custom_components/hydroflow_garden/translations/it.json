@@ -2,7 +2,7 @@
   "config": {
     "step": {
       "user": {
-        "title": "Irrigation Manager",
+        "title": "HydroFlow Garden",
         "data": {
           "engine_enabled": "Engine attivo (scrive la config IU ed esegue riempimento, preflight, Smart Irrigation, skip pioggia, log, notifiche)",
           "notify_entities": "Entità notify (notify.send_message)",
@@ -32,7 +32,7 @@
   "options": {
     "step": {
       "init": {
-        "title": "Irrigation Manager",
+        "title": "HydroFlow Garden",
         "data": {
           "engine_enabled": "Engine attivo (scrive la config IU ed esegue riempimento, preflight, Smart Irrigation, skip pioggia, log, notifiche)",
           "notify_entities": "Entità notify (notify.send_message)",

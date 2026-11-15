@@ -12,7 +12,7 @@ from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
-from custom_components.irrigation_manager.const import DOMAIN
+from custom_components.hydroflow_garden.const import DOMAIN
 
 from .conftest import TOPOLOGY
 
@@ -159,8 +159,8 @@ async def test_fill_fires_before_iu_start(hass: HomeAssistant) -> None:
 
 
 async def test_dashboard_render() -> None:
-    from custom_components.irrigation_manager.dashboard import render_dashboard
-    from custom_components.irrigation_manager.model import Controller
+    from custom_components.hydroflow_garden.dashboard import render_dashboard
+    from custom_components.hydroflow_garden.model import Controller
 
     ctrls = [Controller.from_dict(c) for c in TOPOLOGY["controllers"]]
     cfg = render_dashboard(ctrls, "Irrigazione")

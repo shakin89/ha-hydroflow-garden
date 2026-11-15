@@ -40,7 +40,7 @@ from .const import (
 )
 from .model import slugify
 
-TITLE = "Irrigation Manager"
+TITLE = "HydroFlow Garden: Smart and Unlimited"
 
 
 def _num(mn: float, mx: float, step: float = 1, unit: str | None = None) -> sel.NumberSelector:
@@ -105,7 +105,7 @@ class IrrigationManagerConfigFlow(ConfigFlow, domain=DOMAIN):
         return self.async_show_form(step_id="user", data_schema=hub_schema({}))
 
     async def async_step_import(self, import_data: dict) -> ConfigFlowResult:
-        """configuration.yaml ``irrigation_manager:`` → entry + controllers."""
+        """configuration.yaml ``hydroflow_garden:`` → entry + controllers."""
         await self.async_set_unique_id(DOMAIN)
         self._abort_if_unique_id_configured()
         subentries = []

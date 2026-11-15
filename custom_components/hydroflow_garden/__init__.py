@@ -1,4 +1,4 @@
-"""Irrigation Manager: plans Irrigation Unlimited from the UI."""
+"""HydroFlow Garden: plans Irrigation Unlimited from the UI."""
 
 from __future__ import annotations
 
@@ -84,7 +84,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 def _runtime(hass: HomeAssistant) -> IrrigationRuntime:
     for entry in hass.config_entries.async_loaded_entries(DOMAIN):
         return entry.runtime_data
-    raise ServiceValidationError("Irrigation Manager is not loaded")
+    raise ServiceValidationError("HydroFlow Garden is not loaded")
 
 
 def _register_services(hass: HomeAssistant) -> None:

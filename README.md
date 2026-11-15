@@ -1,4 +1,4 @@
-# Irrigation Manager
+# HydroFlow Garden: Smart and Unlimited
 
 Home Assistant integration that plans [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited)
 (IU) from the UI. You describe controllers, zones and programs once; you then
@@ -33,8 +33,8 @@ On top of the schedule it runs what is usually a pile of automations:
 
 ## Install
 
-HACS → Integrations → ⋮ → Custom repositories → `https://github.com/shakin89/ha-irrigation-manager`
-(category *Integration*). Install, restart, then Settings → Devices & services → Add integration → *Irrigation Manager*.
+HACS → Integrations → ⋮ → Custom repositories → `https://github.com/shakin89/ha-hydroflow-garden`
+(category *Integration*). Install, restart, then Settings → Devices & services → Add integration → *HydroFlow Garden*.
 
 Add controllers with **Add controller**: pump entity, zones (id, name, valve switch, optional Smart
 Irrigation sensor), programs (id, name, default time) and optional fill switches and connectivity sensor.
@@ -61,7 +61,7 @@ At first start each value takes the state of the `input_boolean` / `input_number
 typing it, put it once in `configuration.yaml` and remove it after the first start:
 
 ```yaml
-irrigation_manager:
+hydroflow_garden:
   options:
     engine_enabled: false
   controllers:
@@ -79,8 +79,8 @@ irrigation_manager:
 
 ## Actions
 
-- `irrigation_manager.regenerate_dashboard`
-- `irrigation_manager.write_iu_config`: rewrites the IU file and reloads IU
-- `irrigation_manager.rain_skip` (`force: true` to test the suspension)
+- `hydroflow_garden.regenerate_dashboard`
+- `hydroflow_garden.write_iu_config`: rewrites the IU file and reloads IU
+- `hydroflow_garden.rain_skip` (`force: true` to test the suspension)
 
 Design notes: [docs/CONTEXT.md](docs/CONTEXT.md).

@@ -1,6 +1,6 @@
 {
-  "domain": "irrigation_manager",
-  "name": "Irrigation Manager",
+  "domain": "hydroflow_garden",
+  "name": "HydroFlow Garden: Smart and Unlimited",
   "after_dependencies": [
     "frontend",
     "irrigation_unlimited",
@@ -12,11 +12,11 @@
     "@shakin89"
   ],
   "config_flow": true,
-  "documentation": "https://github.com/shakin89/ha-irrigation-manager",
+  "documentation": "https://github.com/shakin89/ha-hydroflow-garden",
   "integration_type": "hub",
   "iot_class": "calculated",
-  "issue_tracker": "https://github.com/shakin89/ha-irrigation-manager/issues",
+  "issue_tracker": "https://github.com/shakin89/ha-hydroflow-garden/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.1.2"
+  "version": "0.2.0"
 }

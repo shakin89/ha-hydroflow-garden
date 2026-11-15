@@ -6,7 +6,7 @@ from homeassistant.config_entries import SOURCE_RECONFIGURE, SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
-from custom_components.irrigation_manager.const import DOMAIN, SUBENTRY_CONTROLLER
+from custom_components.hydroflow_garden.const import DOMAIN, SUBENTRY_CONTROLLER
 
 HUB = {
     "engine_enabled": False, "notify_persistent": True, "rain_now_state": "on",

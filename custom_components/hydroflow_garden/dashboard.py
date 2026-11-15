@@ -3,7 +3,7 @@
 Rendered from the Jinja templates in ``dashboard_templates/`` (custom
 button-card, auto-entities and apexcharts-card required). It is rewritten whenever the
 configuration that shapes it changes (controllers, zones, programs, options)
-and on demand (button / ``irrigation_manager.regenerate_dashboard``). Edits
+and on demand (button / ``hydroflow_garden.regenerate_dashboard``). Edits
 made by hand survive until the next such change.
 
 Lovelace keeps its dashboards collection private, so the dashboard is

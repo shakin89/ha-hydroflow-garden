@@ -14,8 +14,8 @@ import jinja2
 import pytest
 import yaml
 
-from custom_components.irrigation_manager import iu_config
-from custom_components.irrigation_manager.model import (
+from custom_components.hydroflow_garden import iu_config
+from custom_components.hydroflow_garden.model import (
     KIND_NUMBER,
     KIND_SWITCH,
     Controller,
