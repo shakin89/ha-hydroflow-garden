@@ -1,0 +1,147 @@
+{# Rendered by irrigation_manager/dashboard.py into the storage dashboard. #}
+
+type: grid
+cards:
+  - type: heading
+    heading: "Sistema"
+    heading_style: title
+  - type: custom:button-card
+    template: iu_system_toggle
+    entity: switch.iu_{{ ctrl.id }}_system_enabled
+    name: |
+      [[[
+        const stato = entity.state === 'on' ? 'Attivo' : 'Spento';
+        return `Sistema irrigazione {{ ctrl.name }} - ${stato}`;
+      ]]]
+    variables:
+      label: "Sistema {{ ctrl.name }}"
+
+{% if ctrl.fill_switches %}
+  - type: custom:button-card
+    template: iu_system_toggle
+    entity: {{ ctrl.fill_switches[0] }}
+    variables:
+      label: "Riempimento"
+      icon: mdi:water-pump
+{% endif %}
+
+  - type: custom:button-card
+    template: iu_system_toggle
+    entity: switch.iu_{{ ctrl.id }}_adjust_rain
+    variables:
+      label: "Comp. Pioggia"
+      icon: mdi:weather-rainy
+    grid_options:
+      columns: 6
+
+{%- set smart_zones = ctrl.zones | selectattr('smart_irrigation') | list %}
+{%- if smart_zones %}
+{%- set first_si = smart_zones[0].si_sensor %}
+  - type: conditional
+    grid_options:
+      columns: 6
+    conditions:
+      - condition: numeric_state
+        entity: {{ first_si }}
+        above: -1
+    card:
+      type: custom:button-card
+      template: iu_system_toggle
+      entity: {{ first_si }}
+      variables:
+        label: "Reset All Buckets"
+        icon: mdi:bucket-outline
+      tap_action:
+        action: call-service
+        service: smart_irrigation.set_bucket
+        target:
+          entity_id:
+{%- for z in smart_zones %}
+            - {{ z.si_sensor }}
+{%- endfor %}
+        confirmation:
+          text: "Reset tutti i buckets SI per {{ ctrl.name }}?"
+      grid_options:
+        columns: 6
+{%- endif %}
+
+  - type: custom:button-card
+    template: iu_rain_status
+    entity: binary_sensor.iu_sta_piovendo
+    variables:
+      adjust_rain_entity: switch.iu_{{ ctrl.id }}_adjust_rain
+
+  - type: custom:button-card
+    template: iu_system_toggle
+    entity: switch.iu_{{ ctrl.id }}_logging
+    variables:
+      label: "Logging"
+      icon: mdi:file-document-outline
+    grid_options:
+      columns: 6
+
+  - type: custom:button-card
+    template: iu_system_toggle
+    entity: switch.iu_{{ ctrl.id }}_notifications
+    variables:
+      label: "Notifiche"
+      icon: mdi:bell-outline
+    grid_options:
+      columns: 6
+{%- if ctrl.availability_entity %}
+  - type: custom:button-card
+    template: iu_system_toggle
+    entity: switch.iu_{{ ctrl.id }}_preflight
+    name: |
+      [[[
+        const stato = entity.state === 'on' ? 'Attivo' : 'Spento';
+        return `Preflight device - ${stato}`;
+      ]]]
+    variables:
+      label: "Preflight Device"
+      icon: mdi:lan-check
+  - type: custom:button-card
+    template: iu_fill_card
+    variables:
+      name: "Timeout Preflight"
+      icon: mdi:timer-alert-outline
+      durata: number.iu_{{ ctrl.id }}_preflight_timeout_minutes
+    grid_options:
+      columns: 12
+{%- endif %}
+{%- if ctrl.fill_switches %}
+  - type: custom:button-card
+    template: iu_fill_card
+    variables:
+      name: "Anticipo Riempimento"
+      icon: mdi:clock-start
+      durata: number.iu_{{ ctrl.id }}_fill_lead_minutes
+    grid_options:
+      columns: 12
+  - type: custom:button-card
+    template: iu_fill_card
+    variables:
+      name: "Durata Riempimento"
+      icon: mdi:clock-end
+      durata: number.iu_{{ ctrl.id }}_fill_duration_minutes
+    grid_options:
+      columns: 12
+{%- endif %}
+  - type: button
+    entity: button.iu_{{ ctrl.id }}_test
+    name: "Test zone"
+    icon: mdi:test-tube
+    tap_action:
+      action: perform-action
+      perform_action: button.press
+      target:
+        entity_id: button.iu_{{ ctrl.id }}_test
+      confirmation:
+        text: "Avviare il test di tutte le zone di {{ ctrl.name }}?"
+    grid_options:
+      columns: 6
+  - type: tile
+    entity: number.iu_{{ ctrl.id }}_test_duration
+    name: "Durata test"
+    grid_options:
+      columns: 6

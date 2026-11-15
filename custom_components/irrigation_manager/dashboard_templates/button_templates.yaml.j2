@@ -1,0 +1,940 @@
+{# Rendered by irrigation_manager/dashboard.py into the storage dashboard. #}
+
+iu_controller_status:
+  variables:
+    name: "Controller"
+    # binary_sensor status del device ESPHome, "" se il controller non ne ha uno.
+    # Serve a distinguere una sospensione da device offline (azione richiesta)
+    # da una sospensione per pioggia (nessuna azione richiesta).
+    availability_entity: ""
+    # input_select con il motivo dell'ultima sospensione. L'attributo
+    # `suspended` dice CHE e' sospeso, non PERCHE'.
+    suspend_reason_entity: ""
+  show_name: true
+  show_icon: true
+  # Il dettaglio sta nella label (seconda riga), non nel name: lo stato IU
+  # grezzo ("on"/"off") non aggiunge niente che il name non dica gia'.
+  show_state: false
+  show_label: true
+  name: "[[[ return variables.name ]]]"
+  label: ""
+  icon: mdi:sprinkler
+  color_type: icon
+  styles:
+    grid:
+      # Icona a min-content e testo a 1fr: prima era `30% min-content`, che
+      # non manda a capo e sfonda la card appena il name supera la larghezza
+      # disponibile (es. "Sospeso (device offline) fino alle 26/08 00:00").
+      - grid-template-columns: min-content 1fr
+      - grid-template-rows: auto auto
+      - grid-template-areas: '"i n" "i l"'
+      - align-items: center
+      - column-gap: 12px
+    card:
+      - padding: 12px
+    icon:
+      - color: >-
+          [[[
+            if (entity.state === 'on') return 'var(--state-active-color, #4caf50)';
+            return 'var(--state-icon-color, grey)';
+          ]]]
+      - height: 36px
+      - width: 36px
+      - justify-self: start
+    name:
+      - font-weight: bold
+      - font-size: 14px
+      - justify-self: start
+      - text-align: start
+      # Senza questi il testo lungo esce dal blocco invece di andare a capo.
+      - white-space: normal
+      - overflow-wrap: anywhere
+      - line-height: 1.25
+    label:
+      - justify-self: start
+      - text-align: start
+      - font-size: 12px
+      - color: var(--secondary-text-color)
+      - white-space: normal
+      - overflow-wrap: anywhere
+      - line-height: 1.25
+  # NB: l'ordine conta, button-card ferma alla prima corrispondenza.
+  # Device offline prima di sospeso: se valgono entrambe, quella azionabile
+  # per l'utente e' il device giu'.
+  state:
+    - operator: template
+      value: |
+        [[[
+          const av = variables.availability_entity;
+          return av !== '' && states[av] !== undefined && states[av].state !== 'on';
+        ]]]
+      name: "[[[ return variables.name + ' - Device offline' ]]]"
+      label: "Non raggiungibile - irrigazione bloccata"
+      icon: mdi:lan-disconnect
+      styles:
+        card:
+          - background-color: "rgba(244, 67, 54, 0.15)"
+        icon:
+          - color: "var(--error-color, #f44336)"
+        label:
+          - color: "var(--error-color, #f44336)"
+    - operator: template
+      value: |
+        [[[ return entity.attributes.suspended != null ]]]
+      name: |
+        [[[
+          const re = variables.suspend_reason_entity;
+          const motivo = (re !== '' && states[re] !== undefined) ? states[re].state : 'Nessuna';
+          const causa = (motivo === 'Nessuna' || motivo === 'unknown' || motivo === 'unavailable')
+            ? '' : ' (' + motivo.toLowerCase() + ')';
+          return variables.name + ' - Sospeso' + causa;
+        ]]]
+      label: |
+        [[[
+          const fine = new Date(entity.attributes.suspended);
+          const ora = fine.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'});
+          const oggi = new Date().toDateString() === fine.toDateString();
+          if (oggi) return 'Riprende alle ' + ora;
+          return 'Riprende il ' + fine.toLocaleDateString('it-IT', {day: '2-digit', month: '2-digit'}) + ' alle ' + ora;
+        ]]]
+      icon: |
+        [[[
+          const re = variables.suspend_reason_entity;
+          const motivo = (re !== '' && states[re] !== undefined) ? states[re].state : 'Nessuna';
+          if (motivo === 'Pioggia') return 'mdi:weather-pouring';
+          if (motivo === 'Device offline') return 'mdi:lan-disconnect';
+          return 'mdi:pause-octagon';
+        ]]]
+      styles:
+        card:
+          - background-color: "rgba(255, 152, 0, 0.15)"
+        icon:
+          - color: "var(--warning-color, #ff9800)"
+    - value: "on"
+      name: "[[[ return variables.name + ' - Irrigando' ]]]"
+      label: |
+        [[[
+          const z = entity.attributes.current_zone;
+          return (z && z !== 'not running') ? 'Zona ' + z : 'In corso';
+        ]]]
+      icon: mdi:sprinkler
+      styles:
+        card:
+          - background-color: "rgba(76, 175, 80, 0.1)"
+    - value: "off"
+      name: "[[[ return variables.name + ' - Inattivo' ]]]"
+      label: ""
+      icon: mdi:sprinkler-variant
+
+iu_program_header:
+  variables:
+    name: "Programma"
+    controller_entity: ""   # binary_sensor.irrigation_unlimited_c<N>_m
+    sequence_base: ""       # binary_sensor.irrigation_unlimited_c<N>_s
+    program_prefix: ""      # "P1 " — prefisso nome delle sequence del programma
+    day_prefix: ""          # switch.iu_<ctrl>_p<N> (toggle zona/giorno)
+    zone_ids: []
+    # Entity IU = c<N>_s<posizione in config>, non sequence_id, e un programma
+    # può avere più sequence (una per insieme di zone giornaliero): la
+    # posizione cambia a ogni --update-iu, quindi si risolve a runtime da
+    # sequence_status del controller. Priorità: sequence in corso (anche in
+    # pausa) > sequence con le zone abilitate oggi > prima del programma.
+    sequence_entity: >
+      [[[
+        const seqs = (hass.states[variables.controller_entity]?.attributes?.sequence_status || [])
+          .filter(s => s.name.startsWith(variables.program_prefix));
+        if (!seqs.length) return '';
+        const eid = s => variables.sequence_base + (s.index + 1);
+        let seq = seqs.find(s => hass.states[eid(s)]?.state === 'on');
+        if (!seq) {
+          const day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
+          const p = variables.day_prefix;
+          const today = variables.zone_ids.filter(z =>
+            hass.states[`${p}_z${z}_enabled`]?.state === 'on' &&
+            hass.states[`${p}_z${z}_${day}`]?.state === 'on'
+          ).join(',');
+          seq = seqs.find(s => s.zones.flatMap(z => z.zone_ids).join(',') === today) || seqs[0];
+        }
+        return eid(seq);
+      ]]]
+  show_name: true
+  show_icon: true
+  show_state: true
+  icon: mdi:calendar-check
+  color_type: icon
+  name: "[[[ return variables.name ]]]"
+  tap_action:
+    action: toggle
+  styles:
+    card:
+      - padding: 10px
+    grid:
+      - grid-template-areas: '"i n s"'
+      - grid-template-columns: 10% 70% 20%
+      - grid-template-rows: min-content
+    icon:
+      - justify-self: start
+      - width: 30px
+      - color: >-
+          [[[
+            if (entity.state === 'on') return 'var(--state-active-color, #4caf50)';
+            return 'var(--state-icon-color, grey)';
+          ]]]
+    name:
+      - justify-self: start
+      - font-weight: bold
+      - font-size: 16px
+    state:
+      - justify-self: end
+    custom_fields:
+      action:
+        - justify-self: center
+      pause:
+        - justify-self: center
+      skip:
+        - justify-self: center
+  custom_fields:
+    action:
+      card:
+        type: custom:button-card
+        entity: "[[[ return variables.sequence_entity ]]]"
+        show_name: false
+        show_icon: true
+        icon: >
+          [[[
+            return hass.states[variables.sequence_entity]?.state === 'on' ? 'mdi:stop-circle-outline' : 'mdi:play-circle-outline';
+          ]]]
+        tap_action:
+          action: call-service
+          service: >
+            [[[
+              return hass.states[variables.sequence_entity]?.state === 'on' ? 'irrigation_unlimited.cancel' : 'irrigation_unlimited.manual_run';
+            ]]]
+          service_data:
+            entity_id: "[[[ return variables.sequence_entity ]]]"
+        styles:
+          card:
+            - background: none
+            - box-shadow: none
+            - padding: 0px
+            - border: none
+            - overflow: visible
+            - min-width: 40px
+            - min-height: 40px
+          icon:
+            - color: >
+                [[[
+                  return hass.states[variables.sequence_entity]?.state === 'on' ? '#f44336' : '#2196f3';
+                ]]]
+            - --mdc-icon-size: 30px
+            - justify-self: center
+            - width: 30px
+            - height: 30px
+    pause:
+      card:
+        type: custom:button-card
+        entity: "[[[ return variables.sequence_entity ]]]"
+        show_name: false
+        show_icon: true
+        # Pause se sequence in run normale, Resume se status=paused.
+        # irrigation_unlimited.pause/resume su sequence entity (no sequence_id).
+        icon: >
+          [[[
+            const paused = hass.states[variables.sequence_entity]?.attributes?.status === 'paused';
+            return paused ? 'mdi:play-circle-outline' : 'mdi:pause-circle-outline';
+          ]]]
+        tap_action:
+          action: call-service
+          service: >
+            [[[
+              const paused = hass.states[variables.sequence_entity]?.attributes?.status === 'paused';
+              return paused ? 'irrigation_unlimited.resume' : 'irrigation_unlimited.pause';
+            ]]]
+          service_data:
+            entity_id: "[[[ return variables.sequence_entity ]]]"
+        styles:
+          card:
+            - background: none
+            - box-shadow: none
+            - padding: 0px
+            - border: none
+            - overflow: visible
+            - min-width: 40px
+            - min-height: 40px
+          icon:
+            - color: >
+                [[[
+                  const paused = hass.states[variables.sequence_entity]?.attributes?.status === 'paused';
+                  return paused ? '#4caf50' : '#ff9800';
+                ]]]
+            - --mdc-icon-size: 30px
+            - justify-self: center
+            - width: 30px
+            - height: 30px
+    skip:
+      card:
+        type: custom:button-card
+        entity: "[[[ return variables.sequence_entity ]]]"
+        show_name: false
+        show_icon: true
+        icon: mdi:skip-next-outline
+        # irrigation_unlimited.skip su sequence entity (passa a sequence-zone successiva).
+        tap_action:
+          action: call-service
+          service: irrigation_unlimited.skip
+          service_data:
+            entity_id: "[[[ return variables.sequence_entity ]]]"
+        styles:
+          card:
+            - background: none
+            - box-shadow: none
+            - padding: 0px
+            - border: none
+            - overflow: visible
+            - min-width: 40px
+            - min-height: 40px
+          icon:
+            - color: "#2196f3"
+            - --mdc-icon-size: 30px
+            - justify-self: center
+            - width: 30px
+            - height: 30px
+  state:
+    - value: 'on'
+      icon: mdi:toggle-switch
+      styles:
+        grid:
+          # Quando sequence running: skip + pause + stop. Altrimenti solo play.
+          - grid-template-areas: >
+              [[[
+                const seqOn = hass.states[variables.sequence_entity]?.state === 'on';
+                return seqOn ? '"i n s skip pause action"' : '"i n s action"';
+              ]]]
+          - grid-template-columns: >
+              [[[
+                const seqOn = hass.states[variables.sequence_entity]?.state === 'on';
+                return seqOn ? '10% 40% 22% 9% 9% 10%' : '10% 60% 22% 8%';
+              ]]]
+        custom_fields:
+          action:
+            - display: "[[[ return variables.sequence_entity ? 'block' : 'none'; ]]]"
+          pause:
+            - display: >
+                [[[
+                  return hass.states[variables.sequence_entity]?.state === 'on' ? 'block' : 'none';
+                ]]]
+          skip:
+            - display: >
+                [[[
+                  return hass.states[variables.sequence_entity]?.state === 'on' ? 'block' : 'none';
+                ]]]
+    - value: 'off'
+      icon: mdi:toggle-switch-off-outline
+      styles:
+        grid:
+          - grid-template-areas: '"i n s"'
+          - grid-template-columns: 10% 70% 20%
+        custom_fields:
+          action: [display: none]
+          pause: [display: none]
+          skip: [display: none]
+
+iu_weekday_toggle:
+  show_name: true
+  show_icon: false
+  show_state: false
+  color_type: card
+  tap_action:
+    action: toggle
+  styles:
+    card:
+      - padding: 4px
+      - background-color: >-
+          [[[
+            if (!entity || !entity.state) return 'var(--card-background-color, #444)';
+            if (entity.state === 'on') return 'var(--state-active-color, #4caf50)';
+            return 'var(--card-background-color, #444)';
+          ]]]
+    name:
+      - font-weight: bold
+      - font-size: 10px
+      - color: >-
+          [[[
+            if (!entity || !entity.state) return 'var(--primary-text-color)';
+            if (entity.state === 'on') return 'white';
+            return 'var(--primary-text-color)';
+          ]]]
+
+iu_month_toggle:
+  show_name: true
+  show_icon: false
+  show_state: false
+  color_type: card
+  tap_action:
+    action: toggle
+  styles:
+    card:
+      - padding: 2px
+      - background-color: >-
+          [[[
+            if (entity.state === 'on') return 'var(--state-active-color, #4caf50)';
+            return 'var(--card-background-color, #444)';
+          ]]]
+    name:
+      - font-weight: bold
+      - font-size: 14px
+      - color: >-
+          [[[
+            if (entity.state === 'on') return 'white';
+            return 'var(--primary-text-color)';
+          ]]]
+
+iu_eco_toggle:
+  variables:
+    cycles_entity: ""
+    soak_entity: ""
+  show_name: false
+  show_icon: true
+  show_state: false
+  color_type: icon
+  icon: mdi:leaf
+  tap_action:
+    action: toggle
+  styles:
+    card:
+      - padding: 12px
+      - height: auto
+    grid:
+      - grid-template-areas: '"i eco"'
+      - grid-template-rows: auto
+      - grid-template-columns: 20% 80%
+    icon:
+      - height: 40px
+      - width: 40px
+      - justify-self: start
+      - color: >-
+          [[[
+            if (entity.state === 'on') return '#4caf50';
+            return 'grey';
+          ]]]
+    custom_fields:
+      eco:
+        - font-size: 14px
+        - font-weight: bold
+        - justify-self: start
+      cicli:
+        - font-size: 12px
+      pausa:
+        - font-size: 12px
+  custom_fields:
+    eco: "Eco mode"
+    cicli:
+      card:
+        type: custom:numberbox-card
+        entity: "[[[ return variables.cycles_entity ]]]"
+        name: "Cicli"
+        border: false
+        min: 1
+        step: 1
+        initial: 1
+        unit: false
+    pausa:
+      card:
+        type: custom:numberbox-card
+        entity: "[[[ return variables.soak_entity ]]]"
+        name: "Pausa"
+        unit: s
+        border: false
+        initial: 0
+        speed: 200
+        delay: 500
+        step: 1
+  state:
+    - value: 'on'
+      styles:
+        grid:
+          - grid-template-areas: '"i eco eco eco" "cicli cicli pausa pausa"'
+          - grid-template-columns: 10% 40% 20% 30%
+        custom_fields:
+          cicli: [display: block]
+          pausa: [display: block]
+    - value: 'off'
+      styles:
+        grid:
+          - grid-template-areas: '"i eco"'
+          - grid-template-columns: 10% 90%
+        custom_fields:
+          cicli: [display: none]
+          pausa: [display: none]
+
+# iu_zone_row: zone abilita/durata + 7 sub-buttons giorni nested.
+# I sub-buttons sono visibili solo quando la zona è abilitata (state: on).
+iu_zone_row:
+  variables:
+    zone_name: "Zona"
+    duration_entity: ""
+    duration_adjusted: ""
+    zone_entity: ""
+    day_mon: ""
+    day_tue: ""
+    day_wed: ""
+    day_thu: ""
+    day_fri: ""
+    day_sat: ""
+    day_sun: ""
+  show_name: true
+  show_icon: true
+  show_state: false
+  color_type: icon
+  icon: mdi:sprinkler-variant
+  name: "[[[ return variables.zone_name ]]]"
+  tap_action:
+    action: toggle
+  custom_fields:
+    duration_adjusted:
+      card:
+        type: custom:button-card
+        entity: "[[[ return variables.duration_adjusted ]]]"
+        show_name: false
+        show_icon: false
+        show_state: false
+        show_label: true
+        label: >
+          [[[
+            if (!variables.duration_adjusted) return '';
+            const nd = hass.states[variables.duration_adjusted]?.attributes?.next_duration;
+            return nd != null ? 'Eff.: ' + nd : 'n/a';
+          ]]]
+        styles:
+          card:
+            - background: none
+            - box-shadow: none
+            - border: none
+            - padding: 0px
+          label:
+            - font-size: 13px
+            - color: var(--primary-text-color)
+            - justify-self: left
+            - filter: opacity(70%)
+    duration:
+      card:
+        type: custom:numberbox-card
+        entity: "[[[ return variables.duration_entity ]]]"
+        border: false
+        unit: time
+        name: false
+        icon: false
+        speed: 200
+        icon_plus: mdi:chevron-up
+        icon_minus: mdi:chevron-down
+        initial: 300
+        min: 0
+        max: 60
+        step: 1
+        delay: 500
+    mon:
+      card:
+        type: custom:button-card
+        template: iu_weekday_toggle
+        entity: "[[[ return variables.day_mon ]]]"
+        name: "Lun"
+    tue:
+      card:
+        type: custom:button-card
+        template: iu_weekday_toggle
+        entity: "[[[ return variables.day_tue ]]]"
+        name: "Mar"
+    wed:
+      card:
+        type: custom:button-card
+        template: iu_weekday_toggle
+        entity: "[[[ return variables.day_wed ]]]"
+        name: "Mer"
+    thu:
+      card:
+        type: custom:button-card
+        template: iu_weekday_toggle
+        entity: "[[[ return variables.day_thu ]]]"
+        name: "Gio"
+    fri:
+      card:
+        type: custom:button-card
+        template: iu_weekday_toggle
+        entity: "[[[ return variables.day_fri ]]]"
+        name: "Ven"
+    sat:
+      card:
+        type: custom:button-card
+        template: iu_weekday_toggle
+        entity: "[[[ return variables.day_sat ]]]"
+        name: "Sab"
+    sun:
+      card:
+        type: custom:button-card
+        template: iu_weekday_toggle
+        entity: "[[[ return variables.day_sun ]]]"
+        name: "Dom"
+    all:
+      card:
+        type: custom:button-card
+        show_name: true
+        show_icon: false
+        show_state: false
+        name: "All"
+        color_type: card
+        tap_action:
+          action: call-service
+          service: >
+            [[[
+              const days = [
+                variables.day_mon, variables.day_tue, variables.day_wed,
+                variables.day_thu, variables.day_fri, variables.day_sat, variables.day_sun
+              ];
+              const allOn = days.every(d => hass.states[d]?.state === 'on');
+              return allOn ? 'switch.turn_off' : 'switch.turn_on';
+            ]]]
+          service_data:
+            entity_id: >
+              [[[
+                return [
+                  variables.day_mon, variables.day_tue, variables.day_wed,
+                  variables.day_thu, variables.day_fri, variables.day_sat, variables.day_sun
+                ];
+              ]]]
+        styles:
+          card:
+            - padding: 4px
+            - background-color: >-
+                [[[
+                  const days = [
+                    variables.day_mon, variables.day_tue, variables.day_wed,
+                    variables.day_thu, variables.day_fri, variables.day_sat, variables.day_sun
+                  ];
+                  const allOn = days.every(d => hass.states[d]?.state === 'on');
+                  if (allOn) return 'var(--state-active-color, #4caf50)';
+                  return 'var(--card-background-color, #444)';
+                ]]]
+          name:
+            - font-weight: bold
+            - font-size: 10px
+            - color: >-
+                [[[
+                  const days = [
+                    variables.day_mon, variables.day_tue, variables.day_wed,
+                    variables.day_thu, variables.day_fri, variables.day_sat, variables.day_sun
+                  ];
+                  const allOn = days.every(d => hass.states[d]?.state === 'on');
+                  if (allOn) return 'white';
+                  return 'var(--primary-text-color)';
+                ]]]
+    action:
+      card:
+        type: custom:button-card
+        entity: "[[[ return variables.zone_entity ]]]"
+        show_name: false
+        show_icon: true
+        icon: >
+          [[[
+            return hass.states[variables.zone_entity]?.state === 'on' ? 'mdi:stop-circle-outline' : 'mdi:play-circle-outline';
+          ]]]
+        tap_action:
+          action: call-service
+          service: >
+            [[[
+              return hass.states[variables.zone_entity]?.state === 'on' ? 'irrigation_unlimited.cancel' : 'irrigation_unlimited.manual_run';
+            ]]]
+          service_data: >
+            [[[
+              if (hass.states[variables.zone_entity]?.state === 'on') {
+                return { entity_id: variables.zone_entity };
+              }
+              const adj = hass.states[variables.zone_entity]?.attributes?.adjustment || '';
+              const timeStr = adj.startsWith('=') ? adj.slice(1) : adj;
+              const parts = timeStr.split(':');
+              return {
+                entity_id: variables.zone_entity,
+                time: {
+                  hours: parseInt(parts[0] || '0'),
+                  minutes: parseInt(parts[1] || '0'),
+                  seconds: parseInt(parts[2] || '0')
+                }
+              };
+            ]]]
+        styles:
+          card:
+            - background: none
+            - box-shadow: none
+            - padding: 0px
+            - border: none
+            - overflow: visible
+            - min-width: 40px
+            - min-height: 40px
+          icon:
+            - color: >
+                [[[
+                  return hass.states[variables.zone_entity]?.state === 'on' ? '#f44336' : '#2196f3';
+                ]]]
+            - --mdc-icon-size: 30px
+            - justify-self: center
+            - width: 30px
+            - height: 30px
+  styles:
+    card:
+      - padding: 4px
+    grid:
+      - grid-template-areas: '"i n duration"'
+      - grid-template-columns: 15% 35% 50%
+      - grid-template-rows: auto
+    icon:
+      - color: >-
+          [[[
+            if (entity.state === 'on') return '#4caf50';
+            return 'grey';
+          ]]]
+      - height: 30px
+    name:
+      - font-size: 13px
+      - justify-self: start
+    custom_fields:
+      duration:
+        - justify-self: end
+        - font-size: 13px
+  state:
+    - value: 'on'
+      styles:
+        grid:
+          - grid-template-areas: '"i n n n duration_adjusted duration_adjusted duration action" "mon tue wed thu fri sat sun all"'
+          - grid-template-columns: 12.5% 12.5% 12.5% 12.5% 12.5% 12.5% 12.5% 12.5%
+          - grid-template-rows: auto auto
+        custom_fields:
+          duration:
+            - filter: opacity(100%)
+          duration_adjusted:
+            - display: block
+            - filter: opacity(100%)
+          mon: [display: block]
+          tue: [display: block]
+          wed: [display: block]
+          thu: [display: block]
+          fri: [display: block]
+          sat: [display: block]
+          sun: [display: block]
+          all: [display: block]
+          action: [display: block]
+    - value: 'off'
+      styles:
+        grid:
+          - grid-template-areas: '"i n duration_adjusted duration"'
+          - grid-template-columns: 15% 35% 25% 25%
+        custom_fields:
+          duration:
+            - filter: opacity(50%)
+          duration_adjusted:
+            - display: block
+            - filter: opacity(50%)
+          mon: [display: none]
+          tue: [display: none]
+          wed: [display: none]
+          thu: [display: none]
+          fri: [display: none]
+          sat: [display: none]
+          sun: [display: none]
+          all: [display: none]
+          action: [display: none]
+
+iu_system_toggle:
+  variables:
+    label: "Toggle"
+    icon: "mdi:toggle-switch"
+  show_name: true
+  show_icon: true
+  show_state: false
+  color_type: icon
+  icon: "[[[ return variables.icon ]]]"
+  name: "[[[ return variables.label ]]]"
+  tap_action:
+    action: toggle
+  styles:
+    card:
+      - padding: 8px
+    grid:
+      - grid-template-areas: '"i n"'
+      - grid-template-columns: 20% 80%
+      - grid-template-rows: auto
+    icon:
+      - width: 30px
+      - color: >-
+          [[[
+            if (entity.state === 'on') return '#4caf50';
+            return 'grey';
+          ]]]
+    name:
+      - font-weight: bold
+      - font-size: 14px
+      - justify-self: start
+
+iu_test_card:
+  show_name: true
+  show_icon: true
+  variables:
+    name: "Durata"
+    durata: ""
+  icon: mdi:test-tube
+  name: "Test"
+  color_type: icon
+  tap_action:
+    action: toggle
+  styles:
+    card:
+      - padding: 8px
+    grid:
+      - grid-template-areas: '"i n durata"'
+      - grid-template-rows: auto
+      - grid-template-columns: 15% 35% 50%
+    icon:
+      - color: "#ff9800"
+      - height: 30px
+      - justify-self: start
+    name:
+      - justify-self: start
+      - font-weight: bold
+      - font-size: 14px
+  custom_fields:
+    durata:
+      card:
+        type: custom:numberbox-card
+        entity: "[[[ return variables.durata ]]]"
+        border: false
+        unit: time
+        name: false
+        icon: false
+        speed: 200
+        icon_plus: mdi:chevron-up
+        icon_minus: mdi:chevron-down
+        initial: 30
+        min: 0
+        max: 300
+        step: 1
+        delay: 500
+
+iu_rain_status:
+  variables:
+    adjust_rain_entity: ""
+  show_name: true
+  show_icon: true
+  show_state: true
+  color_type: icon
+  icon: mdi:weather-pouring
+  name: >
+    [[[
+      if (entity.state === 'on') {
+        if (variables.adjust_rain_entity && hass.states[variables.adjust_rain_entity]?.state === 'on')
+          return 'Piove - Irrigazione Bloccata';
+        return 'Piove - Blocco Ignorato';
+      }
+      return 'Sensore Pioggia - OK';
+    ]]]
+  styles:
+    card:
+      - padding: 8px
+      - background-color: >-
+          [[[
+            if (entity.state === 'on') return 'rgba(33, 150, 243, 0.1)';
+            return '';
+          ]]]
+    icon:
+      - height: 30px
+      - color: >-
+          [[[
+            if (!entity || !entity.state) return 'grey';
+            if (entity.state === 'on') return '#2196f3';
+            return 'grey';
+          ]]]
+      - justify-self: start
+    name:
+      - justify-self: start
+    grid:
+      - grid-template-areas: '"i n s"'
+      - grid-template-rows: auto
+      - grid-template-columns: "15% 65% 20%"
+
+iu_fill_card:
+  show_name: true
+  show_icon: true
+  variables:
+    name: "Riempimento"
+    durata: ""
+    icon: ""
+  icon: "[[[ return variables.icon ]]]"
+  name: "[[[ return variables.name ]]]"
+  color_type: icon
+  styles:
+    card:
+      - padding: 8px
+    grid:
+      - grid-template-areas: '"i n durata"'
+      - grid-template-rows: auto
+      - grid-template-columns: 10% 45% 45%
+    icon:
+      - color: "#ff9800"
+      - height: 30px
+      - justify-self: start
+    name:
+      - justify-self: start
+      - font-weight: bold
+      - font-size: 14px
+  custom_fields:
+    durata:
+      card:
+        type: custom:numberbox-card
+        entity: "[[[ return variables.durata ]]]"
+        border: false
+        unit: time
+        name: false
+        icon: false
+        speed: 200
+        icon_plus: mdi:plus
+        icon_minus: mdi:minus
+        min: 0
+        max: 300
+        step: 1
+        delay: 500
+
+iu_tab_button:
+  variables:
+    label: "Tab"
+    icon: "mdi:tab"
+    option: ""
+  show_name: true
+  show_icon: true
+  color_type: icon
+  icon: "[[[ return variables.icon ]]]"
+  name: "[[[ return variables.label ]]]"
+  tap_action:
+    action: call-service
+    service: select.select_option
+    service_data:
+      entity_id: "[[[ return entity.entity_id ]]]"
+      option: "[[[ return variables.option ]]]"
+  state:
+    - value: "[[[ return variables.option ]]]"
+      styles:
+        card:
+          - border: "2px solid var(--state-active-color)"
+        icon:
+          - color: "var(--state-active-color)"
+  styles:
+    card:
+      - padding: 8px
+      - border: "2px solid transparent"
+    grid:
+      - grid-template-areas: '"i n"'
+      - grid-template-columns: 30% 70%
+      - grid-template-rows: auto
+    icon:
+      - width: 24px
+      - color: "grey"
+    name:
+      - font-weight: bold
+      - font-size: 13px
+      - justify-self: start

@@ -1,0 +1,146 @@
+"""Irrigation Manager: plans Irrigation Unlimited from the UI."""
+
+from __future__ import annotations
+
+import logging
+
+import voluptuous as vol
+from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
+from homeassistant.const import Platform
+from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.exceptions import ServiceValidationError
+from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers.typing import ConfigType
+
+from .const import DOMAIN, REASON_NONE
+from .model import suspend_reason_key
+from .runtime import HUB_SPECS, IrrigationRuntime, controllers_of
+from .values import ValueStore
+
+_LOGGER = logging.getLogger(__name__)
+
+PLATFORMS = [
+    Platform.BINARY_SENSOR,
+    Platform.BUTTON,
+    Platform.NUMBER,
+    Platform.SELECT,
+    Platform.SENSOR,
+    Platform.SWITCH,
+    Platform.TIME,
+]
+
+# One-time import of an existing topology from configuration.yaml; remove the
+# block afterwards. The structure mirrors the controller subentry data.
+_ZONE = vol.Schema({
+    vol.Required("id"): vol.Coerce(int),
+    vol.Required("name"): cv.string,
+    vol.Required("entity_id"): cv.entity_id,
+    vol.Optional("si_sensor", default=""): vol.Any("", cv.entity_id),
+})
+_PROGRAM = vol.Schema({
+    vol.Required("id"): vol.Coerce(int),
+    vol.Required("name"): cv.string,
+    vol.Optional("default_time", default="06:00"): cv.string,
+})
+_CONTROLLER = vol.Schema({
+    vol.Required("id"): cv.slug,
+    vol.Required("name"): cv.string,
+    vol.Optional("iu_controller_id"): cv.slug,
+    vol.Required("entity_id"): cv.entity_id,
+    vol.Optional("max_zone_duration", default="00:40"): cv.string,
+    vol.Required("zones"): [_ZONE],
+    vol.Required("programs"): [_PROGRAM],
+    vol.Optional("fill_switches", default=[]): cv.entity_ids,
+    vol.Optional("fill_lead_minutes", default=120): vol.Coerce(int),
+    vol.Optional("fill_duration_minutes", default=90): vol.Coerce(int),
+    vol.Optional("availability_entity", default=""): vol.Any("", cv.entity_id),
+    vol.Optional("preflight_timeout_minutes", default=15): vol.Coerce(int),
+})
+CONFIG_SCHEMA = vol.Schema(
+    {DOMAIN: vol.Schema({
+        vol.Required("controllers"): [_CONTROLLER],
+        vol.Optional("options", default={}): dict,
+    })},
+    extra=vol.ALLOW_EXTRA,
+)
+
+
+async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
+    if DOMAIN in config and not hass.config_entries.async_entries(DOMAIN):
+        hass.async_create_task(hass.config_entries.flow.async_init(
+            DOMAIN, context={"source": SOURCE_IMPORT}, data=config[DOMAIN]))
+    _register_services(hass)
+    return True
+
+
+def _runtime(hass: HomeAssistant) -> IrrigationRuntime:
+    for entry in hass.config_entries.async_loaded_entries(DOMAIN):
+        return entry.runtime_data
+    raise ServiceValidationError("Irrigation Manager is not loaded")
+
+
+def _register_services(hass: HomeAssistant) -> None:
+    async def regenerate_dashboard(call: ServiceCall) -> None:
+        from .dashboard import async_generate_dashboard
+        await async_generate_dashboard(_runtime(hass))
+
+    async def write_iu_config(call: ServiceCall) -> None:
+        await _runtime(hass).async_write_iu_config(force=True)
+
+    async def rain_skip(call: ServiceCall):
+        rt = _runtime(hass)
+        if rt.engine is None:
+            raise ServiceValidationError("The engine is off")
+        skipped = await rt.engine.async_rain_skip(force=call.data.get("force", False))
+        return {"skipped": skipped, "forecast": rt.forecast}
+
+    hass.services.async_register(DOMAIN, "regenerate_dashboard", regenerate_dashboard)
+    hass.services.async_register(DOMAIN, "write_iu_config", write_iu_config)
+    hass.services.async_register(
+        DOMAIN, "rain_skip", rain_skip,
+        schema=vol.Schema({vol.Optional("force", default=False): cv.boolean}),
+        supports_response=SupportsResponse.OPTIONAL,
+    )
+
+
+async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    values = ValueStore(hass, entry.entry_id)
+    specs = {s.key: s for s in HUB_SPECS}
+    extra = {}
+    from .model import controller_specs
+    for _, ctrl in controllers_of(entry):
+        specs.update({s.key: s for s in controller_specs(ctrl)})
+        extra[suspend_reason_key(ctrl)] = REASON_NONE
+    seeded = await values.async_load(specs, extra)
+    if seeded:
+        _LOGGER.info("Seeded %s values from the existing input_* helpers", len(seeded))
+
+    rt = IrrigationRuntime(hass, entry, values)
+    entry.runtime_data = rt
+    await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await rt.async_start()
+    if rt.engine_enabled:
+        from .engine import Engine
+        rt.engine = Engine(rt)
+        await rt.engine.async_start()
+
+    from .dashboard import async_dashboard_on_setup
+    await async_dashboard_on_setup(rt)
+    entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+    return True
+
+
+async def _async_update_listener(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await hass.config_entries.async_reload(entry.entry_id)
+
+
+async def async_unload_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    rt: IrrigationRuntime = entry.runtime_data
+    if rt.engine is not None:
+        await rt.engine.async_stop()
+    await rt.async_stop()
+    return await hass.config_entries.async_unload_platforms(entry, PLATFORMS)
+
+
+async def async_remove_entry(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    await ValueStore(hass, entry.entry_id).async_remove()

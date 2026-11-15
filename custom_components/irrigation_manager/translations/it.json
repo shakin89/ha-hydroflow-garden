@@ -1,0 +1,139 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Irrigation Manager",
+        "data": {
+          "engine_enabled": "Engine attivo (scrive la config IU ed esegue riempimento, preflight, Smart Irrigation, skip pioggia, log, notifiche)",
+          "notify_entities": "Entità notify (notify.send_message)",
+          "notify_services": "Servizi notify legacy (es. notify.mobile_app_telefono)",
+          "notify_persistent": "Crea anche notifiche persistenti",
+          "weather_entity": "Entità meteo per la previsione giornaliera",
+          "rain_now_entity": "Entità che indica pioggia in corso",
+          "rain_now_state": "Stato di quell'entità che significa pioggia",
+          "prob_threshold": "Salta se la probabilità di pioggia è almeno",
+          "mm_threshold": "...e la pioggia prevista è almeno",
+          "skip_time": "Ora del controllo previsione",
+          "skip_hours": "Durata della sospensione",
+          "log_path": "File di log eventi (relativo a /config)",
+          "log_max_mb": "Ruota il log oltre",
+          "log_keep": "Copie ruotate da tenere",
+          "iu_config_path": "File Irrigation Unlimited (incluso da configuration.yaml)",
+          "dashboard_url": "Percorso URL dashboard (deve contenere un trattino)",
+          "dashboard_title": "Titolo dashboard"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Già configurato",
+      "single_instance_allowed": "Già configurato"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Irrigation Manager",
+        "data": {
+          "engine_enabled": "Engine attivo (scrive la config IU ed esegue riempimento, preflight, Smart Irrigation, skip pioggia, log, notifiche)",
+          "notify_entities": "Entità notify (notify.send_message)",
+          "notify_services": "Servizi notify legacy (es. notify.mobile_app_telefono)",
+          "notify_persistent": "Crea anche notifiche persistenti",
+          "weather_entity": "Entità meteo per la previsione giornaliera",
+          "rain_now_entity": "Entità che indica pioggia in corso",
+          "rain_now_state": "Stato di quell'entità che significa pioggia",
+          "prob_threshold": "Salta se la probabilità di pioggia è almeno",
+          "mm_threshold": "...e la pioggia prevista è almeno",
+          "skip_time": "Ora del controllo previsione",
+          "skip_hours": "Durata della sospensione",
+          "log_path": "File di log eventi (relativo a /config)",
+          "log_max_mb": "Ruota il log oltre",
+          "log_keep": "Copie ruotate da tenere",
+          "iu_config_path": "File Irrigation Unlimited (incluso da configuration.yaml)",
+          "dashboard_url": "Percorso URL dashboard (deve contenere un trattino)",
+          "dashboard_title": "Titolo dashboard"
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "controller": {
+      "title": "Controller",
+      "initiate_flow": {
+        "user": "Aggiungi controller"
+      },
+      "entry_type": "Controller",
+      "step": {
+        "user": {
+          "title": "Nuovo controller",
+          "description": "Le zone e i programmi sono identificati dal loro id: cambiare l'id di una zona crea una zona nuova (valori e storico ripartono).",
+          "data": {
+            "name": "Nome",
+            "id": "Id (slug, non modificabile; vuoto = dal nome)",
+            "iu_controller_id": "controller_id IU",
+            "entity_id": "Pompa / valvola master",
+            "max_zone_duration": "Durata massima zona (HH:MM)",
+            "zones": "Zone",
+            "programs": "Programmi",
+            "fill_switches": "Switch riempimento cisterna",
+            "fill_lead_minutes": "Anticipo riempimento predefinito",
+            "fill_duration_minutes": "Durata riempimento predefinita",
+            "availability_entity": "Sensore connettività del device valvole (abilita il preflight)",
+            "preflight_timeout_minutes": "Timeout preflight predefinito"
+          }
+        },
+        "reconfigure": {
+          "title": "Controller",
+          "description": "Le zone e i programmi sono identificati dal loro id: cambiare l'id di una zona crea una zona nuova (valori e storico ripartono).",
+          "data": {
+            "name": "Nome",
+            "iu_controller_id": "controller_id IU",
+            "entity_id": "Pompa / valvola master",
+            "max_zone_duration": "Durata massima zona (HH:MM)",
+            "zones": "Zone",
+            "programs": "Programmi",
+            "fill_switches": "Switch riempimento cisterna",
+            "fill_lead_minutes": "Anticipo riempimento predefinito",
+            "fill_duration_minutes": "Durata riempimento predefinita",
+            "availability_entity": "Sensore connettività del device valvole (abilita il preflight)",
+            "preflight_timeout_minutes": "Timeout preflight predefinito"
+          }
+        }
+      },
+      "error": {
+        "no_zones": "Aggiungi almeno una zona",
+        "no_programs": "Aggiungi almeno un programma",
+        "duplicate_id": "Id duplicato",
+        "already_configured": "Esiste già un controller con questo id"
+      },
+      "abort": {
+        "reconfigure_successful": "Salvato"
+      }
+    }
+  },
+  "issues": {
+    "missing_cards": {
+      "title": "Card mancanti per la dashboard irrigazione",
+      "description": "Installa da HACS: {cards}. Senza, la dashboard generata non si vede."
+    }
+  },
+  "services": {
+    "regenerate_dashboard": {
+      "name": "Rigenera dashboard",
+      "description": "Riscrive la dashboard irrigazione dai template."
+    },
+    "write_iu_config": {
+      "name": "Scrivi config IU",
+      "description": "Riscrive irrigation_unlimited.yaml e ricarica IU."
+    },
+    "rain_skip": {
+      "name": "Controllo pioggia",
+      "description": "Esegue ora il controllo previsione pioggia.",
+      "fields": {
+        "force": {
+          "name": "Forza",
+          "description": "Sospende anche sotto soglia (test)."
+        }
+      }
+    }
+  }
+}

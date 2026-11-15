@@ -1,0 +1,58 @@
+{{ header }}
+# Irrigation Unlimited - Configurazione generata
+# Rigenerata automaticamente da generate_irrigation.py --update-iu
+
+# irrigation_unlimited:
+  controllers:
+{%- for ctrl in controllers %}
+    - name: "{{ ctrl.name }}"
+      controller_id: {{ ctrl.controller_id }}
+      enabled: {{ 'true' if ctrl.enabled else 'false' }}
+      entity_id: {{ ctrl.entity_id }}
+      all_zones_config:
+        maximum: "{{ ctrl.max_zone_duration }}"
+        allow_manual: true
+        show:
+          timeline: true
+
+      zones:
+  {%- for z in ctrl.zones %}
+        - name: "Z{{ z.id }} {{ z.name }}"
+          enabled: true
+          entity_id: {{ z.entity_id }}
+  {%- endfor %}
+
+  {%- if ctrl.sequences %}
+      sequences:
+    {%- for s in ctrl.sequences %}
+        - sequence_id: "{{ s.sequence_id }}"
+          name: "{{ s.name }}"
+          enabled: {{ 'true' if s.enabled else 'false' }}
+          repeat: {{ s.repeat }}
+          delay: "{{ s.delay }}"
+          schedules:
+            - name: "{{ s.schedule_name }}"
+      {%- if s.time.type == 'fixed' %}
+              time: "{{ s.time.value }}"
+      {%- else %}
+              time:
+                sun: "{{ s.time.value }}"
+        {%- if s.time.offset > 0 %}
+                after: "{{ '%02d:%02d' % (s.time.offset // 60, s.time.offset % 60) }}"
+        {%- elif s.time.offset < 0 %}
+                before: "{{ '%02d:%02d' % ((-s.time.offset) // 60, (-s.time.offset) % 60) }}"
+        {%- endif %}
+      {%- endif %}
+              weekday: [{{ s.weekday | join(', ') }}]
+      {%- if s.months %}
+              month: [{{ s.months | join(', ') }}]
+      {%- endif %}
+          zones:
+      {%- for zr in s.zones %}
+            - zone_id: {{ zr.id }}
+              duration: "{{ zr.duration }}"
+      {%- endfor %}
+    {%- endfor %}
+  {%- endif %}
+
+{% endfor %}

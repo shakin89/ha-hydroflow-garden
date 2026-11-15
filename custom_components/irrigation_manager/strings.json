@@ -1,0 +1,139 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Irrigation Manager",
+        "data": {
+          "engine_enabled": "Engine active (writes the IU config and runs fill, preflight, Smart Irrigation, rain skip, log, notifications)",
+          "notify_entities": "Notify entities (notify.send_message)",
+          "notify_services": "Legacy notify services (e.g. notify.mobile_app_phone)",
+          "notify_persistent": "Also create persistent notifications",
+          "weather_entity": "Weather entity for the daily forecast",
+          "rain_now_entity": "Entity saying it rains now",
+          "rain_now_state": "State of that entity meaning rain",
+          "prob_threshold": "Skip when rain probability is at least",
+          "mm_threshold": "...and forecast rain is at least",
+          "skip_time": "Time the forecast is checked",
+          "skip_hours": "Suspension length",
+          "log_path": "Event log file (relative to /config)",
+          "log_max_mb": "Rotate the log above",
+          "log_keep": "Rotated copies kept",
+          "iu_config_path": "Irrigation Unlimited file (included by configuration.yaml)",
+          "dashboard_url": "Dashboard URL path (must contain a dash)",
+          "dashboard_title": "Dashboard title"
+        }
+      }
+    },
+    "abort": {
+      "already_configured": "Already configured",
+      "single_instance_allowed": "Already configured"
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Irrigation Manager",
+        "data": {
+          "engine_enabled": "Engine active (writes the IU config and runs fill, preflight, Smart Irrigation, rain skip, log, notifications)",
+          "notify_entities": "Notify entities (notify.send_message)",
+          "notify_services": "Legacy notify services (e.g. notify.mobile_app_phone)",
+          "notify_persistent": "Also create persistent notifications",
+          "weather_entity": "Weather entity for the daily forecast",
+          "rain_now_entity": "Entity saying it rains now",
+          "rain_now_state": "State of that entity meaning rain",
+          "prob_threshold": "Skip when rain probability is at least",
+          "mm_threshold": "...and forecast rain is at least",
+          "skip_time": "Time the forecast is checked",
+          "skip_hours": "Suspension length",
+          "log_path": "Event log file (relative to /config)",
+          "log_max_mb": "Rotate the log above",
+          "log_keep": "Rotated copies kept",
+          "iu_config_path": "Irrigation Unlimited file (included by configuration.yaml)",
+          "dashboard_url": "Dashboard URL path (must contain a dash)",
+          "dashboard_title": "Dashboard title"
+        }
+      }
+    }
+  },
+  "config_subentries": {
+    "controller": {
+      "title": "Controller",
+      "initiate_flow": {
+        "user": "Add controller"
+      },
+      "entry_type": "Controller",
+      "step": {
+        "user": {
+          "title": "New controller",
+          "description": "Zones and programs are identified by their id: changing a zone id makes a new zone (values and history start over).",
+          "data": {
+            "name": "Name",
+            "id": "Id (slug, cannot change later; empty = from name)",
+            "iu_controller_id": "IU controller_id",
+            "entity_id": "Pump / master valve",
+            "max_zone_duration": "Max zone duration (HH:MM)",
+            "zones": "Zones",
+            "programs": "Programs",
+            "fill_switches": "Cistern fill switches",
+            "fill_lead_minutes": "Default fill lead",
+            "fill_duration_minutes": "Default fill duration",
+            "availability_entity": "Valve device connectivity sensor (enables preflight)",
+            "preflight_timeout_minutes": "Default preflight timeout"
+          }
+        },
+        "reconfigure": {
+          "title": "Controller",
+          "description": "Zones and programs are identified by their id: changing a zone id makes a new zone (values and history start over).",
+          "data": {
+            "name": "Name",
+            "iu_controller_id": "IU controller_id",
+            "entity_id": "Pump / master valve",
+            "max_zone_duration": "Max zone duration (HH:MM)",
+            "zones": "Zones",
+            "programs": "Programs",
+            "fill_switches": "Cistern fill switches",
+            "fill_lead_minutes": "Default fill lead",
+            "fill_duration_minutes": "Default fill duration",
+            "availability_entity": "Valve device connectivity sensor (enables preflight)",
+            "preflight_timeout_minutes": "Default preflight timeout"
+          }
+        }
+      },
+      "error": {
+        "no_zones": "Add at least one zone",
+        "no_programs": "Add at least one program",
+        "duplicate_id": "Duplicate id",
+        "already_configured": "A controller with this id exists"
+      },
+      "abort": {
+        "reconfigure_successful": "Saved"
+      }
+    }
+  },
+  "issues": {
+    "missing_cards": {
+      "title": "Cards missing for the irrigation dashboard",
+      "description": "Install from HACS: {cards}. Without them the generated dashboard does not render."
+    }
+  },
+  "services": {
+    "regenerate_dashboard": {
+      "name": "Regenerate dashboard",
+      "description": "Rewrite the irrigation dashboard from the templates."
+    },
+    "write_iu_config": {
+      "name": "Write IU config",
+      "description": "Rewrite irrigation_unlimited.yaml and reload IU."
+    },
+    "rain_skip": {
+      "name": "Rain check",
+      "description": "Run the rain forecast check now.",
+      "fields": {
+        "force": {
+          "name": "Force",
+          "description": "Suspend even below the thresholds (test)."
+        }
+      }
+    }
+  }
+}

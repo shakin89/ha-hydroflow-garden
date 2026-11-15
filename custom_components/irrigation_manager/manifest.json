@@ -1,0 +1,22 @@
+{
+  "domain": "irrigation_manager",
+  "name": "Irrigation Manager",
+  "after_dependencies": [
+    "frontend",
+    "irrigation_unlimited",
+    "lovelace",
+    "smart_irrigation",
+    "weather"
+  ],
+  "codeowners": [
+    "@shakin89"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/shakin89/ha-irrigation-manager",
+  "integration_type": "hub",
+  "iot_class": "calculated",
+  "issue_tracker": "https://github.com/shakin89/ha-irrigation-manager/issues",
+  "requirements": [],
+  "single_config_entry": true,
+  "version": "0.1.0"
+}
