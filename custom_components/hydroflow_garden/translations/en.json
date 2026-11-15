@@ -38,7 +38,7 @@
           "log_path": "Plain text log of starts, finishes, valves and faults. Relative paths are inside the config folder.",
           "log_max_mb": "Size that triggers a rotation.",
           "log_keep": "How many old copies (.1, .2, ...) are kept.",
-          "iu_config_path": "The file configuration.yaml includes with `irrigation_unlimited: !include <file>`. It is overwritten by this integration.",
+          "iu_config_path": "The file configuration.yaml includes with `irrigation_unlimited: !include` (this file name). It is overwritten by this integration.",
           "dashboard_url": "Path of the generated dashboard. Must contain a dash, e.g. hydroflow-garden.",
           "dashboard_title": "Name shown in the sidebar."
         }
@@ -88,7 +88,7 @@
           "log_path": "Plain text log of starts, finishes, valves and faults. Relative paths are inside the config folder.",
           "log_max_mb": "Size that triggers a rotation.",
           "log_keep": "How many old copies (.1, .2, ...) are kept.",
-          "iu_config_path": "The file configuration.yaml includes with `irrigation_unlimited: !include <file>`. It is overwritten by this integration.",
+          "iu_config_path": "The file configuration.yaml includes with `irrigation_unlimited: !include` (this file name). It is overwritten by this integration.",
           "dashboard_url": "Path of the generated dashboard. Must contain a dash, e.g. hydroflow-garden.",
           "dashboard_title": "Name shown in the sidebar."
         }
@@ -122,7 +122,7 @@
           },
           "data_description": {
             "name": "Shown in the dashboard and in notifications, e.g. Garden.",
-            "id": "Short slug used in every entity id (switch.iu_<id>_...). Cannot change later. Empty = from the name.",
+            "id": "Short slug used in every entity id (switch.iu_ID_...). Cannot change later. Empty = from the name.",
             "iu_controller_id": "controller_id written in the Irrigation Unlimited file. Empty = from the name.",
             "entity_id": "Switch turned on by Irrigation Unlimited whenever any zone of this controller waters.",
             "max_zone_duration": "Safety cap for one zone run, HH:MM (Irrigation Unlimited `maximum`).",

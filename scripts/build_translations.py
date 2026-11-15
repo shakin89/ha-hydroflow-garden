@@ -100,10 +100,10 @@ HUB = {
                  "Copie ruotate", "Quante copie vecchie (.1, .2, ...) vengono tenute."),
     "iu_config_path": (
         "Irrigation Unlimited file",
-        "The file configuration.yaml includes with `irrigation_unlimited: !include <file>`. It is "
+        "The file configuration.yaml includes with `irrigation_unlimited: !include` (this file name). It is "
         "overwritten by this integration.",
         "File di Irrigation Unlimited",
-        "Il file incluso da configuration.yaml con `irrigation_unlimited: !include <file>`. Viene "
+        "Il file incluso da configuration.yaml con `irrigation_unlimited: !include` (this file name). Viene "
         "sovrascritto da questa integrazione.",
     ),
     "dashboard_url": (
@@ -125,9 +125,9 @@ CONTROLLER = {
     ),
     "id": (
         "Id",
-        "Short slug used in every entity id (switch.iu_<id>_...). Cannot change later. Empty = from the name.",
+        "Short slug used in every entity id (switch.iu_ID_...). Cannot change later. Empty = from the name.",
         "Id",
-        "Slug breve usato in ogni entity id (switch.iu_<id>_...). Non si cambia dopo. Vuoto = dal nome.",
+        "Slug breve usato in ogni entity id (switch.iu_ID_...). Non si cambia dopo. Vuoto = dal nome.",
     ),
     "iu_controller_id": (
         "IU controller_id",

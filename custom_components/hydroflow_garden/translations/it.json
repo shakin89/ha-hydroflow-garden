@@ -38,7 +38,7 @@
           "log_path": "Log testuale di avvii, fine corse, valvole e guasti. I percorsi relativi sono nella cartella config.",
           "log_max_mb": "Dimensione oltre la quale il log viene ruotato.",
           "log_keep": "Quante copie vecchie (.1, .2, ...) vengono tenute.",
-          "iu_config_path": "Il file incluso da configuration.yaml con `irrigation_unlimited: !include <file>`. Viene sovrascritto da questa integrazione.",
+          "iu_config_path": "Il file incluso da configuration.yaml con `irrigation_unlimited: !include` (this file name). Viene sovrascritto da questa integrazione.",
           "dashboard_url": "Percorso della dashboard generata. Deve contenere un trattino, es. hydroflow-garden.",
           "dashboard_title": "Nome mostrato nella barra laterale."
         }
@@ -88,7 +88,7 @@
           "log_path": "Log testuale di avvii, fine corse, valvole e guasti. I percorsi relativi sono nella cartella config.",
           "log_max_mb": "Dimensione oltre la quale il log viene ruotato.",
           "log_keep": "Quante copie vecchie (.1, .2, ...) vengono tenute.",
-          "iu_config_path": "Il file incluso da configuration.yaml con `irrigation_unlimited: !include <file>`. Viene sovrascritto da questa integrazione.",
+          "iu_config_path": "Il file incluso da configuration.yaml con `irrigation_unlimited: !include` (this file name). Viene sovrascritto da questa integrazione.",
           "dashboard_url": "Percorso della dashboard generata. Deve contenere un trattino, es. hydroflow-garden.",
           "dashboard_title": "Nome mostrato nella barra laterale."
         }
@@ -122,7 +122,7 @@
           },
           "data_description": {
             "name": "Mostrato nella dashboard e nelle notifiche, es. Giardino.",
-            "id": "Slug breve usato in ogni entity id (switch.iu_<id>_...). Non si cambia dopo. Vuoto = dal nome.",
+            "id": "Slug breve usato in ogni entity id (switch.iu_ID_...). Non si cambia dopo. Vuoto = dal nome.",
             "iu_controller_id": "controller_id scritto nel file di Irrigation Unlimited. Vuoto = dal nome.",
             "entity_id": "Switch acceso da Irrigation Unlimited ogni volta che una zona di questo controller irriga.",
             "max_zone_duration": "Limite di sicurezza per una corsa di zona, HH:MM (`maximum` di Irrigation Unlimited).",
