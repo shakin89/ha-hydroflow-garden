@@ -60,6 +60,8 @@ CONFIG_SCHEMA = vol.Schema(
     {DOMAIN: vol.Schema({
         vol.Required("controllers"): [_CONTROLLER],
         vol.Optional("options", default={}): dict,
+        # initial values by key (e.g. iu_garden_p1_z1_mon: true), used once
+        vol.Optional("values", default={}): {cv.string: vol.Any(bool, int, float, str)},
     })},
     extra=vol.ALLOW_EXTRA,
 )
@@ -111,9 +113,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     for _, ctrl in controllers_of(entry):
         specs.update({s.key: s for s in controller_specs(ctrl)})
         extra[suspend_reason_key(ctrl)] = REASON_NONE
-    seeded = await values.async_load(specs, extra)
+    seeded = await values.async_load(specs, extra, dict(entry.data.get("seed", {})))
     if seeded:
-        _LOGGER.info("Seeded %s values from the existing input_* helpers", len(seeded))
+        _LOGGER.info("Seeded %s values (import or existing input_* helpers)", len(seeded))
 
     rt = IrrigationRuntime(hass, entry, values)
     entry.runtime_data = rt

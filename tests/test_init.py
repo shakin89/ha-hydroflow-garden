@@ -67,6 +67,18 @@ async def test_import_creates_entities_and_seeds(hass: HomeAssistant) -> None:
     assert len(reload_calls) == 1
 
 
+async def test_import_seed_values(hass: HomeAssistant) -> None:
+    topo = copy.deepcopy(TOPOLOGY)
+    topo["values"] = {"iu_alpha_p1_z2_sat": True, "iu_alpha_p1_eco_cycles": 3,
+                      "iu_alpha_p1_time": "13:30:00", "iu_alpha_p1_time_type": "Alba"}
+    hass.states.async_set("input_number.iu_alpha_p1_eco_cycles", "4.0")  # import wins
+    await _setup(hass, topo)
+    assert hass.states.get("switch.iu_alpha_p1_z2_sat").state == "on"
+    assert float(hass.states.get("number.iu_alpha_p1_eco_cycles").state) == 3
+    assert hass.states.get("time.iu_alpha_p1_time").state == "13:30:00"
+    assert hass.states.get("select.iu_alpha_p1_time_type").state == "Alba"
+
+
 async def test_value_change_rewrites_iu(hass: HomeAssistant) -> None:
     reload_calls = _capture(hass, "irrigation_unlimited", "reload")
     await _setup(hass)

@@ -120,7 +120,8 @@ class IrrigationManagerConfigFlow(ConfigFlow, domain=DOMAIN):
                 "data": data,
             })
         return self.async_create_entry(
-            title=TITLE, data={}, options=_clean_hub(import_data.get("options", {})),
+            title=TITLE, data={"seed": dict(import_data.get("values", {}))},
+            options=_clean_hub(import_data.get("options", {})),
             subentries=subentries,
         )
 

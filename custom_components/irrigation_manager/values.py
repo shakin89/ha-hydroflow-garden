@@ -60,8 +60,14 @@ class ValueStore:
         self._key_listeners: dict[str, list[Listener]] = {}
         self._listeners: list[Listener] = []
 
-    async def async_load(self, specs: dict[str, ValueSpec], extra: dict[str, Any]) -> list[str]:
-        """Load, seed missing keys. Returns the keys seeded from legacy helpers."""
+    async def async_load(
+        self, specs: dict[str, ValueSpec], extra: dict[str, Any], seed: dict[str, Any] | None = None
+    ) -> list[str]:
+        """Load, seed missing keys. Returns the keys seeded.
+
+        Seed order: ``seed`` (values given with the YAML import), then the
+        legacy helper with the same object_id, then the spec default."""
+        seed = seed or {}
         self._data = (await self._store.async_load()) or {}
         seeded: list[str] = []
         changed = False
@@ -69,7 +75,14 @@ class ValueStore:
             if key in self._data:
                 continue
             value = None
-            if spec.legacy_domain:
+            if key in seed:
+                raw = seed[key]
+                if isinstance(raw, bool):
+                    raw = "on" if raw else "off"
+                value = _from_legacy(spec, str(raw))
+                if value is not None:
+                    seeded.append(key)
+            if value is None and spec.legacy_domain:
                 state = self.hass.states.get(f"{spec.legacy_domain}.{key}")
                 if state is not None:
                     value = _from_legacy(spec, state.state)
