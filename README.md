@@ -1,64 +1,165 @@
 # HydroFlow Garden: Smart and Unlimited
 
-Home Assistant integration that plans [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited)
-(IU) from the UI. You describe controllers, zones and programs once; you then
-set days, durations, months, eco cycles and start times from entities on a
-generated dashboard. The integration writes IU's YAML configuration and
-reloads IU whenever a value changes. IU stays the one that opens the valves.
+🇮🇹 [Leggi in italiano](README.it.md)
 
-On top of the schedule it runs what is usually a pile of automations:
+**HydroFlow Garden joins [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited) and
+[Smart Irrigation](https://github.com/jeroenterheerdt/HAsmartirrigation) into one irrigation system you
+configure and run from the Home Assistant UI.**
 
-| Feature | What it does |
-|---|---|
-| Per-zone weekdays | Each zone of a program has its own weekdays. Every weekday lands in one IU sequence, so zones never open together. |
-| Eco | The zone duration is the total; IU repeats the program N cycles with a soak between them. |
-| Cistern fill | Turns fill switches on N minutes before a program, for M minutes. |
-| Preflight | When the valve device (a connectivity `binary_sensor`) is offline before a run, waits for it and otherwise suspends the controller. A run starting with the device offline is cancelled. |
-| Smart Irrigation | Before each program, refreshes [Smart Irrigation](https://github.com/jeroenterheerdt/HAsmartirrigation) and sets each zone's duration from its sensor (`adjust_time`). After a run, resets the bucket of the zones that delivered at least 90% of the plan, and only if the device was online. |
-| Rain | Every day at a set time, suspends the active controllers when the forecast probability and the forecast mm are both over thresholds. Cancels scheduled runs that start while it rains. |
-| Notifications | Start, finish, cancel, rain, device offline. Sent to notify entities, legacy notify services and persistent notifications. |
-| Event log | A plain text log with size rotation. |
-| Dashboard | A storage dashboard generated from templates. It is rewritten whenever the configuration changes, or on demand. |
+- **Irrigation Unlimited** is a solid scheduler and valve sequencer. It does not know how much water your
+  plants need, and you configure it in YAML.
+- **Smart Irrigation** calculates how long each zone should water from weather and evapotranspiration. It
+  does not drive your valves on your own multi-zone schedule.
+
+Making the two work together usually takes a pile of hand-written automations: copy durations into IU
+before each run, reset buckets afterwards, and handle rain, offline devices and notifications.
+HydroFlow Garden is that missing layer, built as a native integration.
+
+## Highlights
+
+- **Unlimited controllers**, each with **up to 99 zones** and **up to 9 programs**, so up to 9 separate
+  start times a day per controller.
+- **Everything programmable from the UI.** For every program you set the start time (fixed, sunrise or
+  sunset with an offset), the active months and eco cycles, and for every zone its own weekdays and
+  duration. HydroFlow Garden turns this into a valid Irrigation Unlimited configuration. It
+  guarantees that zones of the same program never open together.
+- **Smart Irrigation in the loop.** Before each program, the Smart Irrigation durations are written to
+  IU. After the run, a zone's bucket is reset only if it delivered at least 90% of the plan with its
+  valve device online.
+- **Rain aware.** Every day it reads the forecast and suspends the active controllers when the
+  probability and the expected mm are both over your thresholds. A scheduled run that starts while it
+  rains is cancelled.
+- **Device-offline protection (preflight).** If the valve controller (for example ESPHome) is offline
+  before a run, HydroFlow Garden waits for it, then suspends the run or cancels it. No bucket is reset
+  for water that was never delivered.
+- **Cistern fill.** Turns a fill pump or valve on N minutes before each program, for M minutes.
+- **Notifications and an event log.** Start, finish, cancel, rain and fault messages go to notify
+  entities, mobile apps or persistent notifications. Every valve and run is also written to a plain text
+  log with rotation.
+- **Generated dashboard.** A ready-made storage dashboard, rewritten automatically whenever the
+  configuration changes.
 
 ## Requirements
 
-- Irrigation Unlimited, with its configuration included from a file:
-  ```yaml
-  # configuration.yaml
-  irrigation_unlimited: !include irrigation_unlimited.yaml
-  ```
-  **That file is owned by this integration.** It is overwritten.
-- For the dashboard: `button-card`, `auto-entities` and `apexcharts-card` (HACS frontend).
-- Optional: Smart Irrigation and a `weather` entity with daily forecasts.
+| Required | What for |
+|---|---|
+| [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited) | Runs the valves. Its configuration must be included from a file: `irrigation_unlimited: !include irrigation_unlimited.yaml`. **HydroFlow Garden owns and overwrites that file.** |
+| [button-card](https://github.com/custom-cards/button-card), [auto-entities](https://github.com/thomasloven/lovelace-auto-entities) | Generated dashboard |
 
-## Install
+| Optional | What for |
+|---|---|
+| [Smart Irrigation](https://github.com/jeroenterheerdt/HAsmartirrigation) | Weather-based durations per zone |
+| [apexcharts-card](https://github.com/RomRider/apexcharts-card) | *Timeline* chart in the dashboard. Without it the chart and its tab are left out. |
+| A `weather` entity with daily forecasts | Daily rain skip and the forecast sensors |
 
-HACS → Integrations → ⋮ → Custom repositories → `https://github.com/shakin89/ha-hydroflow-garden`
-(category *Integration*). Install, restart, then Settings → Devices & services → Add integration → *HydroFlow Garden*.
+## Installation
 
-Add controllers with **Add controller**: pump entity, zones (id, name, valve switch, optional Smart
-Irrigation sensor), programs (id, name, default time) and optional fill switches and connectivity sensor.
+1. Marketplace / HACS → ⋮ → **Custom repositories** → `https://github.com/shakin89/ha-hydroflow-garden`,
+   category **Integration** → install → restart Home Assistant.
+2. Make sure `configuration.yaml` contains `irrigation_unlimited: !include irrigation_unlimited.yaml`.
+3. Settings → Devices & services → **Add integration** → *HydroFlow Garden*.
 
-The **engine** switch in the options is off by default. Until you turn it on, entities exist but
-nothing is written or triggered. This lets you migrate without two systems acting at once.
+## How to use
+
+1. **Global settings.** The first form sets notifications, weather and rain thresholds, the log file,
+   the IU file and the dashboard. Leave **Engine active** off for now. Every field is explained below.
+2. **Add a controller.** On the integration page choose **Add controller**: one controller is one
+   system with its own pump and valves. Fill in its zones (a valve each) and its programs (a daily start
+   each). Every field has a help text under it.
+3. **Open the dashboard** from the sidebar (*Irrigazione* by default). For each program, set:
+   - the start time;
+   - the active months;
+   - eco cycles;
+   - for each zone, the weekdays and the duration.
+4. **Turn the engine on.** Integration page → **Configure** → *Engine active*. The IU file is written,
+   IU reloads, and from then on every change in the dashboard reaches IU within about 5 seconds.
+5. **Test.** In the *Sistema* section, the **Test zone** button runs every zone of a controller for the
+   test duration.
+
+To change zones or programs later, use **Reconfigure** on the controller. The dashboard is regenerated
+automatically.
+
+### Global settings (Configure)
+
+| Field | Meaning |
+|---|---|
+| Engine active | Off: entities only, nothing is written or triggered. On: writes the IU file and runs every automation. |
+| Notify entities | Entities called with `notify.send_message`, e.g. a Telegram bot. |
+| Legacy notify services | Full service names, e.g. `notify.mobile_app_my_phone`. |
+| Persistent notifications | Also show each message as a persistent notification. |
+| Weather entity | Daily forecast with `precipitation` (mm) and `precipitation_probability` (%). Enables the rain skip. |
+| Raining-now entity | Any entity telling that it rains right now. A scheduled run starting while it rains is cancelled. |
+| Raining state | The state of that entity meaning rain (`on` for a binary sensor, `rain` for a weather condition…). |
+| Skip at probability / …and at rain | The day is skipped when **both** today's probability and today's mm reach these values. |
+| Forecast check time | When the daily check runs. Put it before your earliest program. |
+| Suspension length | Hours the active controllers stay suspended after a rain skip. |
+| Event log file, Rotate log above, Rotated copies | Plain text event log and its size-based rotation. |
+| Irrigation Unlimited file | The file included as `irrigation_unlimited:`. It is overwritten. |
+| Dashboard URL, Dashboard title | Where the generated dashboard lives and its sidebar name. The URL must contain a dash. |
+
+### Controller (Add controller / Reconfigure)
+
+| Field | Meaning |
+|---|---|
+| Name | Shown in the dashboard and in notifications. |
+| Id | Short slug in every entity id (`switch.iu_<id>_…`). Cannot change later; empty = from the name. |
+| IU controller_id | `controller_id` written to the IU file; empty = from the name. |
+| Pump / master valve | Switch IU turns on while any zone of this controller waters. |
+| Max zone run | Safety cap for one zone run (`HH:MM`). |
+| Zones | One row per valve (see below). |
+| Programs | One row per daily start, up to 9 (see below). |
+| Cistern fill switches | Optional switches turned on before each program to fill a tank. |
+| Fill lead / Fill duration | Defaults for when the fill starts and how long it lasts (adjustable later from the dashboard). |
+| Valve device connectivity | Optional `binary_sensor` that is `on` while the valve controller is online. Enables preflight. |
+| Preflight wait | Default minutes before the start at which the device is checked and waited for. |
+
+**Zone row**
+
+| Field | Meaning |
+|---|---|
+| Zone id | 1–99, fixed. Changing it creates a new zone. |
+| Name | E.g. *Lawn*. |
+| Valve | Switch or valve opening this zone. |
+| Smart Irrigation sensor | Optional. Its value becomes the zone duration before each run. |
+
+**Program row**
+
+| Field | Meaning |
+|---|---|
+| Program id | 1–9, fixed. |
+| Name | E.g. *Morning*. |
+| Default time | Initial start time. You change it later from the dashboard. |
 
 ## Entities
 
-Each value is an entity whose object_id is `iu_<controller>_...`. The entity_id does not change when
-you edit a controller, as long as the zone and program ids stay the same.
+Each value is an entity with a stable id: `iu_<controller>_…`.
 
-- `switch.iu_<c>_system_enabled`, `_adjust_rain`, `_logging`, `_notifications`, `_preflight`
-- `switch.iu_<c>_p<N>_enabled`, `_eco`, `_<month>`, `_z<Z>_enabled`, `_z<Z>_<weekday>`
-- `number.iu_<c>_p<N>_z<Z>_duration` (min), `_offset` (min), `_eco_cycles`, `_eco_soak` (s), fill/preflight leads
-- `time.iu_<c>_p<N>_time`, `select.iu_<c>_p<N>_time_type` (Fisso / Alba / Tramonto)
-- `sensor.iu_<c>_suspend_reason`, per-zone *Programmato* and *Oggi / Ieri / 2gg fa* usage (hours)
-- `button.iu_<c>_test`: runs every zone for the test duration
+| Entity | Purpose |
+|---|---|
+| `switch.iu_<c>_system_enabled` | Controller on/off |
+| `switch.iu_<c>_adjust_rain`, `_logging`, `_notifications`, `_preflight` | Per-controller features |
+| `switch.iu_<c>_p<N>_enabled`, `_eco`, `_<month>` | Program on/off, eco, active months |
+| `switch.iu_<c>_p<N>_z<Z>_enabled`, `_z<Z>_<weekday>` | Zone in the program, its weekdays |
+| `number.iu_<c>_p<N>_z<Z>_duration` | Zone duration (min) |
+| `time.iu_<c>_p<N>_time`, `select.iu_<c>_p<N>_time_type`, `number.iu_<c>_p<N>_offset` | Start: fixed, sunrise or sunset ± offset |
+| `number.iu_<c>_p<N>_eco_cycles`, `_eco_soak` | Eco cycles and the soak between them (s, may be negative) |
+| `number.iu_<c>_fill_lead_minutes`, `_fill_duration_minutes`, `_preflight_timeout_minutes`, `iu_si_adjust_lead_minutes` | Leads and durations |
+| `sensor.iu_<c>_suspend_reason` | Why the controller is suspended (*Pioggia*, *Device offline*) |
+| `sensor.iu_<controller name>_z<Z>_<zone>_programmato` / `_oggi` / `_ieri` / `_2gg_fa` | Next planned duration with Smart Irrigation details; watering time today, yesterday and 2 days ago |
+| `sensor.precipitazioni_oggi`, `sensor.probabilita_pioggia_oggi`, `binary_sensor.iu_sta_piovendo` | Forecast and rain now |
+| `button.iu_<c>_test`, `button.iu_regenerate_dashboard`, `button.iu_write_config` | Test run, maintenance |
+
+## Actions
+
+- `hydroflow_garden.regenerate_dashboard`
+- `hydroflow_garden.write_iu_config`: rewrites the IU file and reloads IU.
+- `hydroflow_garden.rain_skip`: runs the rain check now. With `force: true` it suspends anyway, to test.
 
 ## Migrating from YAML helpers
 
-At first start each value takes the state of the `input_boolean` / `input_number` / `input_datetime`
-/ `input_select` with the **same object_id**, if one exists. To import a topology without
-typing it, put it once in `configuration.yaml` and remove it after the first start:
+At first start each value takes the state of the `input_*` helper with the same object_id, if one
+exists. A whole topology can also be imported once from `configuration.yaml`; remove the block after
+the first start:
 
 ```yaml
 hydroflow_garden:
@@ -75,12 +176,8 @@ hydroflow_garden:
         - {id: 1, name: Morning, default_time: "06:00"}
       fill_switches: [switch.fill]
       availability_entity: binary_sensor.valves_status
+  values:            # optional initial values by entity object_id
+    iu_garden_p1_z1_mon: true
 ```
-
-## Actions
-
-- `hydroflow_garden.regenerate_dashboard`
-- `hydroflow_garden.write_iu_config`: rewrites the IU file and reloads IU
-- `hydroflow_garden.rain_skip` (`force: true` to test the suspension)
 
 Design notes: [docs/CONTEXT.md](docs/CONTEXT.md).

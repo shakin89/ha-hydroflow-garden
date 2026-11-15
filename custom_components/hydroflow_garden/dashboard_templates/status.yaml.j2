@@ -80,6 +80,7 @@ cards:
           label: "Smart"
           icon: mdi:sprinkler
           option: "Smart"
+{%- if has_apexcharts %}
       - type: custom:button-card
         template: iu_tab_button
         entity: select.iu_{{ ctrl.id }}_status_tab
@@ -87,6 +88,7 @@ cards:
           label: "Timeline"
           icon: mdi:chart-timeline
           option: "Timeline"
+{%- endif %}
     grid_options:
       columns: 12
 
@@ -179,6 +181,7 @@ cards:
     grid_options:
       columns: 12
 
+{%- if has_apexcharts %}
   - type: conditional
     conditions:
       - entity: select.iu_{{ ctrl.id }}_status_tab
@@ -227,3 +230,4 @@ cards:
             format: dd MMM
     grid_options:
       columns: 12
+{%- endif %}

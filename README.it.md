@@ -1,0 +1,184 @@
+# HydroFlow Garden: Smart and Unlimited
+
+🇬🇧 [Read in English](README.md)
+
+**HydroFlow Garden unisce [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited) e
+[Smart Irrigation](https://github.com/jeroenterheerdt/HAsmartirrigation) in un unico sistema di
+irrigazione, configurato e gestito dall'interfaccia di Home Assistant.**
+
+- **Irrigation Unlimited** è un ottimo scheduler e sequenziatore di valvole. Però non sa quanta acqua
+  serve alle piante, e si configura in YAML.
+- **Smart Irrigation** calcola quanto deve irrigare ogni zona in base a meteo ed evapotraspirazione. Però
+  non comanda le valvole seguendo una tua programmazione a più zone.
+
+Per farli lavorare insieme di solito servono molte automazioni scritte a mano: copiare le durate in IU
+prima di ogni corsa, azzerare i bucket dopo, gestire pioggia, device offline e notifiche.
+HydroFlow Garden è quello strato mancante, realizzato come integrazione nativa.
+
+## Punti di forza
+
+- **Controller illimitati**, ognuno con **fino a 99 zone** e **fino a 9 programmi**, quindi fino a 9
+  partenze diverse al giorno per controller.
+- **Tutto programmabile da UI.** Per ogni programma imposti l'orario (fisso, alba o tramonto con
+  offset), i mesi attivi e i cicli eco; per ogni zona i suoi giorni della settimana e la sua durata.
+  HydroFlow Garden li traduce in una configurazione valida di Irrigation Unlimited e garantisce che le
+  zone dello stesso programma non si aprano mai insieme.
+- **Smart Irrigation integrato.** Prima di ogni programma le durate calcolate da Smart Irrigation vengono
+  scritte in IU. Dopo la corsa il bucket di una zona viene azzerato solo se la zona ha erogato almeno il
+  90% del previsto e il device delle valvole era online.
+- **Gestione della pioggia.** Ogni giorno legge la previsione e sospende i controller attivi se
+  probabilità e millimetri previsti superano **entrambi** le tue soglie. Una corsa schedulata che parte
+  mentre piove viene annullata.
+- **Protezione device offline (preflight).** Se il controller delle valvole (es. ESPHome) è offline
+  prima di una corsa, HydroFlow Garden lo attende, poi sospende o annulla la corsa. Nessun bucket viene
+  azzerato per acqua mai erogata.
+- **Riempimento cisterna.** Accende una pompa o una valvola di carico N minuti prima di ogni programma,
+  per M minuti.
+- **Notifiche e log eventi.** I messaggi di avvio, fine, annullamento, pioggia e guasti arrivano a entità
+  notify, app mobile o notifiche persistenti. Ogni valvola e ogni corsa finiscono anche in un log
+  testuale con rotazione.
+- **Dashboard generata.** Una dashboard pronta, riscritta in automatico a ogni modifica della
+  configurazione.
+
+## Requisiti
+
+| Obbligatorio | A cosa serve |
+|---|---|
+| [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited) | Comanda le valvole. La sua configurazione deve essere inclusa da file: `irrigation_unlimited: !include irrigation_unlimited.yaml`. **Quel file lo scrive e lo sovrascrive HydroFlow Garden.** |
+| [button-card](https://github.com/custom-cards/button-card), [auto-entities](https://github.com/thomasloven/lovelace-auto-entities) | Dashboard generata |
+
+| Facoltativo | A cosa serve |
+|---|---|
+| [Smart Irrigation](https://github.com/jeroenterheerdt/HAsmartirrigation) | Durate per zona calcolate dal meteo |
+| [apexcharts-card](https://github.com/RomRider/apexcharts-card) | Grafico *Timeline* in dashboard. Senza, il grafico e la sua tab non vengono mostrati. |
+| Un'entità `weather` con previsioni giornaliere | Skip pioggia giornaliero e sensori di previsione |
+
+## Installazione
+
+1. Marketplace / HACS → ⋮ → **Repository personalizzati** → `https://github.com/shakin89/ha-hydroflow-garden`,
+   categoria **Integrazione** → installa → riavvia Home Assistant.
+2. Verifica che `configuration.yaml` contenga `irrigation_unlimited: !include irrigation_unlimited.yaml`.
+3. Impostazioni → Dispositivi e servizi → **Aggiungi integrazione** → *HydroFlow Garden*.
+
+## Come si usa
+
+1. **Impostazioni generali.** Il primo form imposta notifiche, meteo e soglie pioggia, file di log, file
+   di IU e dashboard. Per ora lascia spento **Engine attivo**. Tutti i campi sono spiegati qui sotto.
+2. **Aggiungi un controller.** Dalla pagina dell'integrazione scegli **Aggiungi controller**: un
+   controller è un impianto con la sua pompa e le sue valvole. Inserisci le zone (una per valvola) e i
+   programmi (una partenza giornaliera ciascuno). Sotto ogni campo c'è una spiegazione.
+3. **Apri la dashboard** dalla barra laterale (*Irrigazione* per default). Per ogni programma imposta:
+   - l'orario;
+   - i mesi attivi;
+   - i cicli eco;
+   - per ogni zona, i giorni e la durata.
+4. **Accendi l'engine.** Pagina dell'integrazione → **Configura** → *Engine attivo*. Il file di IU viene
+   scritto e IU si ricarica. Da quel momento ogni modifica in dashboard arriva a IU in circa 5 secondi.
+5. **Prova.** Nella sezione *Sistema* il pulsante **Test zone** fa girare tutte le zone del controller per
+   la durata di test.
+
+Per cambiare zone o programmi in seguito usa **Riconfigura** sul controller. La dashboard si rigenera da
+sola.
+
+### Impostazioni generali (Configura)
+
+| Campo | Significato |
+|---|---|
+| Engine attivo | Spento: solo entità, niente viene scritto o eseguito. Acceso: scrive il file di IU ed esegue tutte le automazioni. |
+| Entità notify | Entità chiamate con `notify.send_message`, es. un bot Telegram. |
+| Servizi notify legacy | Nomi completi dei servizi, es. `notify.mobile_app_telefono`. |
+| Notifiche persistenti | Mostra ogni messaggio anche come notifica persistente. |
+| Entità meteo | Previsione giornaliera con `precipitation` (mm) e `precipitation_probability` (%). Abilita lo skip pioggia. |
+| Entità pioggia in corso | Qualsiasi entità che indichi che sta piovendo adesso. Una corsa schedulata che parte mentre piove viene annullata. |
+| Stato che indica pioggia | Stato di quell'entità che significa pioggia (`on` per un binary sensor, `rain` per una condizione meteo…). |
+| Salta con probabilità / …e con pioggia | La giornata viene saltata se **entrambe** probabilità e mm di oggi raggiungono questi valori. |
+| Ora controllo previsione | Quando gira il controllo giornaliero. Mettila prima del programma più mattutino. |
+| Durata sospensione | Ore di sospensione dei controller attivi dopo uno skip pioggia. |
+| File di log eventi, Ruota il log oltre, Copie ruotate | Log eventi testuale e sua rotazione per dimensione. |
+| File di Irrigation Unlimited | Il file incluso come `irrigation_unlimited:`. Viene sovrascritto. |
+| URL dashboard, Titolo dashboard | Dove sta la dashboard generata e il suo nome nella barra laterale. L'URL deve contenere un trattino. |
+
+### Controller (Aggiungi controller / Riconfigura)
+
+| Campo | Significato |
+|---|---|
+| Nome | Mostrato in dashboard e nelle notifiche. |
+| Id | Slug breve in ogni entity id (`switch.iu_<id>_…`). Non si cambia dopo; vuoto = dal nome. |
+| controller_id IU | `controller_id` scritto nel file di IU; vuoto = dal nome. |
+| Pompa / valvola master | Switch che IU accende mentre una zona di questo controller irriga. |
+| Durata massima zona | Limite di sicurezza per una corsa di zona (`HH:MM`). |
+| Zone | Una riga per valvola (vedi sotto). |
+| Programmi | Una riga per partenza giornaliera, fino a 9 (vedi sotto). |
+| Switch riempimento cisterna | Switch facoltativi accesi prima di ogni programma per riempire una cisterna. |
+| Anticipo / Durata riempimento | Valori predefiniti di quando parte il riempimento e quanto dura (modificabili poi in dashboard). |
+| Connettività device valvole | `binary_sensor` facoltativo, `on` quando il controller delle valvole è online. Abilita il preflight. |
+| Attesa preflight | Minuti predefiniti prima dell'avvio in cui il device viene controllato e atteso. |
+
+**Riga zona**
+
+| Campo | Significato |
+|---|---|
+| Id zona | 1–99, fisso. Cambiarlo crea una zona nuova. |
+| Nome | Es. *Prato*. |
+| Valvola | Switch o valve che apre la zona. |
+| Sensore Smart Irrigation | Facoltativo. Il suo valore diventa la durata della zona prima di ogni corsa. |
+
+**Riga programma**
+
+| Campo | Significato |
+|---|---|
+| Id programma | 1–9, fisso. |
+| Nome | Es. *Mattina*. |
+| Orario predefinito | Orario iniziale. Si cambia poi dalla dashboard. |
+
+## Entità
+
+Ogni valore è un'entità con id stabile: `iu_<controller>_…`.
+
+| Entità | A cosa serve |
+|---|---|
+| `switch.iu_<c>_system_enabled` | Controller acceso/spento |
+| `switch.iu_<c>_adjust_rain`, `_logging`, `_notifications`, `_preflight` | Funzioni per controller |
+| `switch.iu_<c>_p<N>_enabled`, `_eco`, `_<mese>` | Programma attivo, eco, mesi attivi |
+| `switch.iu_<c>_p<N>_z<Z>_enabled`, `_z<Z>_<giorno>` | Zona nel programma e suoi giorni |
+| `number.iu_<c>_p<N>_z<Z>_duration` | Durata zona (min) |
+| `time.iu_<c>_p<N>_time`, `select.iu_<c>_p<N>_time_type`, `number.iu_<c>_p<N>_offset` | Partenza: fissa, alba o tramonto ± offset |
+| `number.iu_<c>_p<N>_eco_cycles`, `_eco_soak` | Cicli eco e pausa tra un ciclo e l'altro (s, anche negativa) |
+| `number.iu_<c>_fill_lead_minutes`, `_fill_duration_minutes`, `_preflight_timeout_minutes`, `iu_si_adjust_lead_minutes` | Anticipi e durate |
+| `sensor.iu_<c>_suspend_reason` | Motivo della sospensione (*Pioggia*, *Device offline*) |
+| `sensor.iu_<nome controller>_z<Z>_<zona>_programmato` / `_oggi` / `_ieri` / `_2gg_fa` | Prossima durata prevista con i dettagli di Smart Irrigation; tempo irrigato oggi, ieri e 2 giorni fa |
+| `sensor.precipitazioni_oggi`, `sensor.probabilita_pioggia_oggi`, `binary_sensor.iu_sta_piovendo` | Previsione e pioggia in corso |
+| `button.iu_<c>_test`, `button.iu_regenerate_dashboard`, `button.iu_write_config` | Test, manutenzione |
+
+## Azioni
+
+- `hydroflow_garden.regenerate_dashboard`
+- `hydroflow_garden.write_iu_config`: riscrive il file di IU e ricarica IU.
+- `hydroflow_garden.rain_skip`: esegue subito il controllo pioggia. Con `force: true` sospende comunque, per prova.
+
+## Migrazione da helper YAML
+
+Al primo avvio ogni valore prende lo stato dell'helper `input_*` con lo stesso object_id, se esiste.
+Si può anche importare una topologia intera, una volta sola, da `configuration.yaml`; il blocco va tolto
+dopo il primo avvio:
+
+```yaml
+hydroflow_garden:
+  options:
+    engine_enabled: false
+  controllers:
+    - id: giardino
+      name: Giardino
+      entity_id: switch.pompa
+      zones:
+        - {id: 1, name: Prato, entity_id: switch.valvola_1, si_sensor: sensor.smart_irrigation_prato}
+        - {id: 2, name: Aiuole, entity_id: switch.valvola_2}
+      programs:
+        - {id: 1, name: Mattina, default_time: "06:00"}
+      fill_switches: [switch.riempimento]
+      availability_entity: binary_sensor.valvole_status
+  values:            # facoltativo: valori iniziali per object_id
+    iu_giardino_p1_z1_mon: true
+```
+
+Note di progetto (in inglese): [docs/CONTEXT.md](docs/CONTEXT.md).

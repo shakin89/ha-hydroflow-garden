@@ -236,3 +236,15 @@ async def test_rain_skip(hass: HomeAssistant) -> None:
     assert [c.data["entity_id"] for c in suspend] == ["binary_sensor.irrigation_unlimited_c2_m"]
     assert hass.states.get("sensor.iu_beta_suspend_reason").state == "Pioggia"
     assert hass.states.get("sensor.iu_alpha_suspend_reason").state == "Nessuna"
+
+
+async def test_dashboard_render_without_apexcharts() -> None:
+    from custom_components.hydroflow_garden.dashboard import render_dashboard
+    from custom_components.hydroflow_garden.model import Controller
+
+    ctrls = [Controller.from_dict(c) for c in TOPOLOGY["controllers"]]
+    with_chart = yaml.safe_dump(render_dashboard(ctrls, "Irrigazione", True))
+    without = yaml.safe_dump(render_dashboard(ctrls, "Irrigazione", False))
+    assert "apexcharts-card" in with_chart and "Timeline" in with_chart
+    assert "apexcharts-card" not in without and "Timeline" not in without
+

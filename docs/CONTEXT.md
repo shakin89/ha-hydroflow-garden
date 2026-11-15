@@ -92,5 +92,8 @@ storage dashboard. Lovelace's dashboards collection is private, so the
 integration registers the dashboard itself: a `LovelaceStorage` plus a panel.
 It is therefore not listed under Settings → Dashboards. When a storage
 dashboard with the same URL already exists, it is written in place. A new
-render is saved only when its digest changes, or on demand. Manual edits last
+render is saved only when its digest changes, or on demand.
+The Timeline tab needs apexcharts-card: it is rendered only when that resource
+is registered (or when the resources cannot be read), so install the card and
+press *Rigenera dashboard* to get it. Manual edits last
 until the next configuration change.

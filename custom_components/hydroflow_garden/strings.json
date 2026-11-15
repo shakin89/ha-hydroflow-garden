@@ -3,24 +3,44 @@
     "step": {
       "user": {
         "title": "HydroFlow Garden",
+        "description": "Settings shared by all controllers. Add controllers afterwards with \"Add controller\".",
         "data": {
-          "engine_enabled": "Engine active (writes the IU config and runs fill, preflight, Smart Irrigation, rain skip, log, notifications)",
-          "notify_entities": "Notify entities (notify.send_message)",
-          "notify_services": "Legacy notify services (e.g. notify.mobile_app_phone)",
-          "notify_persistent": "Also create persistent notifications",
-          "weather_entity": "Weather entity for the daily forecast",
-          "rain_now_entity": "Entity saying it rains now",
-          "rain_now_state": "State of that entity meaning rain",
-          "prob_threshold": "Skip when rain probability is at least",
-          "mm_threshold": "...and forecast rain is at least",
-          "skip_time": "Time the forecast is checked",
+          "engine_enabled": "Engine active",
+          "notify_entities": "Notify entities",
+          "notify_services": "Legacy notify services",
+          "notify_persistent": "Persistent notifications",
+          "weather_entity": "Weather entity",
+          "rain_now_entity": "Raining-now entity",
+          "rain_now_state": "Raining state",
+          "prob_threshold": "Skip at probability",
+          "mm_threshold": "...and at rain",
+          "skip_time": "Forecast check time",
           "skip_hours": "Suspension length",
-          "log_path": "Event log file (relative to /config)",
-          "log_max_mb": "Rotate the log above",
-          "log_keep": "Rotated copies kept",
-          "iu_config_path": "Irrigation Unlimited file (included by configuration.yaml)",
-          "dashboard_url": "Dashboard URL path (must contain a dash)",
+          "log_path": "Event log file",
+          "log_max_mb": "Rotate log above",
+          "log_keep": "Rotated copies",
+          "iu_config_path": "Irrigation Unlimited file",
+          "dashboard_url": "Dashboard URL",
           "dashboard_title": "Dashboard title"
+        },
+        "data_description": {
+          "engine_enabled": "Off: entities only, nothing is written or triggered (useful while migrating). On: writes the Irrigation Unlimited file and runs fill, preflight, Smart Irrigation, rain skip, log and notifications.",
+          "notify_entities": "Entities called with notify.send_message (e.g. a Telegram bot). Leave empty for none.",
+          "notify_services": "Full service names, one per line, e.g. notify.mobile_app_my_phone.",
+          "notify_persistent": "Also show every message as a persistent notification in Home Assistant.",
+          "weather_entity": "Must provide daily forecasts with precipitation (mm) and precipitation_probability (%). Enables the daily rain skip and the forecast sensors.",
+          "rain_now_entity": "Any entity telling that it is raining right now (rain sensor, weather station, forecast condition). A scheduled run that starts while it rains is cancelled.",
+          "rain_now_state": "State of that entity meaning rain: 'on' for a binary sensor, e.g. 'rain' for a weather condition.",
+          "prob_threshold": "The day is skipped when today's rain probability is at least this value...",
+          "mm_threshold": "...and the forecast rain is at least this many mm. Both conditions are required.",
+          "skip_time": "When the forecast is checked every day. Put it before your earliest program.",
+          "skip_hours": "Hours the active controllers stay suspended after a rain skip.",
+          "log_path": "Plain text log of starts, finishes, valves and faults. Relative paths are inside the config folder.",
+          "log_max_mb": "Size that triggers a rotation.",
+          "log_keep": "How many old copies (.1, .2, ...) are kept.",
+          "iu_config_path": "The file configuration.yaml includes with `irrigation_unlimited: !include <file>`. It is overwritten by this integration.",
+          "dashboard_url": "Path of the generated dashboard. Must contain a dash, e.g. hydroflow-garden.",
+          "dashboard_title": "Name shown in the sidebar."
         }
       }
     },
@@ -33,24 +53,44 @@
     "step": {
       "init": {
         "title": "HydroFlow Garden",
+        "description": "Settings shared by all controllers. Add controllers afterwards with \"Add controller\".",
         "data": {
-          "engine_enabled": "Engine active (writes the IU config and runs fill, preflight, Smart Irrigation, rain skip, log, notifications)",
-          "notify_entities": "Notify entities (notify.send_message)",
-          "notify_services": "Legacy notify services (e.g. notify.mobile_app_phone)",
-          "notify_persistent": "Also create persistent notifications",
-          "weather_entity": "Weather entity for the daily forecast",
-          "rain_now_entity": "Entity saying it rains now",
-          "rain_now_state": "State of that entity meaning rain",
-          "prob_threshold": "Skip when rain probability is at least",
-          "mm_threshold": "...and forecast rain is at least",
-          "skip_time": "Time the forecast is checked",
+          "engine_enabled": "Engine active",
+          "notify_entities": "Notify entities",
+          "notify_services": "Legacy notify services",
+          "notify_persistent": "Persistent notifications",
+          "weather_entity": "Weather entity",
+          "rain_now_entity": "Raining-now entity",
+          "rain_now_state": "Raining state",
+          "prob_threshold": "Skip at probability",
+          "mm_threshold": "...and at rain",
+          "skip_time": "Forecast check time",
           "skip_hours": "Suspension length",
-          "log_path": "Event log file (relative to /config)",
-          "log_max_mb": "Rotate the log above",
-          "log_keep": "Rotated copies kept",
-          "iu_config_path": "Irrigation Unlimited file (included by configuration.yaml)",
-          "dashboard_url": "Dashboard URL path (must contain a dash)",
+          "log_path": "Event log file",
+          "log_max_mb": "Rotate log above",
+          "log_keep": "Rotated copies",
+          "iu_config_path": "Irrigation Unlimited file",
+          "dashboard_url": "Dashboard URL",
           "dashboard_title": "Dashboard title"
+        },
+        "data_description": {
+          "engine_enabled": "Off: entities only, nothing is written or triggered (useful while migrating). On: writes the Irrigation Unlimited file and runs fill, preflight, Smart Irrigation, rain skip, log and notifications.",
+          "notify_entities": "Entities called with notify.send_message (e.g. a Telegram bot). Leave empty for none.",
+          "notify_services": "Full service names, one per line, e.g. notify.mobile_app_my_phone.",
+          "notify_persistent": "Also show every message as a persistent notification in Home Assistant.",
+          "weather_entity": "Must provide daily forecasts with precipitation (mm) and precipitation_probability (%). Enables the daily rain skip and the forecast sensors.",
+          "rain_now_entity": "Any entity telling that it is raining right now (rain sensor, weather station, forecast condition). A scheduled run that starts while it rains is cancelled.",
+          "rain_now_state": "State of that entity meaning rain: 'on' for a binary sensor, e.g. 'rain' for a weather condition.",
+          "prob_threshold": "The day is skipped when today's rain probability is at least this value...",
+          "mm_threshold": "...and the forecast rain is at least this many mm. Both conditions are required.",
+          "skip_time": "When the forecast is checked every day. Put it before your earliest program.",
+          "skip_hours": "Hours the active controllers stay suspended after a rain skip.",
+          "log_path": "Plain text log of starts, finishes, valves and faults. Relative paths are inside the config folder.",
+          "log_max_mb": "Size that triggers a rotation.",
+          "log_keep": "How many old copies (.1, .2, ...) are kept.",
+          "iu_config_path": "The file configuration.yaml includes with `irrigation_unlimited: !include <file>`. It is overwritten by this integration.",
+          "dashboard_url": "Path of the generated dashboard. Must contain a dash, e.g. hydroflow-garden.",
+          "dashboard_title": "Name shown in the sidebar."
         }
       }
     }
@@ -65,37 +105,64 @@
       "step": {
         "user": {
           "title": "New controller",
-          "description": "Zones and programs are identified by their id: changing a zone id makes a new zone (values and history start over).",
+          "description": "A controller = one system with its pump and valves (one Irrigation Unlimited controller). Zones and programs are identified by their id: changing an id makes a new zone/program.",
           "data": {
             "name": "Name",
-            "id": "Id (slug, cannot change later; empty = from name)",
+            "id": "Id",
             "iu_controller_id": "IU controller_id",
             "entity_id": "Pump / master valve",
-            "max_zone_duration": "Max zone duration (HH:MM)",
+            "max_zone_duration": "Max zone run",
             "zones": "Zones",
             "programs": "Programs",
             "fill_switches": "Cistern fill switches",
-            "fill_lead_minutes": "Default fill lead",
-            "fill_duration_minutes": "Default fill duration",
-            "availability_entity": "Valve device connectivity sensor (enables preflight)",
-            "preflight_timeout_minutes": "Default preflight timeout"
+            "fill_lead_minutes": "Fill lead",
+            "fill_duration_minutes": "Fill duration",
+            "availability_entity": "Valve device connectivity",
+            "preflight_timeout_minutes": "Preflight wait"
+          },
+          "data_description": {
+            "name": "Shown in the dashboard and in notifications, e.g. Garden.",
+            "id": "Short slug used in every entity id (switch.iu_<id>_...). Cannot change later. Empty = from the name.",
+            "iu_controller_id": "controller_id written in the Irrigation Unlimited file. Empty = from the name.",
+            "entity_id": "Switch turned on by Irrigation Unlimited whenever any zone of this controller waters.",
+            "max_zone_duration": "Safety cap for one zone run, HH:MM (Irrigation Unlimited `maximum`).",
+            "zones": "One row per valve: id (fixed, part of the entity ids), name, valve switch and optionally the Smart Irrigation sensor that gives its duration.",
+            "programs": "One row per daily start (up to 9): id, name, default time. Each program has its own time, months, eco and per-zone weekdays and durations.",
+            "fill_switches": "Optional: switches turned on before each program to fill a tank. Empty = no fill.",
+            "fill_lead_minutes": "Default minutes before the program start when filling begins (adjustable later from the dashboard).",
+            "fill_duration_minutes": "Default minutes the fill switches stay on.",
+            "availability_entity": "Optional binary_sensor that is 'on' when the valve controller (e.g. ESPHome status) is online. Enables the preflight: wait, suspend or cancel a run with the device offline, and no Smart Irrigation bucket reset for water never delivered.",
+            "preflight_timeout_minutes": "Default minutes before the start at which the device is checked and waited for."
           }
         },
         "reconfigure": {
           "title": "Controller",
-          "description": "Zones and programs are identified by their id: changing a zone id makes a new zone (values and history start over).",
+          "description": "A controller = one system with its pump and valves (one Irrigation Unlimited controller). Zones and programs are identified by their id: changing an id makes a new zone/program.",
           "data": {
             "name": "Name",
             "iu_controller_id": "IU controller_id",
             "entity_id": "Pump / master valve",
-            "max_zone_duration": "Max zone duration (HH:MM)",
+            "max_zone_duration": "Max zone run",
             "zones": "Zones",
             "programs": "Programs",
             "fill_switches": "Cistern fill switches",
-            "fill_lead_minutes": "Default fill lead",
-            "fill_duration_minutes": "Default fill duration",
-            "availability_entity": "Valve device connectivity sensor (enables preflight)",
-            "preflight_timeout_minutes": "Default preflight timeout"
+            "fill_lead_minutes": "Fill lead",
+            "fill_duration_minutes": "Fill duration",
+            "availability_entity": "Valve device connectivity",
+            "preflight_timeout_minutes": "Preflight wait"
+          },
+          "data_description": {
+            "name": "Shown in the dashboard and in notifications, e.g. Garden.",
+            "iu_controller_id": "controller_id written in the Irrigation Unlimited file. Empty = from the name.",
+            "entity_id": "Switch turned on by Irrigation Unlimited whenever any zone of this controller waters.",
+            "max_zone_duration": "Safety cap for one zone run, HH:MM (Irrigation Unlimited `maximum`).",
+            "zones": "One row per valve: id (fixed, part of the entity ids), name, valve switch and optionally the Smart Irrigation sensor that gives its duration.",
+            "programs": "One row per daily start (up to 9): id, name, default time. Each program has its own time, months, eco and per-zone weekdays and durations.",
+            "fill_switches": "Optional: switches turned on before each program to fill a tank. Empty = no fill.",
+            "fill_lead_minutes": "Default minutes before the program start when filling begins (adjustable later from the dashboard).",
+            "fill_duration_minutes": "Default minutes the fill switches stay on.",
+            "availability_entity": "Optional binary_sensor that is 'on' when the valve controller (e.g. ESPHome status) is online. Enables the preflight: wait, suspend or cancel a run with the device offline, and no Smart Irrigation bucket reset for water never delivered.",
+            "preflight_timeout_minutes": "Default minutes before the start at which the device is checked and waited for."
           }
         }
       },
@@ -110,10 +177,48 @@
       }
     }
   },
+  "selector": {
+    "zones": {
+      "fields": {
+        "id": {
+          "name": "Zone id",
+          "description": "Number, fixed: changing it creates a new zone."
+        },
+        "name": {
+          "name": "Name",
+          "description": "e.g. Lawn."
+        },
+        "entity_id": {
+          "name": "Valve",
+          "description": "Switch or valve that opens this zone."
+        },
+        "si_sensor": {
+          "name": "Smart Irrigation sensor",
+          "description": "Optional: its value becomes the zone duration before each run."
+        }
+      }
+    },
+    "programs": {
+      "fields": {
+        "id": {
+          "name": "Program id",
+          "description": "1 to 9, fixed."
+        },
+        "name": {
+          "name": "Name",
+          "description": "e.g. Morning."
+        },
+        "default_time": {
+          "name": "Default time",
+          "description": "Initial start time; change it later from the dashboard."
+        }
+      }
+    }
+  },
   "issues": {
     "missing_cards": {
       "title": "Cards missing for the irrigation dashboard",
-      "description": "Install from HACS: {cards}. Without them the generated dashboard does not render."
+      "description": "Install from the Marketplace/HACS: {cards}. Without them the generated dashboard does not render."
     }
   },
   "services": {

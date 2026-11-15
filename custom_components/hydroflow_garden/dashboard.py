@@ -1,7 +1,8 @@
 """Generate the irrigation dashboard (Lovelace, storage mode).
 
 Rendered from the Jinja templates in ``dashboard_templates/`` (custom
-button-card, auto-entities and apexcharts-card required). It is rewritten whenever the
+button-card and auto-entities required; apexcharts-card optional, for the
+Timeline tab). It is rewritten whenever the
 configuration that shapes it changes (controllers, zones, programs, options)
 and on demand (button / ``hydroflow_garden.regenerate_dashboard``). Edits
 made by hand survive until the next such change.
@@ -42,7 +43,9 @@ from .model import Controller, slugify
 _LOGGER = logging.getLogger(__name__)
 
 TEMPLATES = Path(__file__).parent / "dashboard_templates"
-REQUIRED_CARDS = ("button-card", "auto-entities", "apexcharts-card")
+REQUIRED_CARDS = ("button-card", "auto-entities")
+# Optional: without it the Timeline tab and chart are left out of the render.
+APEXCHARTS = "apexcharts-card"
 
 
 @dataclass
@@ -67,9 +70,12 @@ def _env() -> jinja2.Environment:
     return env
 
 
-def render_dashboard(controllers: list[Controller], title: str) -> dict:
+def render_dashboard(
+    controllers: list[Controller], title: str, has_apexcharts: bool = True
+) -> dict:
     """Full Lovelace config (pure, blocking: run in an executor)."""
     env = _env()
+    env.globals["has_apexcharts"] = has_apexcharts
     views = []
     for pos, ctrl in enumerate(controllers):
         view = _CtrlView(ctrl, pos)
@@ -130,12 +136,17 @@ async def _async_get_or_register(rt) -> Any:
     return dash
 
 
-def _check_resources(rt) -> None:
+def _resource_urls(rt) -> list[str] | None:
+    """URLs of the Lovelace resources, None when they cannot be read."""
     data = _lovelace(rt.hass)
-    urls = []
     try:
-        urls = [str(r.get("url", "")) for r in data.resources.async_items()]
-    except Exception:  # noqa: BLE001 - resources not loaded yet
+        return [str(r.get("url", "")) for r in data.resources.async_items()]
+    except Exception:  # noqa: BLE001 - resources not loaded yet, or YAML mode
+        return None
+
+
+def _check_resources(rt, urls: list[str] | None) -> None:
+    if urls is None:
         return
     missing = [c for c in REQUIRED_CARDS if not any(c in u for u in urls)]
     if missing:
@@ -151,15 +162,18 @@ def _check_resources(rt) -> None:
 async def async_generate_dashboard(rt, force: bool = True) -> bool:
     """Render and save; with ``force`` False only when the render changed."""
     hass = rt.hass
+    urls = _resource_urls(rt)
+    # Unknown resources: keep the chart rather than silently drop it.
+    has_apex = urls is None or any(APEXCHARTS in u for u in urls)
     config = await hass.async_add_executor_job(
-        render_dashboard, rt.controller_list, rt.options[CONF_DASHBOARD_TITLE])
+        render_dashboard, rt.controller_list, rt.options[CONF_DASHBOARD_TITLE], has_apex)
     digest = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
     store: Store[dict] = Store(hass, 1, f"{DOMAIN}.{rt.entry.entry_id}.dashboard")
     saved = (await store.async_load()) or {}
     dash = await _async_get_or_register(rt)
     if dash is None:
         return False
-    _check_resources(rt)
+    _check_resources(rt, urls)
     if not force and saved.get("digest") == digest and saved.get("url") == rt.options[CONF_DASHBOARD_URL]:
         return False
     await dash.async_save(config)

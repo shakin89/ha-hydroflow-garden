@@ -169,12 +169,14 @@ def controller_schema(v: dict, creating: bool) -> vol.Schema:
             sel.EntitySelectorConfig(domain=["switch", "valve"])),
         vol.Required("max_zone_duration", default=v.get("max_zone_duration", "00:40")): sel.TextSelector(),
         vol.Required("zones", default=v.get("zones", [])): sel.ObjectSelector(
-            sel.ObjectSelectorConfig(fields=ZONE_FIELDS, multiple=True, label_field="name")),
+            sel.ObjectSelectorConfig(fields=ZONE_FIELDS, multiple=True, label_field="name",
+                                     translation_key="zones")),
         vol.Required("programs", default=v.get("programs", [
             {"id": 1, "name": "Mattina", "default_time": "06:00"},
             {"id": 2, "name": "Sera", "default_time": "20:00"},
         ])): sel.ObjectSelector(
-            sel.ObjectSelectorConfig(fields=PROGRAM_FIELDS, multiple=True, label_field="name")),
+            sel.ObjectSelectorConfig(fields=PROGRAM_FIELDS, multiple=True, label_field="name",
+                                     translation_key="programs")),
         _opt("fill_switches", v): sel.EntitySelector(
             sel.EntitySelectorConfig(domain="switch", multiple=True)),
         vol.Required("fill_lead_minutes", default=v.get("fill_lead_minutes", 120)): _num(0, 240, 5, "min"),
