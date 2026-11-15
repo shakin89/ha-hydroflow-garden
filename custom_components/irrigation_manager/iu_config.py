@@ -172,8 +172,16 @@ def program_sequences(config: dict, ctrl_pos: int, prog: Program) -> list[dict]:
     ]
 
 
+class _NoAliasDumper(yaml.SafeDumper):
+    """Write shared lists in full instead of ``&id001`` anchors."""
+
+    def ignore_aliases(self, data) -> bool:
+        return True
+
+
 def dump(config: dict) -> str:
     """File text for ``irrigation_unlimited: !include <file>``."""
-    return HEADER + yaml.safe_dump(
-        config, sort_keys=False, allow_unicode=True, default_flow_style=None, width=120
+    return HEADER + yaml.dump(
+        config, Dumper=_NoAliasDumper, sort_keys=False, allow_unicode=True,
+        default_flow_style=None, width=120,
     )

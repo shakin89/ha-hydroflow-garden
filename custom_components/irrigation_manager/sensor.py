@@ -64,7 +64,7 @@ class _ZoneSensor(ManagerEntity, SensorEntity):
     def __init__(self, rt, ctrl: Controller, zone: Zone, suffix: str, icon: str) -> None:
         oid = zone_sensor_object_id(ctrl, zone, suffix)
         super().__init__(rt, "sensor", oid, "", icon, ctrl)
-        self._attr_name = f"IU {ctrl.name} Z{zone.id} {zone.name} {suffix}"
+        self._attr_name = f"Z{zone.id} {zone.name} {suffix}"
         self.zone = zone
 
 
@@ -184,12 +184,12 @@ class ForecastSensor(ManagerEntity, SensorEntity):
     def __init__(self, rt, what: str) -> None:
         if what == "mm":
             super().__init__(rt, "sensor", "precipitazioni_oggi", "", "mdi:weather-pouring", None)
-            self._attr_name = "Precipitazioni Oggi"
+            self._attr_name = "Precipitazioni oggi"
             self._attr_native_unit_of_measurement = UnitOfLength.MILLIMETERS
             self._attr_device_class = SensorDeviceClass.PRECIPITATION
         else:
             super().__init__(rt, "sensor", "probabilita_pioggia_oggi", "", "mdi:water-percent", None)
-            self._attr_name = "Probabilita Pioggia Oggi"
+            self._attr_name = "Probabilità pioggia oggi"
             self._attr_native_unit_of_measurement = PERCENTAGE
         self.what = what
 

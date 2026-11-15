@@ -117,3 +117,4 @@ def test_dump_roundtrip() -> None:
     text = iu_config.dump(cfg)
     assert text.startswith("# AUTO-GENERATED")
     assert yaml.safe_load(text) == cfg
+    assert "&id" not in text and "*id" not in text

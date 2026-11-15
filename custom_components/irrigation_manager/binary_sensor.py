@@ -27,7 +27,6 @@ class RainNow(ManagerEntity, BinarySensorEntity):
     def __init__(self, rt) -> None:
         super().__init__(rt, "binary_sensor", "iu_sta_piovendo", "Sta piovendo",
                          "mdi:weather-pouring", None)
-        self._attr_name = "IU Sta Piovendo"
 
     @property
     def available(self) -> bool:

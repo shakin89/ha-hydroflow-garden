@@ -35,10 +35,12 @@ def hub_device(entry_id: str) -> DeviceInfo:
 
 class ManagerEntity(Entity):
     """Explicit entity_id = <platform>.<key>, unique_id = key: the object_ids
-    of the YAML helpers this integration replaces are kept."""
+    of the YAML helpers this integration replaces are kept, whatever the
+    entity name."""
 
     _attr_should_poll = False
-    _attr_has_entity_name = False
+    # Friendly name = device name + entity name (HA composes it).
+    _attr_has_entity_name = True
 
     def __init__(self, rt: IrrigationRuntime, platform: str, key: str, name: str,
                  icon: str | None, ctrl: Controller | None) -> None:
@@ -47,7 +49,7 @@ class ManagerEntity(Entity):
         self._key = key
         self.entity_id = f"{platform}.{key}"
         self._attr_unique_id = key
-        self._attr_name = f"IU {ctrl.name} - {name}" if ctrl else f"IU - {name}"
+        self._attr_name = name
         self._attr_icon = icon
         self._attr_device_info = (
             controller_device(rt.entry.entry_id, ctrl) if ctrl else hub_device(rt.entry.entry_id)
