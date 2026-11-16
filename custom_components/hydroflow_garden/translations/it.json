@@ -40,7 +40,7 @@
           "log_keep": "Quante copie vecchie (.1, .2, ...) vengono tenute.",
           "iu_config_path": "Il file incluso da configuration.yaml con `irrigation_unlimited: !include` (this file name). Viene sovrascritto da questa integrazione.",
           "dashboard_url": "Percorso della dashboard generata. Deve contenere un trattino, es. hydroflow-garden.",
-          "dashboard_title": "Nome mostrato nella barra laterale."
+          "dashboard_title": "Nome mostrato nella barra laterale. Vuoto = 'Irrigazione', tradotto."
         }
       }
     },
@@ -90,7 +90,7 @@
           "log_keep": "Quante copie vecchie (.1, .2, ...) vengono tenute.",
           "iu_config_path": "Il file incluso da configuration.yaml con `irrigation_unlimited: !include` (this file name). Viene sovrascritto da questa integrazione.",
           "dashboard_url": "Percorso della dashboard generata. Deve contenere un trattino, es. hydroflow-garden.",
-          "dashboard_title": "Nome mostrato nella barra laterale."
+          "dashboard_title": "Nome mostrato nella barra laterale. Vuoto = 'Irrigazione', tradotto."
         }
       }
     }
@@ -174,6 +174,196 @@
       "abort": {
         "reconfigure_successful": "Salvato"
       }
+    }
+  },
+  "entity": {
+    "switch": {
+      "system_enabled": {
+        "name": "Sistema attivo"
+      },
+      "adjust_rain": {
+        "name": "Annulla se piove"
+      },
+      "logging": {
+        "name": "Log attivo"
+      },
+      "notifications": {
+        "name": "Notifiche"
+      },
+      "preflight": {
+        "name": "Preflight device"
+      },
+      "program_enabled": {
+        "name": "{program} attivo"
+      },
+      "program_eco": {
+        "name": "{program} eco"
+      },
+      "program_month_jan": {
+        "name": "{program} Gennaio"
+      },
+      "program_month_feb": {
+        "name": "{program} Febbraio"
+      },
+      "program_month_mar": {
+        "name": "{program} Marzo"
+      },
+      "program_month_apr": {
+        "name": "{program} Aprile"
+      },
+      "program_month_may": {
+        "name": "{program} Maggio"
+      },
+      "program_month_jun": {
+        "name": "{program} Giugno"
+      },
+      "program_month_jul": {
+        "name": "{program} Luglio"
+      },
+      "program_month_aug": {
+        "name": "{program} Agosto"
+      },
+      "program_month_sep": {
+        "name": "{program} Settembre"
+      },
+      "program_month_oct": {
+        "name": "{program} Ottobre"
+      },
+      "program_month_nov": {
+        "name": "{program} Novembre"
+      },
+      "program_month_dec": {
+        "name": "{program} Dicembre"
+      },
+      "zone_enabled": {
+        "name": "{program} {zone}"
+      },
+      "zone_day_mon": {
+        "name": "{program} {zone} Lunedì"
+      },
+      "zone_day_tue": {
+        "name": "{program} {zone} Martedì"
+      },
+      "zone_day_wed": {
+        "name": "{program} {zone} Mercoledì"
+      },
+      "zone_day_thu": {
+        "name": "{program} {zone} Giovedì"
+      },
+      "zone_day_fri": {
+        "name": "{program} {zone} Venerdì"
+      },
+      "zone_day_sat": {
+        "name": "{program} {zone} Sabato"
+      },
+      "zone_day_sun": {
+        "name": "{program} {zone} Domenica"
+      }
+    },
+    "number": {
+      "test_duration": {
+        "name": "Durata test"
+      },
+      "preflight_timeout": {
+        "name": "Timeout preflight"
+      },
+      "fill_lead": {
+        "name": "Anticipo riempimento"
+      },
+      "fill_duration": {
+        "name": "Durata riempimento"
+      },
+      "si_adjust_lead": {
+        "name": "Anticipo adjust Smart Irrigation"
+      },
+      "program_offset": {
+        "name": "{program} offset sole"
+      },
+      "program_eco_cycles": {
+        "name": "{program} eco cicli"
+      },
+      "program_eco_soak": {
+        "name": "{program} pausa eco"
+      },
+      "zone_duration": {
+        "name": "{program} {zone} durata"
+      }
+    },
+    "select": {
+      "status_tab": {
+        "name": "Tab stato",
+        "state": {
+          "next": "Prossima",
+          "history": "Storico",
+          "smart": "Smart",
+          "timeline": "Timeline"
+        }
+      },
+      "time_type": {
+        "name": "{program} tipo orario",
+        "state": {
+          "fixed": "Fisso",
+          "sunrise": "Alba",
+          "sunset": "Tramonto"
+        }
+      }
+    },
+    "time": {
+      "program_time": {
+        "name": "{program} orario"
+      }
+    },
+    "sensor": {
+      "suspend_reason": {
+        "name": "Motivo sospensione",
+        "state": {
+          "none": "Nessuna",
+          "rain": "Pioggia",
+          "device_offline": "Device offline"
+        }
+      },
+      "zone_planned": {
+        "name": "{zone} Programmato"
+      },
+      "zone_today": {
+        "name": "{zone} Oggi"
+      },
+      "zone_yesterday": {
+        "name": "{zone} Ieri"
+      },
+      "zone_two_days_ago": {
+        "name": "{zone} 2gg fa"
+      },
+      "rain_today": {
+        "name": "Precipitazioni oggi"
+      },
+      "rain_probability_today": {
+        "name": "Probabilità pioggia oggi"
+      }
+    },
+    "binary_sensor": {
+      "raining": {
+        "name": "Sta piovendo"
+      }
+    },
+    "button": {
+      "test": {
+        "name": "Avvia test"
+      },
+      "regenerate_dashboard": {
+        "name": "Rigenera dashboard"
+      },
+      "write_iu_config": {
+        "name": "Riscrivi config IU"
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "HydroFlow Garden non è caricato"
+    },
+    "engine_off": {
+      "message": "L'engine è spento"
     }
   },
   "selector": {

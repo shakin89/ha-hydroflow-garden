@@ -18,7 +18,7 @@ from typing import Any
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers.storage import Store
 
-from .const import DOMAIN
+from .const import DOMAIN, LEGACY_OPTIONS
 from .model import KIND_NUMBER, KIND_SELECT, KIND_SWITCH, KIND_TIME, ValueSpec
 
 _LOGGER = logging.getLogger(__name__)
@@ -42,6 +42,7 @@ def _from_legacy(spec: ValueSpec, state: str) -> Any:
             parts = state.split(":")
             return f"{int(parts[0]):02d}:{int(parts[1]):02d}:{int(parts[2]) if len(parts) > 2 else 0:02d}"
         if spec.kind == KIND_SELECT:
+            state = LEGACY_OPTIONS.get(state, state)
             return state if state in spec.options else None
     except (TypeError, ValueError, IndexError):
         return None
@@ -70,7 +71,7 @@ class ValueStore:
         seed = seed or {}
         self._data = (await self._store.async_load()) or {}
         seeded: list[str] = []
-        changed = False
+        changed = self._migrate_options(specs, extra)
         for key, spec in specs.items():
             if key in self._data:
                 continue
@@ -97,6 +98,17 @@ class ValueStore:
         if changed:
             self._store.async_delay_save(lambda: self._data, SAVE_DELAY)
         return seeded
+
+    def _migrate_options(self, specs: dict[str, ValueSpec], extra: dict[str, Any]) -> bool:
+        """Stored Italian option labels (before 0.3) -> language-neutral codes."""
+        keys = {k for k, s in specs.items() if s.kind == KIND_SELECT} | set(extra)
+        changed = False
+        for key in keys:
+            old = self._data.get(key)
+            if isinstance(old, str) and old in LEGACY_OPTIONS:
+                self._data[key] = LEGACY_OPTIONS[old]
+                changed = True
+        return changed
 
     def get(self, key: str, default: Any = None) -> Any:
         return self._data.get(key, default)

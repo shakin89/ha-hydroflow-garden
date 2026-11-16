@@ -1,6 +1,8 @@
 # HydroFlow Garden: Smart and Unlimited
 
-🇮🇹 [Leggi in italiano](README.it.md)
+[![HydroFlow Garden](https://raw.githubusercontent.com/shakin89/ha-hydroflow-garden/main/docs/images/HA-HydroFlow-Garden_small.jpg)](https://raw.githubusercontent.com/shakin89/ha-hydroflow-garden/main/docs/images/HA-HydroFlow-Garden.jpeg)
+
+<img src="https://raw.githubusercontent.com/shakin89/ha-hydroflow-garden/main/docs/images/flag-it.svg" width="18" alt="IT"> [Leggi in italiano](README.it.md)
 
 **HydroFlow Garden joins [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited) and
 [Smart Irrigation](https://github.com/jeroenterheerdt/HAsmartirrigation) into one irrigation system you
@@ -66,15 +68,15 @@ HydroFlow Garden is that missing layer, built as a native integration.
 2. **Add a controller.** On the integration page choose **Add controller**: one controller is one
    system with its own pump and valves. Fill in its zones (a valve each) and its programs (a daily start
    each). Every field has a help text under it.
-3. **Open the dashboard** from the sidebar (*Irrigazione* by default). For each program, set:
+3. **Open the dashboard** from the sidebar (*Irrigation* by default, in the language of Home Assistant). For each program, set:
    - the start time;
    - the active months;
    - eco cycles;
    - for each zone, the weekdays and the duration.
 4. **Turn the engine on.** Integration page → **Configure** → *Engine active*. The IU file is written,
    IU reloads, and from then on every change in the dashboard reaches IU within about 5 seconds.
-5. **Test.** In the *Sistema* section, the **Test zone** button runs every zone of a controller for the
-   test duration.
+5. **Test.** The **Start test** button of a controller (`button.iu_<c>_test`, on its device page) runs
+   every zone for the test duration. It is not in the dashboard for now.
 
 To change zones or programs later, use **Reconfigure** on the controller. The dashboard is regenerated
 automatically.
@@ -141,13 +143,27 @@ Each value is an entity with a stable id: `iu_<controller>_…`.
 | `switch.iu_<c>_p<N>_enabled`, `_eco`, `_<month>` | Program on/off, eco, active months |
 | `switch.iu_<c>_p<N>_z<Z>_enabled`, `_z<Z>_<weekday>` | Zone in the program, its weekdays |
 | `number.iu_<c>_p<N>_z<Z>_duration` | Zone duration (min) |
-| `time.iu_<c>_p<N>_time`, `select.iu_<c>_p<N>_time_type`, `number.iu_<c>_p<N>_offset` | Start: fixed, sunrise or sunset ± offset |
+| `time.iu_<c>_p<N>_time`, `select.iu_<c>_p<N>_time_type`, `number.iu_<c>_p<N>_offset` | Start: `fixed`, `sunrise` or `sunset` ± offset |
 | `number.iu_<c>_p<N>_eco_cycles`, `_eco_soak` | Eco cycles and the soak between them (s, may be negative) |
 | `number.iu_<c>_fill_lead_minutes`, `_fill_duration_minutes`, `_preflight_timeout_minutes`, `iu_si_adjust_lead_minutes` | Leads and durations |
-| `sensor.iu_<c>_suspend_reason` | Why the controller is suspended (*Pioggia*, *Device offline*) |
+| `sensor.iu_<c>_suspend_reason` | Why the controller is suspended: `none`, `rain`, `device_offline` |
 | `sensor.iu_<controller name>_z<Z>_<zone>_programmato` / `_oggi` / `_ieri` / `_2gg_fa` | Next planned duration with Smart Irrigation details; watering time today, yesterday and 2 days ago |
 | `sensor.precipitazioni_oggi`, `sensor.probabilita_pioggia_oggi`, `binary_sensor.iu_sta_piovendo` | Forecast and rain now |
 | `button.iu_<c>_test`, `button.iu_regenerate_dashboard`, `button.iu_write_config` | Test run, maintenance |
+
+## Languages
+
+The interface follows the language of Home Assistant: English and Italian, English for any other
+language. That covers entity names, the options of the selects, the setup forms, the notifications and
+the generated dashboard. When the language of Home Assistant changes, the integration reloads and
+regenerates the dashboard.
+
+States are language-neutral codes (`fixed`, `sunrise`, `sunset`; `none`, `rain`, `device_offline`;
+`next`, `history`, `smart`, `timeline`) and Home Assistant shows them translated. Automations must use
+the codes. Before 0.3 these states were Italian labels (*Fisso*, *Pioggia*…): stored values are
+converted on the first start, automations that compare them must be updated by hand.
+
+To add a language, see `scripts/build_translations.py`.
 
 ## Actions
 

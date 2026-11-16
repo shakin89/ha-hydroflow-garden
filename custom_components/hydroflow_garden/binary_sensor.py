@@ -25,7 +25,7 @@ class RainNow(ManagerEntity, BinarySensorEntity):
     _attr_device_class = BinarySensorDeviceClass.MOISTURE
 
     def __init__(self, rt) -> None:
-        super().__init__(rt, "binary_sensor", "iu_sta_piovendo", "Sta piovendo",
+        super().__init__(rt, "binary_sensor", "iu_sta_piovendo", "raining",
                          "mdi:weather-pouring", None)
 
     @property

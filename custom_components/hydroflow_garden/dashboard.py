@@ -30,14 +30,7 @@ from homeassistant.core import HomeAssistant
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 
-from .const import (
-    CONF_DASHBOARD_TITLE,
-    CONF_DASHBOARD_URL,
-    DOMAIN,
-    MONTHS,
-    TIME_TYPES,
-    WEEKDAYS,
-)
+from .const import CONF_DASHBOARD_URL, DOMAIN, MONTH_CODES, WEEKDAY_CODES
 from .model import Controller, slugify
 
 _LOGGER = logging.getLogger(__name__)
@@ -59,22 +52,29 @@ class _CtrlView:
         return getattr(self.ctrl, name)
 
 
-def _env() -> jinja2.Environment:
+def _env(texts: dict[str, Any]) -> jinja2.Environment:
+    """``texts``: the ``dashboard`` texts of one language (texts/<lang>.json)."""
     env = jinja2.Environment(
         loader=jinja2.FileSystemLoader(str(TEMPLATES)),
         keep_trailing_newline=True,
         undefined=jinja2.StrictUndefined,
     )
     env.filters["slugify"] = slugify
-    env.globals.update(weekdays=WEEKDAYS, months=MONTHS, time_type_options=TIME_TYPES)
+    # Quoted literal, valid both as a YAML double-quoted scalar and in JS.
+    env.filters["q"] = lambda v: json.dumps(v, ensure_ascii=False)
+    env.globals.update(
+        t=texts,
+        weekdays=list(zip(WEEKDAY_CODES, texts["weekdays_short"], strict=True)),
+        months=list(zip(MONTH_CODES, texts["months_short"], strict=True)),
+    )
     return env
 
 
 def render_dashboard(
-    controllers: list[Controller], title: str, has_apexcharts: bool = True
+    controllers: list[Controller], title: str, texts: dict[str, Any], has_apexcharts: bool = True
 ) -> dict:
     """Full Lovelace config (pure, blocking: run in an executor)."""
-    env = _env()
+    env = _env(texts)
     env.globals["has_apexcharts"] = has_apexcharts
     views = []
     for pos, ctrl in enumerate(controllers):
@@ -119,7 +119,7 @@ async def _async_get_or_register(rt) -> Any:
     item = {
         "id": f"{DOMAIN}_{slugify(url)}",
         "url_path": url,
-        "title": rt.options[CONF_DASHBOARD_TITLE],
+        "title": rt.dashboard_title,
         "icon": "mdi:sprinkler-variant",
         "show_in_sidebar": True,
         "require_admin": False,
@@ -166,7 +166,7 @@ async def async_generate_dashboard(rt, force: bool = True) -> bool:
     # Unknown resources: keep the chart rather than silently drop it.
     has_apex = urls is None or any(APEXCHARTS in u for u in urls)
     config = await hass.async_add_executor_job(
-        render_dashboard, rt.controller_list, rt.options[CONF_DASHBOARD_TITLE], has_apex)
+        render_dashboard, rt.controller_list, rt.dashboard_title, rt.texts.data["dashboard"], has_apex)
     digest = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
     store: Store[dict] = Store(hass, 1, f"{DOMAIN}.{rt.entry.entry_id}.dashboard")
     saved = (await store.async_load()) or {}

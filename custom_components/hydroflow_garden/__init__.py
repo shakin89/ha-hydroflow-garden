@@ -6,12 +6,19 @@ import logging
 
 import voluptuous as vol
 from homeassistant.config_entries import SOURCE_IMPORT, ConfigEntry
-from homeassistant.const import Platform
-from homeassistant.core import HomeAssistant, ServiceCall, SupportsResponse
+from homeassistant.const import EVENT_CORE_CONFIG_UPDATE, Platform
+from homeassistant.core import (
+    Event,
+    HomeAssistant,
+    ServiceCall,
+    SupportsResponse,
+    callback,
+)
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.typing import ConfigType
 
+from . import i18n
 from .const import DOMAIN, REASON_NONE
 from .model import suspend_reason_key
 from .runtime import HUB_SPECS, IrrigationRuntime, controllers_of
@@ -84,7 +91,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
 def _runtime(hass: HomeAssistant) -> IrrigationRuntime:
     for entry in hass.config_entries.async_loaded_entries(DOMAIN):
         return entry.runtime_data
-    raise ServiceValidationError("HydroFlow Garden is not loaded")
+    raise ServiceValidationError(translation_domain=DOMAIN, translation_key="not_loaded")
 
 
 def _register_services(hass: HomeAssistant) -> None:
@@ -98,7 +105,7 @@ def _register_services(hass: HomeAssistant) -> None:
     async def rain_skip(call: ServiceCall):
         rt = _runtime(hass)
         if rt.engine is None:
-            raise ServiceValidationError("The engine is off")
+            raise ServiceValidationError(translation_domain=DOMAIN, translation_key="engine_off")
         skipped = await rt.engine.async_rain_skip(force=call.data.get("force", False))
         return {"skipped": skipped, "forecast": rt.forecast}
 
@@ -123,7 +130,9 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     if seeded:
         _LOGGER.info("Seeded %s values (import or existing input_* helpers)", len(seeded))
 
-    rt = IrrigationRuntime(hass, entry, values)
+    lang = i18n.language(hass.config.language)
+    texts = i18n.Texts(lang, await hass.async_add_executor_job(i18n.load, lang))
+    rt = IrrigationRuntime(hass, entry, values, texts)
     entry.runtime_data = rt
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
     await rt.async_start()
@@ -135,6 +144,14 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
     from .dashboard import async_dashboard_on_setup
     await async_dashboard_on_setup(rt)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
+
+    @callback
+    def _core_config_updated(_event: Event) -> None:
+        # Notifications and the dashboard are rendered in the language of HA.
+        if i18n.language(hass.config.language) != rt.texts.lang:
+            hass.config_entries.async_schedule_reload(entry.entry_id)
+
+    entry.async_on_unload(hass.bus.async_listen(EVENT_CORE_CONFIG_UPDATE, _core_config_updated))
     return True
 
 

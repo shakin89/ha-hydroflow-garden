@@ -3,25 +3,25 @@
 type: grid
 cards:
   - type: heading
-    heading: "Sistema"
+    heading: {{ t.system_heading | q }}
     heading_style: title
   - type: custom:button-card
     template: iu_system_toggle
     entity: switch.iu_{{ ctrl.id }}_system_enabled
     name: |
       [[[
-        const stato = entity.state === 'on' ? 'Attivo' : 'Spento';
-        return `Sistema irrigazione {{ ctrl.name }} - ${stato}`;
+        const stato = entity.state === 'on' ? {{ t.on | q }} : {{ t.off | q }};
+        return {{ (t.irrigation_system ~ ' ' ~ ctrl.name ~ ' - ') | q }} + stato;
       ]]]
     variables:
-      label: "Sistema {{ ctrl.name }}"
+      label: {{ (t.system ~ ' ' ~ ctrl.name) | q }}
 
 {% if ctrl.fill_switches %}
   - type: custom:button-card
     template: iu_system_toggle
     entity: {{ ctrl.fill_switches[0] }}
     variables:
-      label: "Riempimento"
+      label: {{ t.fill | q }}
       icon: mdi:water-pump
 {% endif %}
 
@@ -29,7 +29,7 @@ cards:
     template: iu_system_toggle
     entity: switch.iu_{{ ctrl.id }}_adjust_rain
     variables:
-      label: "Comp. Pioggia"
+      label: {{ t.rain_block | q }}
       icon: mdi:weather-rainy
     grid_options:
       columns: 6
@@ -49,7 +49,7 @@ cards:
       template: iu_system_toggle
       entity: {{ first_si }}
       variables:
-        label: "Reset All Buckets"
+        label: {{ t.reset_buckets | q }}
         icon: mdi:bucket-outline
       tap_action:
         action: call-service
@@ -60,7 +60,7 @@ cards:
             - {{ z.si_sensor }}
 {%- endfor %}
         confirmation:
-          text: "Reset tutti i buckets SI per {{ ctrl.name }}?"
+          text: {{ t.reset_buckets_confirm.format(ctrl=ctrl.name) | q }}
       grid_options:
         columns: 6
 {%- endif %}
@@ -75,7 +75,7 @@ cards:
     template: iu_system_toggle
     entity: switch.iu_{{ ctrl.id }}_logging
     variables:
-      label: "Logging"
+      label: {{ t.logging | q }}
       icon: mdi:file-document-outline
     grid_options:
       columns: 6
@@ -84,7 +84,7 @@ cards:
     template: iu_system_toggle
     entity: switch.iu_{{ ctrl.id }}_notifications
     variables:
-      label: "Notifiche"
+      label: {{ t.notifications | q }}
       icon: mdi:bell-outline
     grid_options:
       columns: 6
@@ -94,16 +94,16 @@ cards:
     entity: switch.iu_{{ ctrl.id }}_preflight
     name: |
       [[[
-        const stato = entity.state === 'on' ? 'Attivo' : 'Spento';
-        return `Preflight device - ${stato}`;
+        const stato = entity.state === 'on' ? {{ t.on | q }} : {{ t.off | q }};
+        return {{ (t.preflight_device ~ ' - ') | q }} + stato;
       ]]]
     variables:
-      label: "Preflight Device"
+      label: {{ t.preflight_device | q }}
       icon: mdi:lan-check
   - type: custom:button-card
     template: iu_fill_card
     variables:
-      name: "Timeout Preflight"
+      name: {{ t.preflight_timeout | q }}
       icon: mdi:timer-alert-outline
       durata: number.iu_{{ ctrl.id }}_preflight_timeout_minutes
     grid_options:
@@ -113,7 +113,7 @@ cards:
   - type: custom:button-card
     template: iu_fill_card
     variables:
-      name: "Anticipo Riempimento"
+      name: {{ t.fill_lead | q }}
       icon: mdi:clock-start
       durata: number.iu_{{ ctrl.id }}_fill_lead_minutes
     grid_options:
@@ -121,27 +121,9 @@ cards:
   - type: custom:button-card
     template: iu_fill_card
     variables:
-      name: "Durata Riempimento"
+      name: {{ t.fill_duration | q }}
       icon: mdi:clock-end
       durata: number.iu_{{ ctrl.id }}_fill_duration_minutes
     grid_options:
       columns: 12
 {%- endif %}
-  - type: button
-    entity: button.iu_{{ ctrl.id }}_test
-    name: "Test zone"
-    icon: mdi:test-tube
-    tap_action:
-      action: perform-action
-      perform_action: button.press
-      target:
-        entity_id: button.iu_{{ ctrl.id }}_test
-      confirmation:
-        text: "Avviare il test di tutte le zone di {{ ctrl.name }}?"
-    grid_options:
-      columns: 6
-  - type: tile
-    entity: number.iu_{{ ctrl.id }}_test_duration
-    name: "Durata test"
-    grid_options:
-      columns: 6

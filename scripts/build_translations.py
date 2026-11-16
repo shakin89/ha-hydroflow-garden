@@ -1,9 +1,18 @@
-"""Build strings.json and translations/{en,it}.json from one table.
+"""Build every translation file from the tables below.
+
+- strings.json and translations/{en,it}.json: what Home Assistant translates
+  (config forms, entity names and states, services, issues, exceptions).
+- texts/{en,it}.json: what the integration renders itself (notifications and
+  the generated dashboard), see custom_components/hydroflow_garden/i18n.py.
 
 Every config field has a label and a help text shown under the field. Edit
 the tables below, then run:
 
     python3 scripts/build_translations.py
+
+To add a language, add its column to every table and its code to LANGS and to
+i18n.LANGUAGES. tests/test_translations.py fails when a generated file is out
+of date or a language misses a key.
 """
 
 from __future__ import annotations
@@ -13,6 +22,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent / "custom_components" / "hydroflow_garden"
 TITLE = "HydroFlow Garden"
+LANGS = ("en", "it")
 
 # key: (label EN, help EN, label IT, help IT)
 HUB = {
@@ -112,8 +122,8 @@ HUB = {
         "URL dashboard",
         "Percorso della dashboard generata. Deve contenere un trattino, es. hydroflow-garden.",
     ),
-    "dashboard_title": ("Dashboard title", "Name shown in the sidebar.",
-                        "Titolo dashboard", "Nome mostrato nella barra laterale."),
+    "dashboard_title": ("Dashboard title", "Name shown in the sidebar. Empty = 'Irrigation', translated.",
+                        "Titolo dashboard", "Nome mostrato nella barra laterale. Vuoto = 'Irrigazione', tradotto."),
 }
 
 CONTROLLER = {
@@ -216,6 +226,225 @@ PROGRAM_FIELDS = {
 }
 
 
+WEEKDAYS = {  # code: (EN, IT)
+    "mon": ("Monday", "Lunedì"), "tue": ("Tuesday", "Martedì"), "wed": ("Wednesday", "Mercoledì"),
+    "thu": ("Thursday", "Giovedì"), "fri": ("Friday", "Venerdì"), "sat": ("Saturday", "Sabato"),
+    "sun": ("Sunday", "Domenica"),
+}
+MONTHS = {
+    "jan": ("January", "Gennaio"), "feb": ("February", "Febbraio"), "mar": ("March", "Marzo"),
+    "apr": ("April", "Aprile"), "may": ("May", "Maggio"), "jun": ("June", "Giugno"),
+    "jul": ("July", "Luglio"), "aug": ("August", "Agosto"), "sep": ("September", "Settembre"),
+    "oct": ("October", "Ottobre"), "nov": ("November", "Novembre"), "dec": ("December", "Dicembre"),
+}
+
+# Entity names by platform and translation_key: (EN, IT). {program} = "P1 Morning",
+# {zone} = "Z1 Lawn". Optional states: {state: (EN, IT)}.
+ENTITY = {
+    "switch": {
+        "system_enabled": ("System enabled", "Sistema attivo"),
+        "adjust_rain": ("Cancel when raining", "Annulla se piove"),
+        "logging": ("Logging", "Log attivo"),
+        "notifications": ("Notifications", "Notifiche"),
+        "preflight": ("Device preflight", "Preflight device"),
+        "program_enabled": ("{program} enabled", "{program} attivo"),
+        "program_eco": ("{program} eco", "{program} eco"),
+        **{f"program_month_{c}": (f"{{program}} {en}", f"{{program}} {it}") for c, (en, it) in MONTHS.items()},
+        "zone_enabled": ("{program} {zone}", "{program} {zone}"),
+        **{f"zone_day_{c}": (f"{{program}} {{zone}} {en}", f"{{program}} {{zone}} {it}")
+           for c, (en, it) in WEEKDAYS.items()},
+    },
+    "number": {
+        "test_duration": ("Test duration", "Durata test"),
+        "preflight_timeout": ("Preflight timeout", "Timeout preflight"),
+        "fill_lead": ("Fill lead", "Anticipo riempimento"),
+        "fill_duration": ("Fill duration", "Durata riempimento"),
+        "si_adjust_lead": ("Smart Irrigation adjust lead", "Anticipo adjust Smart Irrigation"),
+        "program_offset": ("{program} sun offset", "{program} offset sole"),
+        "program_eco_cycles": ("{program} eco cycles", "{program} eco cicli"),
+        "program_eco_soak": ("{program} eco soak", "{program} pausa eco"),
+        "zone_duration": ("{program} {zone} duration", "{program} {zone} durata"),
+    },
+    "select": {
+        "status_tab": ("Status tab", "Tab stato", {
+            "next": ("Next", "Prossima"), "history": ("History", "Storico"),
+            "smart": ("Smart", "Smart"), "timeline": ("Timeline", "Timeline")}),
+        "time_type": ("{program} time type", "{program} tipo orario", {
+            "fixed": ("Fixed", "Fisso"), "sunrise": ("Sunrise", "Alba"), "sunset": ("Sunset", "Tramonto")}),
+    },
+    "time": {
+        "program_time": ("{program} time", "{program} orario"),
+    },
+    "sensor": {
+        "suspend_reason": ("Suspension reason", "Motivo sospensione", {
+            "none": ("None", "Nessuna"), "rain": ("Rain", "Pioggia"),
+            "device_offline": ("Device offline", "Device offline")}),
+        "zone_planned": ("{zone} planned", "{zone} Programmato"),
+        "zone_today": ("{zone} today", "{zone} Oggi"),
+        "zone_yesterday": ("{zone} yesterday", "{zone} Ieri"),
+        "zone_two_days_ago": ("{zone} 2 days ago", "{zone} 2gg fa"),
+        "rain_today": ("Rain today", "Precipitazioni oggi"),
+        "rain_probability_today": ("Rain probability today", "Probabilità pioggia oggi"),
+    },
+    "binary_sensor": {
+        "raining": ("Raining", "Sta piovendo"),
+    },
+    "button": {
+        "test": ("Start test", "Avvia test"),
+        "regenerate_dashboard": ("Regenerate dashboard", "Rigenera dashboard"),
+        "write_iu_config": ("Rewrite IU config", "Riscrivi config IU"),
+    },
+}
+
+EXCEPTIONS = {
+    "not_loaded": ("HydroFlow Garden is not loaded", "HydroFlow Garden non è caricato"),
+    "engine_off": ("The engine is off", "L'engine è spento"),
+}
+
+# Rendered by the integration (texts/<lang>.json): leaves are (EN, IT).
+# Notifications take str.format placeholders.
+TEXTS = {
+    "notify": {
+        "title": ("Irrigation", "Irrigazione"),
+        "fill_offline": ("{ctrl} - P{prog} fill NOT started: device {device} offline.",
+                         "{ctrl} - riempimento P{prog} NON partito: device {device} offline."),
+        "preflight_suspended": (
+            "{ctrl} - P{prog} {name} SUSPENDED: device {device} still offline after waiting {minutes} min. "
+            "Run not started, SI buckets kept.",
+            "{ctrl} - P{prog} {name} SOSPESO: device {device} ancora offline dopo {minutes} min di attesa. "
+            "Corsa non avviata, bucket SI preservati."),
+        "rain_skip": (
+            "Irrigation skipped: {prob}% probability / {mm} mm forecast today (thresholds {prob_t}% / "
+            "{mm_t} mm). Suspended for {hours} h: {names}.",
+            "Skip irrigazione: {prob}% prob / {mm} mm previsti oggi (soglie {prob_t}% / {mm_t} mm). "
+            "Sospesi per {hours} h: {names}."),
+        "rain_detected": ("{ctrl} - Rain detected, irrigation blocked",
+                          "{ctrl} - Pioggia rilevata, irrigazione bloccata"),
+        "start_offline": (
+            "{ctrl} - run CANCELLED: device {device} unavailable at start. No zone watered, SI buckets kept.",
+            "{ctrl} - corsa ANNULLATA: device {device} non disponibile all'avvio. Nessuna zona irrigata, "
+            "bucket SI preservati."),
+        "run_start": ("{ctrl} - {seq} - START. Expected duration: {minutes} min",
+                      "{ctrl} - {seq} - INIZIO. Durata attesa: {minutes} min"),
+        "run_finish": ("{ctrl} - {seq} - FINISH. Actual duration: {minutes} min",
+                       "{ctrl} - {seq} - FINE. Durata effettiva: {minutes} min"),
+        "run_cancelled": ("{ctrl} - {seq} - CANCELLED", "{ctrl} - {seq} - ANNULLATO"),
+    },
+    "dashboard": {
+        "title": ("Irrigation", "Irrigazione"),
+        # JS date formatting in the status card
+        "locale": ("en-GB", "it-IT"),
+        "weekdays_short": (["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"],
+                           ["Lun", "Mar", "Mer", "Gio", "Ven", "Sab", "Dom"]),
+        "months_short": (["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+                         ["Gen", "Feb", "Mar", "Apr", "Mag", "Giu", "Lug", "Ago", "Set", "Ott", "Nov", "Dic"]),
+        # status
+        "status_heading": ("Irrigation status", "Stato Irrigazione"),
+        "active_zone": ("Active zone", "Zona Attiva"),
+        "remaining": ("remaining", "rimanenti"),
+        "tab_next": ("Next", "Prossima"),
+        "tab_history": ("History", "Storico"),
+        "tab_smart": ("Smart", "Smart"),
+        "tab_timeline": ("Timeline", "Timeline"),
+        "next_title": ("Next irrigation", "Prossima Irrigazione"),
+        "next_start": ("Start", "Avvio"),
+        "nothing_scheduled": ("No irrigation scheduled", "Nessuna irrigazione programmata"),
+        "col_zone": ("Zone", "Zona"),
+        "col_when": ("When", "Quando"),
+        "col_base": ("Base", "Base"),
+        "col_si_estimate": ("SI estimate", "SI stima"),
+        "col_iu_now": ("IU now", "IU ora"),
+        "next_legend": (
+            "**Base** = helper duration of the starting program.\n"
+            "**SI estimate** = what the adjust will write (SI ÷ cycles), updated live.\n"
+            "**IU now** = what IU has planned right now: it matches SI estimate\n"
+            "only after the adjust has run (5 min before the start).",
+            "**Base** = durata helper del programma in partenza.\n"
+            "**SI stima** = quanto scriverà l'adjust (SI ÷ cicli), aggiornato live.\n"
+            "**IU ora** = quanto IU ha in programma adesso: coincide con SI stima\n"
+            "solo dopo che l'adjust è girato (5 min prima dell'avvio)."),
+        "history_title": ("Irrigation history", "Storico Irrigazione"),
+        "col_today": ("Today", "Oggi"),
+        "col_yesterday": ("Yesterday", "Ieri"),
+        "col_two_days_ago": ("2 days ago", "2gg fa"),
+        "smart_title": ("Smart Irrigation", "Smart Irrigation"),
+        "smart_intro": (
+            "Current water deficit and the volume SI would deliver **with the bucket\n"
+            "as it is now**, without waiting for the adjust.",
+            "Deficit idrico corrente e volume che SI erogherebbe **col bucket\n"
+            "di adesso**, senza aspettare l'adjust."),
+        "col_bucket": ("Bucket", "Bucket"),
+        "col_duration": ("Duration", "Durata"),
+        "col_liters": ("Liters", "Litri"),
+        "col_mm": ("mm", "mm"),
+        "calibration": ("**Zone calibration** — `s/mm = multiplier × size / throughput × 60`",
+                        "**Calibrazione zona** — `s/mm = multiplier × size / portata × 60`"),
+        "col_size": ("Size", "Size"),
+        "col_throughput": ("Throughput", "Portata"),
+        "col_s_per_mm": ("s/mm", "s/mm"),
+        "col_at_2mm": ("at 2mm", "a 2mm"),
+        "calibration_note": (
+            "_s/mm and \"at 2mm\" are 0 right after a bucket reset: they need\n"
+            "accumulated ET data._",
+            "_s/mm e \"a 2mm\" valgono 0 subito dopo un reset bucket: servono\n"
+            "dati ET accumulati per calcolarli._"),
+        "last_si_calc": ("Last SI calculation", "Ultimo calcolo SI"),
+        "si_hourly": ("recalculated automatically every hour at minute 10",
+                      "ricalcolo automatico ogni ora al minuto 10"),
+        "never": ("never", "mai"),
+        "timeline_title": ("Watering timeline", "Cronologia irrigazione"),
+        "today": ("Today", "Oggi"),
+        "minutes": ("minutes", "minuti"),
+        # programs
+        "programs_heading": ("Programs", "Programmi"),
+        "program": ("Program", "Programma"),
+        "time_heading": ("Start time", "Orario"),
+        "time_type": ("Time type", "Tipo di orario"),
+        "offset": ("Offset", "Offset"),
+        "months_heading": ("Months", "Mesi dell'anno"),
+        "eco_heading": ("ECO mode", "Modalità ECO"),
+        "zones_heading": ("Zones", "Zone"),
+        "eco_mode": ("Eco mode", "Modalità eco"),
+        "cycles": ("Cycles", "Cicli"),
+        "soak": ("Soak", "Pausa"),
+        "zone": ("Zone", "Zona"),
+        "effective": ("Eff.", "Eff."),
+        "all_days": ("All", "Tutti"),
+        # system
+        "system_heading": ("System", "Sistema"),
+        "irrigation_system": ("Irrigation system", "Sistema irrigazione"),
+        "system": ("System", "Sistema"),
+        "on": ("On", "Attivo"),
+        "off": ("Off", "Spento"),
+        "fill": ("Fill", "Riempimento"),
+        "rain_block": ("Rain block", "Comp. Pioggia"),
+        "reset_buckets": ("Reset all buckets", "Azzera tutti i bucket"),
+        "reset_buckets_confirm": ("Reset all SI buckets of {ctrl}?", "Azzerare tutti i bucket SI di {ctrl}?"),
+        "logging": ("Logging", "Logging"),
+        "notifications": ("Notifications", "Notifiche"),
+        "preflight_device": ("Device preflight", "Preflight device"),
+        "preflight_timeout": ("Preflight timeout", "Timeout Preflight"),
+        "fill_lead": ("Fill lead", "Anticipo Riempimento"),
+        "fill_duration": ("Fill duration", "Durata Riempimento"),
+        # controller status card
+        "device_offline": ("Device offline", "Device offline"),
+        "unreachable": ("Unreachable - irrigation blocked", "Non raggiungibile - irrigazione bloccata"),
+        "suspended": ("Suspended", "Sospeso"),
+        # suspension reason code -> text shown in brackets
+        "reasons": {"rain": ("rain", "pioggia"), "device_offline": ("device offline", "device offline")},
+        "resumes_at": ("Resumes at", "Riprende alle"),
+        "resumes_on": ("Resumes on", "Riprende il"),
+        "at": ("at", "alle"),
+        "watering": ("Watering", "Irrigando"),
+        "running": ("Running", "In corso"),
+        "idle": ("Idle", "Inattivo"),
+        "raining_blocked": ("Raining - irrigation blocked", "Piove - Irrigazione Bloccata"),
+        "raining_ignored": ("Raining - block ignored", "Piove - Blocco Ignorato"),
+        "rain_ok": ("Rain sensor - OK", "Sensore Pioggia - OK"),
+    },
+}
+
+
 def _fields(table, lang):
     i = 0 if lang == "en" else 2
     return ({k: v[i] for k, v in table.items()}, {k: v[i + 1] for k, v in table.items()})
@@ -224,6 +453,30 @@ def _fields(table, lang):
 def _sel(table, lang):
     i = 0 if lang == "en" else 2
     return {"fields": {k: {"name": v[i], "description": v[i + 1]} for k, v in table.items()}}
+
+
+def _pick(node, i):
+    """Leaves are (EN, IT) tuples; dicts recurse."""
+    if isinstance(node, dict):
+        return {k: _pick(v, i) for k, v in node.items()}
+    return node[i]
+
+
+def _entity(lang):
+    i = LANGS.index(lang)
+    out = {}
+    for platform, items in ENTITY.items():
+        out[platform] = {}
+        for key, row in items.items():
+            item = {"name": row[i]}
+            if len(row) > 2:
+                item["state"] = {code: labels[i] for code, labels in row[2].items()}
+            out[platform][key] = item
+    return out
+
+
+def build_texts(lang: str) -> dict:
+    return _pick(TEXTS, LANGS.index(lang))
 
 
 def build(lang: str) -> dict:
@@ -271,6 +524,8 @@ def build(lang: str) -> dict:
             "error": errs,
             "abort": {"reconfigure_successful": "Salvato" if it else "Saved"},
         }},
+        "entity": _entity(lang),
+        "exceptions": {k: {"message": v[LANGS.index(lang)]} for k, v in EXCEPTIONS.items()},
         "selector": {"zones": _sel(ZONE_FIELDS, lang), "programs": _sel(PROGRAM_FIELDS, lang)},
         "issues": {"missing_cards": {
             "title": "Card mancanti per la dashboard irrigazione" if it else "Cards missing for the irrigation dashboard",
@@ -299,11 +554,23 @@ def build(lang: str) -> dict:
     }
 
 
+def outputs() -> dict[Path, dict]:
+    """Every generated file and its content."""
+    files = {ROOT / "strings.json": build("en")}
+    for lang in LANGS:
+        files[ROOT / "translations" / f"{lang}.json"] = build(lang)
+        files[ROOT / "texts" / f"{lang}.json"] = build_texts(lang)
+    return files
+
+
+def render(data: dict) -> str:
+    return json.dumps(data, indent=2, ensure_ascii=False) + "\n"
+
+
 def main() -> None:
-    en, it = build("en"), build("it")
-    for path, data in ((ROOT / "strings.json", en), (ROOT / "translations" / "en.json", en),
-                       (ROOT / "translations" / "it.json", it)):
-        path.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    for path, data in outputs().items():
+        path.parent.mkdir(exist_ok=True)
+        path.write_text(render(data), encoding="utf-8")
 
 
 if __name__ == "__main__":

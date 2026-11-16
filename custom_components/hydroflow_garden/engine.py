@@ -69,7 +69,6 @@ if TYPE_CHECKING:
 
 _LOGGER = logging.getLogger(__name__)
 
-TITLE = "Irrigazione"
 KIND_FILL = "fill"
 KIND_PREFLIGHT = "preflight"
 KIND_SI = "si_adjust"
@@ -128,7 +127,7 @@ class Engine:
         faults (device offline) and skip decisions are never gated."""
         if gated and ctrl is not None and not self._on(eid(ctrl.id, "notifications")):
             return
-        await async_notify(self.hass, self.rt.options, TITLE, message)
+        await async_notify(self.hass, self.rt.options, self.rt.texts("notify.title"), message)
 
     async def _call(self, domain: str, service: str, data: dict, **kw) -> bool:
         if not self.hass.services.has_service(domain, service):
@@ -286,8 +285,9 @@ class Engine:
         if first is not None and first.state != STATE_OFF:
             return  # already filling (programs close together)
         if not self.rt.is_online(ctrl):
-            await self._notify(ctrl, f"{ctrl.name} - riempimento P{prog.id} NON partito: "
-                                     f"device {ctrl.availability_entity} offline.", gated=False)
+            await self._notify(ctrl, self.rt.texts(
+                "notify.fill_offline", ctrl=ctrl.name, prog=prog.id, device=ctrl.availability_entity,
+            ), gated=False)
             return
         minutes = self._minutes(eid(ctrl.id, "fill_duration_minutes"), ctrl.fill_duration_minutes)
         if minutes <= 0:
@@ -343,12 +343,10 @@ class Engine:
         secs = suspend_seconds(self.rt.get, ctrl, prog, start)
         self.rt.set_reason(ctrl, REASON_OFFLINE)
         await self._call(IU_DOMAIN, "suspend", {"entity_id": master, "for": fmt_duration(secs)})
-        await self._notify(
-            ctrl,
-            f"{ctrl.name} - P{prog.id} {prog.name} SOSPESO: device {ctrl.availability_entity} "
-            f"ancora offline dopo {timeout} min di attesa. Corsa non avviata, bucket SI preservati.",
-            gated=False,
-        )
+        await self._notify(ctrl, self.rt.texts(
+            "notify.preflight_suspended", ctrl=ctrl.name, prog=prog.id, name=prog.name,
+            device=ctrl.availability_entity, minutes=timeout,
+        ), gated=False)
         await self._log(ctrl, format_line("preflight_fail", ctrl.name, sequence=f"P{prog.id} {prog.name}",
                                           duration=secs))
 
@@ -402,9 +400,10 @@ class Engine:
             await self._call(IU_DOMAIN, "suspend",
                              {"entity_id": self.rt.master(ctrl), "for": f"{hours:02d}:00:00"})
         names = ", ".join(c.name for c in active)
-        await self._notify(None, f"Skip irrigazione: {fc['prob']}% prob / {fc['mm']} mm previsti oggi "
-                                 f"(soglie {prob_t}% / {mm_t} mm). Sospesi per {hours} h: {names}.",
-                           gated=False)
+        await self._notify(None, self.rt.texts(
+            "notify.rain_skip", prob=fc["prob"], mm=fc["mm"], prob_t=prob_t, mm_t=mm_t,
+            hours=hours, names=names,
+        ), gated=False)
         return True
 
     @callback
@@ -413,7 +412,7 @@ class Engine:
             return
         for ctrl in self.rt.controller_list:
             if self._on(eid(ctrl.id, "adjust_rain")) and self._controller_active(ctrl):
-                self._spawn(self._notify(ctrl, f"{ctrl.name} - Pioggia rilevata, irrigazione bloccata"))
+                self._spawn(self._notify(ctrl, self.rt.texts("notify.rain_detected", ctrl=ctrl.name)))
 
     # --- IU events -----------------------------------------------------------
     @callback
@@ -445,9 +444,9 @@ class Engine:
         if ctrl.availability_entity and self._on(eid(ctrl.id, "preflight")) \
                 and not self.rt.is_online(ctrl):
             await self._call(IU_DOMAIN, "cancel", {"entity_id": master})
-            await self._notify(ctrl, f"{ctrl.name} - corsa ANNULLATA: device {ctrl.availability_entity} "
-                                     "non disponibile all'avvio. Nessuna zona irrigata, bucket SI preservati.",
-                               gated=False)
+            await self._notify(ctrl, self.rt.texts(
+                "notify.start_offline", ctrl=ctrl.name, device=ctrl.availability_entity,
+            ), gated=False)
             await self._log(ctrl, format_line("preflight_cancel", ctrl.name, sequence=seq_name))
             return
 
@@ -456,8 +455,8 @@ class Engine:
         if _no_zone(data):
             duration = int(_num((data.get("run") or {}).get("duration"), 0))
             await self._log(ctrl, format_line("ctrl_start", ctrl.name, sequence=seq_name, duration=duration))
-            await self._notify(ctrl, f"{ctrl.name} - {seq_name} - INIZIO. Durata attesa: "
-                                     f"{round(duration / 60)} min")
+            await self._notify(ctrl, self.rt.texts(
+                "notify.run_start", ctrl=ctrl.name, seq=seq_name, minutes=round(duration / 60)))
 
     async def _on_finish(self, ctrl: Controller, data: dict, _etype: str) -> None:
         seq_name = (data.get("sequence") or {}).get("name", "")
@@ -470,15 +469,15 @@ class Engine:
         if _no_zone(data):
             duration = int(_num((data.get("run") or {}).get("duration"), 0))
             await self._log(ctrl, format_line("ctrl_finish", ctrl.name, sequence=seq_name, duration=duration))
-            await self._notify(ctrl, f"{ctrl.name} - {seq_name} - FINE. Durata effettiva: "
-                                     f"{round(duration / 60)} min")
+            await self._notify(ctrl, self.rt.texts(
+                "notify.run_finish", ctrl=ctrl.name, seq=seq_name, minutes=round(duration / 60)))
 
     async def _on_cancel(self, ctrl: Controller, data: dict, _etype: str) -> None:
         # A cancelled run keeps its deficit: no bucket reset.
         self._si_pending.pop(data.get("entity_id", ""), None)
         if _no_zone(data):
             seq_name = (data.get("sequence") or {}).get("name", "")
-            await self._notify(ctrl, f"{ctrl.name} - {seq_name} - ANNULLATO")
+            await self._notify(ctrl, self.rt.texts("notify.run_cancelled", ctrl=ctrl.name, seq=seq_name))
 
     async def _on_valve(self, ctrl: Controller, data: dict, etype: str) -> None:
         run_type = data.get("type")

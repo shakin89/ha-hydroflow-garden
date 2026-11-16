@@ -15,6 +15,7 @@ import pytest
 import yaml
 
 from custom_components.hydroflow_garden import iu_config
+from custom_components.hydroflow_garden.const import LEGACY_OPTIONS
 from custom_components.hydroflow_garden.model import (
     KIND_NUMBER,
     KIND_SWITCH,
@@ -83,9 +84,10 @@ def _random_states(rng: random.Random) -> tuple[dict[str, str], dict[str, object
                 states[f"input_number.{spec.key}"] = f"{v}"
                 values[spec.key] = v
             elif spec.key.endswith("_time_type"):
+                # the reference reads the Italian labels, the integration codes
                 v = rng.choice(["Fisso", "Alba", "Tramonto"])
                 states[f"input_select.{spec.key}"] = v
-                values[spec.key] = v
+                values[spec.key] = LEGACY_OPTIONS[v]
             elif spec.key.endswith("_time"):
                 v = f"{rng.randint(0, 23):02d}:{rng.choice([0, 15, 30, 45]):02d}:00"
                 states[f"input_datetime.{spec.key}"] = v

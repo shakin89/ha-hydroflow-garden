@@ -33,8 +33,8 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
         items.append((sid, SuspendReason(rt, ctrl)))
         for z in ctrl.zones:
             items.append((sid, PlannedSensor(rt, ctrl, z)))
-            for days_ago, suffix in ((0, "Oggi"), (1, "Ieri"), (2, "2gg fa")):
-                items.append((sid, UsageSensor(rt, ctrl, z, days_ago, suffix)))
+            for days_ago in range(3):
+                items.append((sid, UsageSensor(rt, ctrl, z, days_ago)))
     if rt.options.get(CONF_WEATHER_ENTITY):
         items.append((None, ForecastSensor(rt, "mm")))
         items.append((None, ForecastSensor(rt, "prob")))
@@ -48,12 +48,13 @@ class SuspendReason(ManagerEntity, SensorEntity):
     _attr_options = SUSPEND_REASONS
 
     def __init__(self, rt, ctrl: Controller) -> None:
-        super().__init__(rt, "sensor", suspend_reason_key(ctrl), "Motivo sospensione",
+        super().__init__(rt, "sensor", suspend_reason_key(ctrl), "suspend_reason",
                          "mdi:help-circle-outline", ctrl)
 
     @property
     def native_value(self) -> str:
-        return self.rt.values.get(self._key) or SUSPEND_REASONS[0]
+        value = self.rt.values.get(self._key)
+        return value if value in SUSPEND_REASONS else SUSPEND_REASONS[0]
 
     async def async_added_to_hass(self) -> None:
         self.async_on_remove(self.rt.values.listen(
@@ -61,10 +62,13 @@ class SuspendReason(ManagerEntity, SensorEntity):
 
 
 class _ZoneSensor(ManagerEntity, SensorEntity):
-    def __init__(self, rt, ctrl: Controller, zone: Zone, suffix: str, icon: str) -> None:
+    """``suffix`` (Italian, fixed) only builds the object_id, kept from the
+    YAML era; the name comes from ``tkey``."""
+
+    def __init__(self, rt, ctrl: Controller, zone: Zone, suffix: str, tkey: str,
+                 icon: str) -> None:
         oid = zone_sensor_object_id(ctrl, zone, suffix)
-        super().__init__(rt, "sensor", oid, "", icon, ctrl)
-        self._attr_name = f"Z{zone.id} {zone.name} {suffix}"
+        super().__init__(rt, "sensor", oid, tkey, icon, ctrl, {"zone": f"Z{zone.id} {zone.name}"})
         self.zone = zone
 
 
@@ -75,8 +79,12 @@ class UsageSensor(_ZoneSensor):
     _attr_device_class = SensorDeviceClass.DURATION
     _attr_suggested_display_precision = 2
 
-    def __init__(self, rt, ctrl, zone, days_ago: int, suffix: str) -> None:
-        super().__init__(rt, ctrl, zone, suffix, "mdi:timer-sand")
+    # days ago -> (object_id suffix, translation_key)
+    DAYS = (("Oggi", "zone_today"), ("Ieri", "zone_yesterday"), ("2gg fa", "zone_two_days_ago"))
+
+    def __init__(self, rt, ctrl, zone, days_ago: int) -> None:
+        suffix, tkey = self.DAYS[days_ago]
+        super().__init__(rt, ctrl, zone, suffix, tkey, "mdi:timer-sand")
         self.days_ago = days_ago
         if days_ago == 0:
             self._attr_state_class = SensorStateClass.TOTAL_INCREASING
@@ -98,7 +106,7 @@ class PlannedSensor(_ZoneSensor):
     _attr_native_unit_of_measurement = UnitOfTime.SECONDS
 
     def __init__(self, rt, ctrl, zone) -> None:
-        super().__init__(rt, ctrl, zone, "Programmato", "mdi:sprinkler-variant")
+        super().__init__(rt, ctrl, zone, "Programmato", "zone_planned", "mdi:sprinkler-variant")
 
     @property
     def _iu_zone(self) -> str:
@@ -153,7 +161,7 @@ class PlannedSensor(_ZoneSensor):
                 "si_next_seconds": nxt,
                 "si_next_hms": f"{nxt // 60}:{nxt % 60:02d}",
                 "bucket_mm": round(bucket, 2),
-                "si_calcolato_alle": (st.attributes.get("last_calculated") if st else None) or "mai",
+                "si_calcolato_alle": st.attributes.get("last_calculated") if st else None,
                 "size_m2": round(size, 1),
                 "throughput_l_min": round(thr, 1),
                 "s_per_mm": round(secs / bucket, 1) if bucket > 0 else 0,
@@ -183,13 +191,13 @@ class PlannedSensor(_ZoneSensor):
 class ForecastSensor(ManagerEntity, SensorEntity):
     def __init__(self, rt, what: str) -> None:
         if what == "mm":
-            super().__init__(rt, "sensor", "precipitazioni_oggi", "", "mdi:weather-pouring", None)
-            self._attr_name = "Precipitazioni oggi"
+            super().__init__(rt, "sensor", "precipitazioni_oggi", "rain_today",
+                             "mdi:weather-pouring", None)
             self._attr_native_unit_of_measurement = UnitOfLength.MILLIMETERS
             self._attr_device_class = SensorDeviceClass.PRECIPITATION
         else:
-            super().__init__(rt, "sensor", "probabilita_pioggia_oggi", "", "mdi:water-percent", None)
-            self._attr_name = "Probabilità pioggia oggi"
+            super().__init__(rt, "sensor", "probabilita_pioggia_oggi", "rain_probability_today",
+                             "mdi:water-percent", None)
             self._attr_native_unit_of_measurement = PERCENTAGE
         self.what = what
 

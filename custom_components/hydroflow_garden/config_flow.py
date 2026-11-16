@@ -78,13 +78,13 @@ def hub_schema(values: dict) -> vol.Schema:
         vol.Required(CONF_LOG_KEEP, default=v[CONF_LOG_KEEP]): _num(0, 20),
         vol.Required(CONF_IU_CONFIG_PATH, default=v[CONF_IU_CONFIG_PATH]): sel.TextSelector(),
         vol.Required(CONF_DASHBOARD_URL, default=v[CONF_DASHBOARD_URL]): sel.TextSelector(),
-        vol.Required(CONF_DASHBOARD_TITLE, default=v[CONF_DASHBOARD_TITLE]): sel.TextSelector(),
+        _opt(CONF_DASHBOARD_TITLE, v): sel.TextSelector(),
     })
 
 
 def _clean_hub(data: dict) -> dict:
     out = {**HUB_DEFAULTS, **data}
-    for key in (CONF_WEATHER_ENTITY, CONF_RAIN_NOW_ENTITY):
+    for key in (CONF_WEATHER_ENTITY, CONF_RAIN_NOW_ENTITY, CONF_DASHBOARD_TITLE):
         out[key] = data.get(key) or ""
     for key in (CONF_NOTIFY_ENTITIES, CONF_NOTIFY_SERVICES):
         out[key] = [s for s in (data.get(key) or []) if s]

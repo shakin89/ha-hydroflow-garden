@@ -36,20 +36,23 @@ def hub_device(entry_id: str) -> DeviceInfo:
 class ManagerEntity(Entity):
     """Explicit entity_id = <platform>.<key>, unique_id = key: the object_ids
     of the YAML helpers this integration replaces are kept, whatever the
-    entity name."""
+    entity name. The name is translated: ``tkey`` is the translation_key in
+    translations/<lang>.json (entity.<platform>.<tkey>.name)."""
 
     _attr_should_poll = False
     # Friendly name = device name + entity name (HA composes it).
     _attr_has_entity_name = True
 
-    def __init__(self, rt: IrrigationRuntime, platform: str, key: str, name: str,
-                 icon: str | None, ctrl: Controller | None) -> None:
+    def __init__(self, rt: IrrigationRuntime, platform: str, key: str, tkey: str,
+                 icon: str | None, ctrl: Controller | None,
+                 placeholders: dict[str, str] | None = None) -> None:
         self.rt = rt
         self.ctrl = ctrl
         self._key = key
         self.entity_id = f"{platform}.{key}"
         self._attr_unique_id = key
-        self._attr_name = name
+        self._attr_translation_key = tkey
+        self._attr_translation_placeholders = placeholders or {}
         self._attr_icon = icon
         self._attr_device_info = (
             controller_device(rt.entry.entry_id, ctrl) if ctrl else hub_device(rt.entry.entry_id)
@@ -61,7 +64,7 @@ class ValueEntity(ManagerEntity):
 
     def __init__(self, rt: IrrigationRuntime, platform: str, spec: ValueSpec,
                  ctrl: Controller | None) -> None:
-        super().__init__(rt, platform, spec.key, spec.name, spec.icon, ctrl)
+        super().__init__(rt, platform, spec.key, spec.tkey, spec.icon, ctrl, spec.placeholders)
         self.spec = spec
 
     @property

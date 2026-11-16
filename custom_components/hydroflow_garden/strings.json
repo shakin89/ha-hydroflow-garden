@@ -40,7 +40,7 @@
           "log_keep": "How many old copies (.1, .2, ...) are kept.",
           "iu_config_path": "The file configuration.yaml includes with `irrigation_unlimited: !include` (this file name). It is overwritten by this integration.",
           "dashboard_url": "Path of the generated dashboard. Must contain a dash, e.g. hydroflow-garden.",
-          "dashboard_title": "Name shown in the sidebar."
+          "dashboard_title": "Name shown in the sidebar. Empty = 'Irrigation', translated."
         }
       }
     },
@@ -90,7 +90,7 @@
           "log_keep": "How many old copies (.1, .2, ...) are kept.",
           "iu_config_path": "The file configuration.yaml includes with `irrigation_unlimited: !include` (this file name). It is overwritten by this integration.",
           "dashboard_url": "Path of the generated dashboard. Must contain a dash, e.g. hydroflow-garden.",
-          "dashboard_title": "Name shown in the sidebar."
+          "dashboard_title": "Name shown in the sidebar. Empty = 'Irrigation', translated."
         }
       }
     }
@@ -174,6 +174,196 @@
       "abort": {
         "reconfigure_successful": "Saved"
       }
+    }
+  },
+  "entity": {
+    "switch": {
+      "system_enabled": {
+        "name": "System enabled"
+      },
+      "adjust_rain": {
+        "name": "Cancel when raining"
+      },
+      "logging": {
+        "name": "Logging"
+      },
+      "notifications": {
+        "name": "Notifications"
+      },
+      "preflight": {
+        "name": "Device preflight"
+      },
+      "program_enabled": {
+        "name": "{program} enabled"
+      },
+      "program_eco": {
+        "name": "{program} eco"
+      },
+      "program_month_jan": {
+        "name": "{program} January"
+      },
+      "program_month_feb": {
+        "name": "{program} February"
+      },
+      "program_month_mar": {
+        "name": "{program} March"
+      },
+      "program_month_apr": {
+        "name": "{program} April"
+      },
+      "program_month_may": {
+        "name": "{program} May"
+      },
+      "program_month_jun": {
+        "name": "{program} June"
+      },
+      "program_month_jul": {
+        "name": "{program} July"
+      },
+      "program_month_aug": {
+        "name": "{program} August"
+      },
+      "program_month_sep": {
+        "name": "{program} September"
+      },
+      "program_month_oct": {
+        "name": "{program} October"
+      },
+      "program_month_nov": {
+        "name": "{program} November"
+      },
+      "program_month_dec": {
+        "name": "{program} December"
+      },
+      "zone_enabled": {
+        "name": "{program} {zone}"
+      },
+      "zone_day_mon": {
+        "name": "{program} {zone} Monday"
+      },
+      "zone_day_tue": {
+        "name": "{program} {zone} Tuesday"
+      },
+      "zone_day_wed": {
+        "name": "{program} {zone} Wednesday"
+      },
+      "zone_day_thu": {
+        "name": "{program} {zone} Thursday"
+      },
+      "zone_day_fri": {
+        "name": "{program} {zone} Friday"
+      },
+      "zone_day_sat": {
+        "name": "{program} {zone} Saturday"
+      },
+      "zone_day_sun": {
+        "name": "{program} {zone} Sunday"
+      }
+    },
+    "number": {
+      "test_duration": {
+        "name": "Test duration"
+      },
+      "preflight_timeout": {
+        "name": "Preflight timeout"
+      },
+      "fill_lead": {
+        "name": "Fill lead"
+      },
+      "fill_duration": {
+        "name": "Fill duration"
+      },
+      "si_adjust_lead": {
+        "name": "Smart Irrigation adjust lead"
+      },
+      "program_offset": {
+        "name": "{program} sun offset"
+      },
+      "program_eco_cycles": {
+        "name": "{program} eco cycles"
+      },
+      "program_eco_soak": {
+        "name": "{program} eco soak"
+      },
+      "zone_duration": {
+        "name": "{program} {zone} duration"
+      }
+    },
+    "select": {
+      "status_tab": {
+        "name": "Status tab",
+        "state": {
+          "next": "Next",
+          "history": "History",
+          "smart": "Smart",
+          "timeline": "Timeline"
+        }
+      },
+      "time_type": {
+        "name": "{program} time type",
+        "state": {
+          "fixed": "Fixed",
+          "sunrise": "Sunrise",
+          "sunset": "Sunset"
+        }
+      }
+    },
+    "time": {
+      "program_time": {
+        "name": "{program} time"
+      }
+    },
+    "sensor": {
+      "suspend_reason": {
+        "name": "Suspension reason",
+        "state": {
+          "none": "None",
+          "rain": "Rain",
+          "device_offline": "Device offline"
+        }
+      },
+      "zone_planned": {
+        "name": "{zone} planned"
+      },
+      "zone_today": {
+        "name": "{zone} today"
+      },
+      "zone_yesterday": {
+        "name": "{zone} yesterday"
+      },
+      "zone_two_days_ago": {
+        "name": "{zone} 2 days ago"
+      },
+      "rain_today": {
+        "name": "Rain today"
+      },
+      "rain_probability_today": {
+        "name": "Rain probability today"
+      }
+    },
+    "binary_sensor": {
+      "raining": {
+        "name": "Raining"
+      }
+    },
+    "button": {
+      "test": {
+        "name": "Start test"
+      },
+      "regenerate_dashboard": {
+        "name": "Regenerate dashboard"
+      },
+      "write_iu_config": {
+        "name": "Rewrite IU config"
+      }
+    }
+  },
+  "exceptions": {
+    "not_loaded": {
+      "message": "HydroFlow Garden is not loaded"
+    },
+    "engine_off": {
+      "message": "The engine is off"
     }
   },
   "selector": {

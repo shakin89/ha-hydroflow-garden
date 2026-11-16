@@ -12,9 +12,14 @@ from homeassistant.setup import async_setup_component
 from homeassistant.util import dt as dt_util
 from pytest_homeassistant_custom_component.common import async_fire_time_changed
 
+from custom_components.hydroflow_garden import i18n
 from custom_components.hydroflow_garden.const import DOMAIN
 
 from .conftest import TOPOLOGY
+
+
+def _texts(lang: str) -> dict:
+    return i18n.load(lang)["dashboard"]
 
 
 def _capture(hass: HomeAssistant, domain: str, service: str) -> list[ServiceCall]:
@@ -51,11 +56,11 @@ async def test_import_creates_entities_and_seeds(hass: HomeAssistant) -> None:
     assert hass.states.get("switch.iu_alpha_p1_z1_thu").state == "off"  # default
     assert float(hass.states.get("number.iu_alpha_p1_z1_duration").state) == 17.0
     assert hass.states.get("time.iu_alpha_p1_time").state == "05:30:00"
-    assert hass.states.get("select.iu_alpha_p1_time_type").state == "Fisso"
+    assert hass.states.get("select.iu_alpha_p1_time_type").state == "fixed"
     assert hass.states.get("switch.iu_alpha_preflight") is not None
     assert hass.states.get("switch.iu_beta_preflight") is None  # no probe configured
     assert hass.states.get("number.iu_alpha_fill_lead_minutes") is not None
-    assert hass.states.get("sensor.iu_alpha_suspend_reason").state == "Nessuna"
+    assert hass.states.get("sensor.iu_alpha_suspend_reason").state == "none"
     assert hass.states.get("sensor.iu_controller_alpha_z1_lawn_oggi") is not None
     assert hass.states.get("sensor.iu_controller_alpha_z1_lawn_programmato") is not None
     assert hass.states.get("button.iu_alpha_test") is not None
@@ -76,7 +81,8 @@ async def test_import_seed_values(hass: HomeAssistant) -> None:
     assert hass.states.get("switch.iu_alpha_p1_z2_sat").state == "on"
     assert float(hass.states.get("number.iu_alpha_p1_eco_cycles").state) == 3
     assert hass.states.get("time.iu_alpha_p1_time").state == "13:30:00"
-    assert hass.states.get("select.iu_alpha_p1_time_type").state == "Alba"
+    # legacy Italian label in the import -> option code
+    assert hass.states.get("select.iu_alpha_p1_time_type").state == "sunrise"
 
 
 async def test_value_change_rewrites_iu(hass: HomeAssistant) -> None:
@@ -139,7 +145,7 @@ async def test_preflight_cancel_when_offline(hass: HomeAssistant) -> None:
         "zones": []})
     await hass.async_block_till_done()
     assert len(cancel) == 1
-    assert "ANNULLATA" in notify[0].data["message"]
+    assert "CANCELLED" in notify[0].data["message"]
 
 
 async def test_fill_fires_before_iu_start(hass: HomeAssistant) -> None:
@@ -163,7 +169,7 @@ async def test_dashboard_render() -> None:
     from custom_components.hydroflow_garden.model import Controller
 
     ctrls = [Controller.from_dict(c) for c in TOPOLOGY["controllers"]]
-    cfg = render_dashboard(ctrls, "Irrigazione")
+    cfg = render_dashboard(ctrls, "Irrigazione", _texts("en"))
     assert [v["path"] for v in cfg["views"]] == ["irrigazione-alpha", "irrigazione-beta"]
     assert "iu_zone_row" in cfg["button_card_templates"]
     text = yaml.safe_dump(cfg)
@@ -191,8 +197,8 @@ async def test_preflight_suspends_when_device_stays_offline(hass: HomeAssistant)
     await hass.async_block_till_done()
     assert len(suspend) == 1
     assert suspend[0].data["entity_id"] == "binary_sensor.irrigation_unlimited_c1_m"
-    assert hass.states.get("sensor.iu_alpha_suspend_reason").state == "Device offline"
-    assert any("SOSPESO" in c.data["message"] for c in notify)
+    assert hass.states.get("sensor.iu_alpha_suspend_reason").state == "device_offline"
+    assert any("SUSPENDED" in c.data["message"] for c in notify)
 
 
 async def test_preflight_device_back_in_time(hass: HomeAssistant) -> None:
@@ -234,8 +240,8 @@ async def test_rain_skip(hass: HomeAssistant) -> None:
     resp = await hass.services.async_call(DOMAIN, "rain_skip", {}, blocking=True, return_response=True)
     assert resp["skipped"] is True
     assert [c.data["entity_id"] for c in suspend] == ["binary_sensor.irrigation_unlimited_c2_m"]
-    assert hass.states.get("sensor.iu_beta_suspend_reason").state == "Pioggia"
-    assert hass.states.get("sensor.iu_alpha_suspend_reason").state == "Nessuna"
+    assert hass.states.get("sensor.iu_beta_suspend_reason").state == "rain"
+    assert hass.states.get("sensor.iu_alpha_suspend_reason").state == "none"
 
 
 async def test_dashboard_render_without_apexcharts() -> None:
@@ -243,8 +249,8 @@ async def test_dashboard_render_without_apexcharts() -> None:
     from custom_components.hydroflow_garden.model import Controller
 
     ctrls = [Controller.from_dict(c) for c in TOPOLOGY["controllers"]]
-    with_chart = yaml.safe_dump(render_dashboard(ctrls, "Irrigazione", True))
-    without = yaml.safe_dump(render_dashboard(ctrls, "Irrigazione", False))
+    with_chart = yaml.safe_dump(render_dashboard(ctrls, "Irrigazione", _texts("en"), True))
+    without = yaml.safe_dump(render_dashboard(ctrls, "Irrigazione", _texts("en"), False))
     assert "apexcharts-card" in with_chart and "Timeline" in with_chart
     assert "apexcharts-card" not in without and "Timeline" not in without
 

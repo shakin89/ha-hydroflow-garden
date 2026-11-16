@@ -3,7 +3,7 @@
 type: grid
 cards:
   - type: heading
-    heading: "Programmi"
+    heading: {{ t.programs_heading | q }}
     heading_style: title
 {%- for p in ctrl.programs %}
   {%- set pn = "p" ~ p.id %}
@@ -32,7 +32,7 @@ cards:
       type: vertical-stack
       cards:
       - type: heading
-        heading: Orario
+        heading: {{ t.time_heading | q }}
         icon: mdi:clock-outline
       - type: horizontal-stack
         cards:
@@ -40,7 +40,7 @@ cards:
             entities:
               - entity: select.{{ eid_prefix }}_time_type
                 name: ""
-                title: Tipo di orario
+                title: {{ t.time_type | q }}
             grid_options:
               columns: 6
               rows: 1
@@ -48,7 +48,7 @@ cards:
             conditions:
               - condition: state
                 entity: select.{{ eid_prefix }}_time_type
-                state: "Fisso"
+                state: "fixed"
             card:
               type: entities
               entities:
@@ -62,14 +62,14 @@ cards:
             conditions:
               - condition: state
                 entity: select.{{ eid_prefix }}_time_type
-                state_not: "Fisso"
+                state_not: "fixed"
             card:
               type: tile
               grid_options:
                 columns: 6
                 rows: 1
               entity: number.{{ eid_prefix }}_offset
-              name: Offset
+              name: {{ t.offset | q }}
               show_entity_picture: false
               hide_state: false
               state_content: state
@@ -80,11 +80,11 @@ cards:
               features_position: bottom
 
       - type: heading
-        heading: "Mesi dell'anno"
+        heading: {{ t.months_heading | q }}
         icon: mdi:calendar-month-outline
       - type: horizontal-stack
         cards:
-        {%- for m_code, _, m_short in months[:6] %}
+        {%- for m_code, m_short in months[:6] %}
           - type: custom:button-card
             template: iu_month_toggle
             entity: switch.{{ eid_prefix }}_{{ m_code }}
@@ -94,7 +94,7 @@ cards:
           columns: 12
       - type: horizontal-stack
         cards:
-        {%- for m_code, _, m_short in months[6:] %}
+        {%- for m_code, m_short in months[6:] %}
           - type: custom:button-card
             template: iu_month_toggle
             entity: switch.{{ eid_prefix }}_{{ m_code }}
@@ -104,7 +104,7 @@ cards:
           columns: 12
 
       - type: heading
-        heading: "Modalità ECO"
+        heading: {{ t.eco_heading | q }}
         icon: mdi:sprout-outline
       - type: custom:button-card
         template: iu_eco_toggle
@@ -116,7 +116,7 @@ cards:
           columns: 12
 
       - type: heading
-        heading: "Programmi"
+        heading: {{ t.zones_heading | q }}
         icon: mdi:calendar-multiple-check
       {%- for z in ctrl.zones %}
       - type: custom:button-card

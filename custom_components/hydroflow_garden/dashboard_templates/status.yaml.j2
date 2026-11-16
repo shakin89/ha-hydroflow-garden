@@ -3,7 +3,7 @@
 type: grid
 cards:
   - type: heading
-    heading: "Stato Irrigazione"
+    heading: {{ t.status_heading | q }}
     heading_style: title
   - type: custom:button-card
     entity: binary_sensor.irrigation_unlimited_c{{ ctrl.iu_index + 1 }}_m
@@ -17,7 +17,7 @@ cards:
   - type: custom:auto-entities
     card:
       type: entities
-      title: "Zona Attiva"
+      title: {{ t.active_zone | q }}
     show_empty: false
     filter:
       include:
@@ -34,7 +34,7 @@ cards:
             label: |
               [[[
                 const rem = entity.attributes.time_remaining;
-                if (rem) return '⏱ ' + rem + ' rimanenti';
+                if (rem) return '⏱ ' + rem + ' ' + {{ t.remaining | q }};
                 return '';
               ]]]
             styles:
@@ -63,31 +63,31 @@ cards:
         template: iu_tab_button
         entity: select.iu_{{ ctrl.id }}_status_tab
         variables:
-          label: "Prossima"
+          label: {{ t.tab_next | q }}
           icon: mdi:calendar-clock
-          option: "Prossima"
+          option: "next"
       - type: custom:button-card
         template: iu_tab_button
         entity: select.iu_{{ ctrl.id }}_status_tab
         variables:
-          label: "Storico"
+          label: {{ t.tab_history | q }}
           icon: mdi:history
-          option: "Storico"
+          option: "history"
       - type: custom:button-card
         template: iu_tab_button
         entity: select.iu_{{ ctrl.id }}_status_tab
         variables:
-          label: "Smart"
+          label: {{ t.tab_smart | q }}
           icon: mdi:sprinkler
-          option: "Smart"
+          option: "smart"
 {%- if has_apexcharts %}
       - type: custom:button-card
         template: iu_tab_button
         entity: select.iu_{{ ctrl.id }}_status_tab
         variables:
-          label: "Timeline"
+          label: {{ t.tab_timeline | q }}
           icon: mdi:chart-timeline
-          option: "Timeline"
+          option: "timeline"
 {%- endif %}
     grid_options:
       columns: 12
@@ -95,43 +95,40 @@ cards:
   - type: conditional
     conditions:
       - entity: select.iu_{{ ctrl.id }}_status_tab
-        state: "Prossima"
+        state: "next"
     card:
       type: markdown
-      title: "Prossima Irrigazione"
+      title: {{ t.next_title | q }}
       content: |
 {%- set cm = 'binary_sensor.irrigation_unlimited_c' ~ (ctrl.iu_index + 1) ~ '_m' %}
         {{ '{%' }} set seq = state_attr('{{ cm }}', 'sequence_status') {{ '%}' }}
         {{ '{%' }} set s = seq[0] if seq and seq | length > 0 else none {{ '%}' }}
         {{ '{%' }} if s and s.start {{ '%}' }}
-        **Avvio:** {{ '{{' }} s.start | as_datetime | as_local | string | truncate(16, true, '') {{ '}}' }}
+        **{{ t.next_start }}:** {{ '{{' }} s.start | as_datetime | as_local | string | truncate(16, true, '') {{ '}}' }}
         {{ '{%' }} else {{ '%}' }}
-        **Nessuna irrigazione programmata**
+        **{{ t.nothing_scheduled }}**
         {{ '{%' }} endif {{ '%}' }}
 
-        | Zona | Quando | Base | SI stima | IU ora |
+        | {{ t.col_zone }} | {{ t.col_when }} | {{ t.col_base }} | {{ t.col_si_estimate }} | {{ t.col_iu_now }} |
         |------|--------|------|----------|--------|
         {%- for z in ctrl.zones %}
         {%- set prog_sensor = 'sensor.' ~ ('IU ' ~ ctrl.name ~ ' Z' ~ z.id ~ ' ' ~ z.name ~ ' Programmato') | slugify %}
         | {{ z.name }} | {{ '{{' }} state_attr('{{ prog_sensor }}', 'next_prog') | upper {{ '}}' }}{{ '{%' }} if state_attr('{{ prog_sensor }}', 'next_cicli') | int(1) > 1 {{ '%}' }} ×{{ '{{' }} state_attr('{{ prog_sensor }}', 'next_cicli') {{ '}}' }}{{ '{%' }} endif {{ '%}' }} | {{ '{{' }} state_attr('{{ prog_sensor }}', 'base_minutes') | float(0) | round(1) {{ '}}' }} min | {% if z.smart_irrigation %}{{ '{{' }} state_attr('{{ prog_sensor }}', 'si_next_hms') | default('-') {{ '}}' }}{% else %}-{% endif %} | {{ '{{' }} state_attr('{{ prog_sensor }}', 'next_duration') | default('-', true) {{ '}}' }} |
         {%- endfor %}
 
-        **Base** = durata helper del programma in partenza.
-        **SI stima** = quanto scriverà l'adjust (SI ÷ cicli), aggiornato live.
-        **IU ora** = quanto IU ha in programma adesso: coincide con SI stima
-        solo dopo che l'adjust è girato (5 min prima dell'avvio).
+        {{ t.next_legend | indent(8) }}
     grid_options:
       columns: 12
 
   - type: conditional
     conditions:
       - entity: select.iu_{{ ctrl.id }}_status_tab
-        state: "Storico"
+        state: "history"
     card:
       type: markdown
-      title: "Storico Irrigazione"
+      title: {{ t.history_title | q }}
       content: |
-        | Zona | Oggi | Ieri | 2gg fa |
+        | {{ t.col_zone }} | {{ t.col_today }} | {{ t.col_yesterday }} | {{ t.col_two_days_ago }} |
         |------|------|------|--------|
         {%- for z in ctrl.zones %}
         {%- set base = 'sensor.' ~ ('IU ' ~ ctrl.name ~ ' Z' ~ z.id ~ ' ' ~ z.name) | slugify %}
@@ -143,15 +140,14 @@ cards:
   - type: conditional
     conditions:
       - entity: select.iu_{{ ctrl.id }}_status_tab
-        state: "Smart"
+        state: "smart"
     card:
       type: markdown
-      title: "Smart Irrigation"
+      title: {{ t.smart_title | q }}
       content: |
-        Deficit idrico corrente e volume che SI erogherebbe **col bucket
-        di adesso**, senza aspettare l'adjust.
+        {{ t.smart_intro | indent(8) }}
 
-        | Zona | Bucket | Durata | Litri | mm |
+        | {{ t.col_zone }} | {{ t.col_bucket }} | {{ t.col_duration }} | {{ t.col_liters }} | {{ t.col_mm }} |
         |------|--------|--------|-------|----|
         {%- for z in ctrl.zones if z.smart_irrigation %}
         {%- set prog_sensor = 'sensor.' ~ ('IU ' ~ ctrl.name ~ ' Z' ~ z.id ~ ' ' ~ z.name ~ ' Programmato') | slugify %}
@@ -159,24 +155,23 @@ cards:
         | {{ z.name }} | {{ '{{' }} state_attr('{{ prog_sensor }}', 'bucket_mm') {{ '}}' }} mm | {{ '{{' }} states('{{ si_sensor }}') | int(0) {{ '}}' }}s | {{ '{{' }} state_attr('{{ prog_sensor }}', 'litri') {{ '}}' }} | {{ '{{' }} state_attr('{{ prog_sensor }}', 'mm_erogati') {{ '}}' }} |
         {%- endfor %}
 
-        **Calibrazione zona** — `s/mm = multiplier × size / portata × 60`
+        {{ t.calibration }}
 
-        | Zona | Size | Portata | s/mm | a 2mm |
+        | {{ t.col_zone }} | {{ t.col_size }} | {{ t.col_throughput }} | {{ t.col_s_per_mm }} | {{ t.col_at_2mm }} |
         |------|------|---------|------|-------|
         {%- for z in ctrl.zones if z.smart_irrigation %}
         {%- set prog_sensor = 'sensor.' ~ ('IU ' ~ ctrl.name ~ ' Z' ~ z.id ~ ' ' ~ z.name ~ ' Programmato') | slugify %}
         | {{ z.name }} | {{ '{{' }} state_attr('{{ prog_sensor }}', 'size_m2') {{ '}}' }} m² | {{ '{{' }} state_attr('{{ prog_sensor }}', 'throughput_l_min') {{ '}}' }} l/min | {{ '{{' }} state_attr('{{ prog_sensor }}', 's_per_mm') {{ '}}' }} | {{ '{{' }} (state_attr('{{ prog_sensor }}', 's_per_mm') | float(0) * 2) | round(0) | int {{ '}}' }}s |
         {%- endfor %}
 
-        _s/mm e "a 2mm" valgono 0 subito dopo un reset bucket: servono
-        dati ET accumulati per calcolarli._
+        {{ t.calibration_note | indent(8) }}
 
         {%- set si_list = ctrl.zones | selectattr('smart_irrigation') | list %}
         {%- if si_list %}
         {%- set first_si = si_list[0] %}
         {%- set fs = 'sensor.' ~ ('IU ' ~ ctrl.name ~ ' Z' ~ first_si.id ~ ' ' ~ first_si.name ~ ' Programmato') | slugify %}
 
-        _Ultimo calcolo SI: {{ '{{' }} state_attr('{{ fs }}', 'si_calcolato_alle') {{ '}}' }} — ricalcolo automatico ogni ora al minuto 10._
+        _{{ t.last_si_calc }}: {{ '{{' }} state_attr('{{ fs }}', 'si_calcolato_alle') | default({{ t.never | q }}, true) {{ '}}' }} — {{ t.si_hourly }}._
         {%- endif %}
     grid_options:
       columns: 12
@@ -185,12 +180,12 @@ cards:
   - type: conditional
     conditions:
       - entity: select.iu_{{ ctrl.id }}_status_tab
-        state: "Timeline"
+        state: "timeline"
     card:
       type: custom:apexcharts-card
       header:
         show: true
-        title: Watering timeline
+        title: {{ t.timeline_title | q }}
         show_states: false
       graph_span: 10d
       span:
@@ -206,7 +201,7 @@ cards:
           as_duration: minute
       now:
         show: true
-        label: Today
+        label: {{ t.today | q }}
       series:
 {%- for z in ctrl.zones %}
         - entity: binary_sensor.irrigation_unlimited_c{{ ctrl.iu_index + 1 }}_z{{ z.id }}
@@ -222,7 +217,7 @@ cards:
         - decimals: 0
           apex_config:
             title:
-              text: minutes
+              text: {{ t.minutes | q }}
       apex_config:
         tooltip:
           enabled: true

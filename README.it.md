@@ -1,6 +1,8 @@
 # HydroFlow Garden: Smart and Unlimited
 
-🇬🇧 [Read in English](README.md)
+[![HydroFlow Garden](https://raw.githubusercontent.com/shakin89/ha-hydroflow-garden/main/docs/images/HA-HydroFlow-Garden_small.jpg)](https://raw.githubusercontent.com/shakin89/ha-hydroflow-garden/main/docs/images/HA-HydroFlow-Garden.jpeg)
+
+<img src="https://raw.githubusercontent.com/shakin89/ha-hydroflow-garden/main/docs/images/flag-gb.svg" width="18" alt="EN"> [Read in English](README.md)
 
 **HydroFlow Garden unisce [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited) e
 [Smart Irrigation](https://github.com/jeroenterheerdt/HAsmartirrigation) in un unico sistema di
@@ -67,15 +69,15 @@ HydroFlow Garden è quello strato mancante, realizzato come integrazione nativa.
 2. **Aggiungi un controller.** Dalla pagina dell'integrazione scegli **Aggiungi controller**: un
    controller è un impianto con la sua pompa e le sue valvole. Inserisci le zone (una per valvola) e i
    programmi (una partenza giornaliera ciascuno). Sotto ogni campo c'è una spiegazione.
-3. **Apri la dashboard** dalla barra laterale (*Irrigazione* per default). Per ogni programma imposta:
+3. **Apri la dashboard** dalla barra laterale (*Irrigazione* per default, nella lingua di Home Assistant). Per ogni programma imposta:
    - l'orario;
    - i mesi attivi;
    - i cicli eco;
    - per ogni zona, i giorni e la durata.
 4. **Accendi l'engine.** Pagina dell'integrazione → **Configura** → *Engine attivo*. Il file di IU viene
    scritto e IU si ricarica. Da quel momento ogni modifica in dashboard arriva a IU in circa 5 secondi.
-5. **Prova.** Nella sezione *Sistema* il pulsante **Test zone** fa girare tutte le zone del controller per
-   la durata di test.
+5. **Prova.** Il pulsante **Avvia test** di un controller (`button.iu_<c>_test`, nella pagina del suo
+   dispositivo) fa girare tutte le zone per la durata di test. Per ora non è nella dashboard.
 
 Per cambiare zone o programmi in seguito usa **Riconfigura** sul controller. La dashboard si rigenera da
 sola.
@@ -142,13 +144,27 @@ Ogni valore è un'entità con id stabile: `iu_<controller>_…`.
 | `switch.iu_<c>_p<N>_enabled`, `_eco`, `_<mese>` | Programma attivo, eco, mesi attivi |
 | `switch.iu_<c>_p<N>_z<Z>_enabled`, `_z<Z>_<giorno>` | Zona nel programma e suoi giorni |
 | `number.iu_<c>_p<N>_z<Z>_duration` | Durata zona (min) |
-| `time.iu_<c>_p<N>_time`, `select.iu_<c>_p<N>_time_type`, `number.iu_<c>_p<N>_offset` | Partenza: fissa, alba o tramonto ± offset |
+| `time.iu_<c>_p<N>_time`, `select.iu_<c>_p<N>_time_type`, `number.iu_<c>_p<N>_offset` | Partenza: `fixed` (fisso), `sunrise` (alba) o `sunset` (tramonto) ± offset |
 | `number.iu_<c>_p<N>_eco_cycles`, `_eco_soak` | Cicli eco e pausa tra un ciclo e l'altro (s, anche negativa) |
 | `number.iu_<c>_fill_lead_minutes`, `_fill_duration_minutes`, `_preflight_timeout_minutes`, `iu_si_adjust_lead_minutes` | Anticipi e durate |
-| `sensor.iu_<c>_suspend_reason` | Motivo della sospensione (*Pioggia*, *Device offline*) |
+| `sensor.iu_<c>_suspend_reason` | Motivo della sospensione: `none`, `rain`, `device_offline` |
 | `sensor.iu_<nome controller>_z<Z>_<zona>_programmato` / `_oggi` / `_ieri` / `_2gg_fa` | Prossima durata prevista con i dettagli di Smart Irrigation; tempo irrigato oggi, ieri e 2 giorni fa |
 | `sensor.precipitazioni_oggi`, `sensor.probabilita_pioggia_oggi`, `binary_sensor.iu_sta_piovendo` | Previsione e pioggia in corso |
 | `button.iu_<c>_test`, `button.iu_regenerate_dashboard`, `button.iu_write_config` | Test, manutenzione |
+
+## Lingue
+
+L'interfaccia segue la lingua di Home Assistant: italiano e inglese, inglese per tutte le altre lingue.
+Vale per nomi delle entità, opzioni dei select, form di configurazione, notifiche e dashboard generata.
+Se la lingua di Home Assistant cambia, l'integrazione si ricarica e rigenera la dashboard.
+
+Gli stati sono codici indipendenti dalla lingua (`fixed`, `sunrise`, `sunset`; `none`, `rain`,
+`device_offline`; `next`, `history`, `smart`, `timeline`) e Home Assistant li mostra tradotti. Le
+automazioni devono usare i codici. Prima della 0.3 questi stati erano etichette in italiano (*Fisso*,
+*Pioggia*…): i valori salvati vengono convertiti al primo avvio, le automazioni che li confrontano vanno
+aggiornate a mano.
+
+Per aggiungere una lingua vedi `scripts/build_translations.py`.
 
 ## Azioni
 
@@ -181,4 +197,4 @@ hydroflow_garden:
     iu_giardino_p1_z1_mon: true
 ```
 
-Note di progetto (in inglese): [docs/CONTEXT.md](docs/CONTEXT.md).
+Note di progetto: [docs/CONTEXT.it.md](docs/CONTEXT.it.md).

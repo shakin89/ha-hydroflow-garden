@@ -24,6 +24,7 @@ from homeassistant.util import dt as dt_util
 
 from . import iu_config
 from .const import (
+    CONF_DASHBOARD_TITLE,
     CONF_ENGINE_ENABLED,
     CONF_IU_CONFIG_PATH,
     CONF_LOG_KEEP,
@@ -41,6 +42,7 @@ from .const import (
     SI_ADJUST_LEAD_KEY,
     SUBENTRY_CONTROLLER,
 )
+from .i18n import Texts
 from .iu_config import _num
 from .logfile import LogFile
 from .model import Controller, ValueSpec, controller_specs, suspend_reason_key
@@ -52,7 +54,7 @@ SIGNAL_USAGE = f"{DOMAIN}_usage"
 SIGNAL_RAIN_NOW = f"{DOMAIN}_rain_now"
 
 HUB_SPECS = [
-    ValueSpec(SI_ADJUST_LEAD_KEY, "number", "Anticipo adjust Smart Irrigation",
+    ValueSpec(SI_ADJUST_LEAD_KEY, "number", "si_adjust_lead",
               "mdi:timer-cog-outline", SI_ADJUST_LEAD_DEFAULT, min=1, max=60, step=1,
               unit="min", legacy_domain="input_number"),
 ]
@@ -72,10 +74,12 @@ def controllers_of(entry: ConfigEntry) -> list[tuple[str, Controller]]:
 class IrrigationRuntime:
     """Everything the platforms and the engine share."""
 
-    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, values) -> None:
+    def __init__(self, hass: HomeAssistant, entry: ConfigEntry, values, texts: Texts) -> None:
         self.hass = hass
         self.entry = entry
         self.values = values
+        # Notification and dashboard texts in the language of HA
+        self.texts = texts
         self.options: dict[str, Any] = {**HUB_DEFAULTS, **entry.options}
         self.controllers: list[tuple[str, Controller]] = controllers_of(entry)
         self.specs: dict[str, ValueSpec] = {s.key: s for s in HUB_SPECS}
@@ -98,6 +102,10 @@ class IrrigationRuntime:
     @property
     def engine_enabled(self) -> bool:
         return bool(self.options.get(CONF_ENGINE_ENABLED))
+
+    @property
+    def dashboard_title(self) -> str:
+        return self.options.get(CONF_DASHBOARD_TITLE) or self.texts("dashboard.title")
 
     @property
     def controller_list(self) -> list[Controller]:

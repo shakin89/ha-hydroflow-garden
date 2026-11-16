@@ -68,8 +68,9 @@ iu_controller_status:
           const av = variables.availability_entity;
           return av !== '' && states[av] !== undefined && states[av].state !== 'on';
         ]]]
-      name: "[[[ return variables.name + ' - Device offline' ]]]"
-      label: "Non raggiungibile - irrigazione bloccata"
+      name: |
+        [[[ return variables.name + ' - ' + {{ t.device_offline | q }} ]]]
+      label: {{ t.unreachable | q }}
       icon: mdi:lan-disconnect
       styles:
         card:
@@ -84,25 +85,25 @@ iu_controller_status:
       name: |
         [[[
           const re = variables.suspend_reason_entity;
-          const motivo = (re !== '' && states[re] !== undefined) ? states[re].state : 'Nessuna';
-          const causa = (motivo === 'Nessuna' || motivo === 'unknown' || motivo === 'unavailable')
-            ? '' : ' (' + motivo.toLowerCase() + ')';
-          return variables.name + ' - Sospeso' + causa;
+          const motivo = (re !== '' && states[re] !== undefined) ? states[re].state : 'none';
+          const reasons = {{ t.reasons | q }};
+          const causa = reasons[motivo] ? ' (' + reasons[motivo] + ')' : '';
+          return variables.name + ' - ' + {{ t.suspended | q }} + causa;
         ]]]
       label: |
         [[[
           const fine = new Date(entity.attributes.suspended);
-          const ora = fine.toLocaleTimeString('it-IT', {hour: '2-digit', minute: '2-digit'});
+          const ora = fine.toLocaleTimeString({{ t.locale | q }}, {hour: '2-digit', minute: '2-digit'});
           const oggi = new Date().toDateString() === fine.toDateString();
-          if (oggi) return 'Riprende alle ' + ora;
-          return 'Riprende il ' + fine.toLocaleDateString('it-IT', {day: '2-digit', month: '2-digit'}) + ' alle ' + ora;
+          if (oggi) return {{ t.resumes_at | q }} + ' ' + ora;
+          return {{ t.resumes_on | q }} + ' ' + fine.toLocaleDateString({{ t.locale | q }}, {day: '2-digit', month: '2-digit'}) + ' ' + {{ t.at | q }} + ' ' + ora;
         ]]]
       icon: |
         [[[
           const re = variables.suspend_reason_entity;
-          const motivo = (re !== '' && states[re] !== undefined) ? states[re].state : 'Nessuna';
-          if (motivo === 'Pioggia') return 'mdi:weather-pouring';
-          if (motivo === 'Device offline') return 'mdi:lan-disconnect';
+          const motivo = (re !== '' && states[re] !== undefined) ? states[re].state : 'none';
+          if (motivo === 'rain') return 'mdi:weather-pouring';
+          if (motivo === 'device_offline') return 'mdi:lan-disconnect';
           return 'mdi:pause-octagon';
         ]]]
       styles:
@@ -111,24 +112,26 @@ iu_controller_status:
         icon:
           - color: "var(--warning-color, #ff9800)"
     - value: "on"
-      name: "[[[ return variables.name + ' - Irrigando' ]]]"
+      name: |
+        [[[ return variables.name + ' - ' + {{ t.watering | q }} ]]]
       label: |
         [[[
           const z = entity.attributes.current_zone;
-          return (z && z !== 'not running') ? 'Zona ' + z : 'In corso';
+          return (z && z !== 'not running') ? {{ t.zone | q }} + ' ' + z : {{ t.running | q }};
         ]]]
       icon: mdi:sprinkler
       styles:
         card:
           - background-color: "rgba(76, 175, 80, 0.1)"
     - value: "off"
-      name: "[[[ return variables.name + ' - Inattivo' ]]]"
+      name: |
+        [[[ return variables.name + ' - ' + {{ t.idle | q }} ]]]
       label: ""
       icon: mdi:sprinkler-variant
 
 iu_program_header:
   variables:
-    name: "Programma"
+    name: {{ t.program | q }}
     controller_entity: ""   # binary_sensor.irrigation_unlimited_c<N>_m
     sequence_base: ""       # binary_sensor.irrigation_unlimited_c<N>_s
     program_prefix: ""      # "P1 " — prefisso nome delle sequence del programma
@@ -427,12 +430,12 @@ iu_eco_toggle:
       pausa:
         - font-size: 12px
   custom_fields:
-    eco: "Eco mode"
+    eco: {{ t.eco_mode | q }}
     cicli:
       card:
         type: custom:numberbox-card
         entity: "[[[ return variables.cycles_entity ]]]"
-        name: "Cicli"
+        name: {{ t.cycles | q }}
         border: false
         min: 1
         step: 1
@@ -442,7 +445,7 @@ iu_eco_toggle:
       card:
         type: custom:numberbox-card
         entity: "[[[ return variables.soak_entity ]]]"
-        name: "Pausa"
+        name: {{ t.soak | q }}
         unit: s
         border: false
         initial: 0
@@ -471,7 +474,7 @@ iu_eco_toggle:
 # I sub-buttons sono visibili solo quando la zona è abilitata (state: on).
 iu_zone_row:
   variables:
-    zone_name: "Zona"
+    zone_name: {{ t.zone | q }}
     duration_entity: ""
     duration_adjusted: ""
     zone_entity: ""
@@ -503,7 +506,7 @@ iu_zone_row:
           [[[
             if (!variables.duration_adjusted) return '';
             const nd = hass.states[variables.duration_adjusted]?.attributes?.next_duration;
-            return nd != null ? 'Eff.: ' + nd : 'n/a';
+            return nd != null ? {{ (t.effective ~ ': ') | q }} + nd : 'n/a';
           ]]]
         styles:
           card:
@@ -537,50 +540,50 @@ iu_zone_row:
         type: custom:button-card
         template: iu_weekday_toggle
         entity: "[[[ return variables.day_mon ]]]"
-        name: "Lun"
+        name: {{ t.weekdays_short[0] | q }}
     tue:
       card:
         type: custom:button-card
         template: iu_weekday_toggle
         entity: "[[[ return variables.day_tue ]]]"
-        name: "Mar"
+        name: {{ t.weekdays_short[1] | q }}
     wed:
       card:
         type: custom:button-card
         template: iu_weekday_toggle
         entity: "[[[ return variables.day_wed ]]]"
-        name: "Mer"
+        name: {{ t.weekdays_short[2] | q }}
     thu:
       card:
         type: custom:button-card
         template: iu_weekday_toggle
         entity: "[[[ return variables.day_thu ]]]"
-        name: "Gio"
+        name: {{ t.weekdays_short[3] | q }}
     fri:
       card:
         type: custom:button-card
         template: iu_weekday_toggle
         entity: "[[[ return variables.day_fri ]]]"
-        name: "Ven"
+        name: {{ t.weekdays_short[4] | q }}
     sat:
       card:
         type: custom:button-card
         template: iu_weekday_toggle
         entity: "[[[ return variables.day_sat ]]]"
-        name: "Sab"
+        name: {{ t.weekdays_short[5] | q }}
     sun:
       card:
         type: custom:button-card
         template: iu_weekday_toggle
         entity: "[[[ return variables.day_sun ]]]"
-        name: "Dom"
+        name: {{ t.weekdays_short[6] | q }}
     all:
       card:
         type: custom:button-card
         show_name: true
         show_icon: false
         show_state: false
-        name: "All"
+        name: {{ t.all_days | q }}
         color_type: card
         tap_action:
           action: call-service
@@ -773,50 +776,6 @@ iu_system_toggle:
       - font-size: 14px
       - justify-self: start
 
-iu_test_card:
-  show_name: true
-  show_icon: true
-  variables:
-    name: "Durata"
-    durata: ""
-  icon: mdi:test-tube
-  name: "Test"
-  color_type: icon
-  tap_action:
-    action: toggle
-  styles:
-    card:
-      - padding: 8px
-    grid:
-      - grid-template-areas: '"i n durata"'
-      - grid-template-rows: auto
-      - grid-template-columns: 15% 35% 50%
-    icon:
-      - color: "#ff9800"
-      - height: 30px
-      - justify-self: start
-    name:
-      - justify-self: start
-      - font-weight: bold
-      - font-size: 14px
-  custom_fields:
-    durata:
-      card:
-        type: custom:numberbox-card
-        entity: "[[[ return variables.durata ]]]"
-        border: false
-        unit: time
-        name: false
-        icon: false
-        speed: 200
-        icon_plus: mdi:chevron-up
-        icon_minus: mdi:chevron-down
-        initial: 30
-        min: 0
-        max: 300
-        step: 1
-        delay: 500
-
 iu_rain_status:
   variables:
     adjust_rain_entity: ""
@@ -829,10 +788,10 @@ iu_rain_status:
     [[[
       if (entity.state === 'on') {
         if (variables.adjust_rain_entity && hass.states[variables.adjust_rain_entity]?.state === 'on')
-          return 'Piove - Irrigazione Bloccata';
-        return 'Piove - Blocco Ignorato';
+          return {{ t.raining_blocked | q }};
+        return {{ t.raining_ignored | q }};
       }
-      return 'Sensore Pioggia - OK';
+      return {{ t.rain_ok | q }};
     ]]]
   styles:
     card:
@@ -862,7 +821,7 @@ iu_fill_card:
   show_name: true
   show_icon: true
   variables:
-    name: "Riempimento"
+    name: {{ t.fill | q }}
     durata: ""
     icon: ""
   icon: "[[[ return variables.icon ]]]"

@@ -18,12 +18,11 @@ from typing import Any
 
 from .const import (
     MONTH_CODES,
-    MONTHS,
     REASON_NONE,
     STATUS_TABS,
     TIME_FIXED,
     TIME_TYPES,
-    WEEKDAYS,
+    WEEKDAY_CODES,
 )
 
 
@@ -142,11 +141,15 @@ KIND_SELECT = "select"
 
 @dataclass(frozen=True)
 class ValueSpec:
-    """One user-adjustable value: becomes one entity."""
+    """One user-adjustable value: becomes one entity.
+
+    ``tkey`` is the entity translation_key: its name (and, for a select, its
+    option labels) is in translations/<lang>.json under entity.<platform>,
+    with ``placeholders`` such as ``{program}`` filled in."""
 
     key: str
     kind: str
-    name: str
+    tkey: str
     icon: str
     default: Any
     # True when a change must rewrite the IU configuration
@@ -161,80 +164,80 @@ class ValueSpec:
     options: tuple[str, ...] = ()
     # legacy helper domain the value is seeded from on first start
     legacy_domain: str = ""
-    extra: dict = field(default_factory=dict)
+    placeholders: dict[str, str] = field(default_factory=dict)
 
 
-def _sw(key, name, icon, default=False, schedule=False) -> ValueSpec:
-    return ValueSpec(key, KIND_SWITCH, name, icon, default, schedule=schedule,
-                     legacy_domain="input_boolean")
+def _sw(key, tkey, icon, default=False, schedule=False, ph=None) -> ValueSpec:
+    return ValueSpec(key, KIND_SWITCH, tkey, icon, default, schedule=schedule,
+                     legacy_domain="input_boolean", placeholders=ph or {})
 
 
-def _num(key, name, icon, default, mn, mx, step=1, unit=None, schedule=False,
-         mode="box") -> ValueSpec:
-    return ValueSpec(key, KIND_NUMBER, name, icon, default, schedule=schedule,
+def _num(key, tkey, icon, default, mn, mx, step=1, unit=None, schedule=False,
+         mode="box", ph=None) -> ValueSpec:
+    return ValueSpec(key, KIND_NUMBER, tkey, icon, default, schedule=schedule,
                      min=mn, max=mx, step=step, unit=unit, mode=mode,
-                     legacy_domain="input_number")
+                     legacy_domain="input_number", placeholders=ph or {})
 
 
 def controller_specs(ctrl: Controller) -> list[ValueSpec]:
     """All values of one controller, in a stable order."""
     c = ctrl.id
     specs: list[ValueSpec] = [
-        _sw(eid(c, "system_enabled"), "Sistema attivo", "mdi:water", schedule=True),
-        _sw(eid(c, "adjust_rain"), "Annulla se piove", "mdi:weather-rainy", True),
-        _sw(eid(c, "logging"), "Log attivo", "mdi:file-document-outline", True),
-        _sw(eid(c, "notifications"), "Notifiche", "mdi:bell-outline", True),
-        _num(eid(c, "test_duration"), "Durata test", "mdi:timer-outline", 30, 5, 300, 5, "s"),
-        ValueSpec(eid(c, "status_tab"), KIND_SELECT, "Tab stato", "mdi:tab",
+        _sw(eid(c, "system_enabled"), "system_enabled", "mdi:water", schedule=True),
+        _sw(eid(c, "adjust_rain"), "adjust_rain", "mdi:weather-rainy", True),
+        _sw(eid(c, "logging"), "logging", "mdi:file-document-outline", True),
+        _sw(eid(c, "notifications"), "notifications", "mdi:bell-outline", True),
+        _num(eid(c, "test_duration"), "test_duration", "mdi:timer-outline", 30, 5, 300, 5, "s"),
+        ValueSpec(eid(c, "status_tab"), KIND_SELECT, "status_tab", "mdi:tab",
                   STATUS_TABS[0], options=tuple(STATUS_TABS), legacy_domain="input_select"),
     ]
     if ctrl.availability_entity:
         specs += [
-            _sw(eid(c, "preflight"), "Preflight device", "mdi:lan-check", True),
-            _num(eid(c, "preflight_timeout_minutes"), "Timeout preflight",
+            _sw(eid(c, "preflight"), "preflight", "mdi:lan-check", True),
+            _num(eid(c, "preflight_timeout_minutes"), "preflight_timeout",
                  "mdi:timer-alert-outline", ctrl.preflight_timeout_minutes, 1, 60, 1, "min"),
         ]
     if ctrl.has_fill:
         specs += [
-            _num(eid(c, "fill_lead_minutes"), "Anticipo riempimento", "mdi:water-pump",
+            _num(eid(c, "fill_lead_minutes"), "fill_lead", "mdi:water-pump",
                  ctrl.fill_lead_minutes, 0, 240, 5, "min"),
-            _num(eid(c, "fill_duration_minutes"), "Durata riempimento", "mdi:clock-end",
+            _num(eid(c, "fill_duration_minutes"), "fill_duration", "mdi:clock-end",
                  ctrl.fill_duration_minutes, 0, 240, 5, "min"),
         ]
     for p in ctrl.programs:
         pn = f"p{p.id}"
-        lbl = f"P{p.id} {p.name}"
+        ph = {"program": f"P{p.id} {p.name}"}
         specs += [
-            _sw(eid(c, pn, "enabled"), f"{lbl} attivo", "mdi:calendar-check", schedule=True),
-            ValueSpec(eid(c, pn, "time_type"), KIND_SELECT, f"{lbl} tipo orario",
+            _sw(eid(c, pn, "enabled"), "program_enabled", "mdi:calendar-check", schedule=True, ph=ph),
+            ValueSpec(eid(c, pn, "time_type"), KIND_SELECT, "time_type",
                       "mdi:clock-outline", TIME_FIXED, schedule=True,
-                      options=tuple(TIME_TYPES), legacy_domain="input_select"),
-            ValueSpec(eid(c, pn, "time"), KIND_TIME, f"{lbl} orario", "mdi:clock",
+                      options=tuple(TIME_TYPES), legacy_domain="input_select", placeholders=ph),
+            ValueSpec(eid(c, pn, "time"), KIND_TIME, "program_time", "mdi:clock",
                       p.default_time if len(p.default_time) > 5 else p.default_time + ":00",
-                      schedule=True, legacy_domain="input_datetime"),
-            _num(eid(c, pn, "offset"), f"{lbl} offset sole", "mdi:delta", 0, -120, 120, 1,
-                 "min", schedule=True),
-            _sw(eid(c, pn, "eco"), f"{lbl} eco", "mdi:leaf", schedule=True),
-            _num(eid(c, pn, "eco_cycles"), f"{lbl} eco cicli", "mdi:repeat", 2, 1, 5, 1,
-                 schedule=True),
+                      schedule=True, legacy_domain="input_datetime", placeholders=ph),
+            _num(eid(c, pn, "offset"), "program_offset", "mdi:delta", 0, -120, 120, 1,
+                 "min", schedule=True, ph=ph),
+            _sw(eid(c, pn, "eco"), "program_eco", "mdi:leaf", schedule=True, ph=ph),
+            _num(eid(c, pn, "eco_cycles"), "program_eco_cycles", "mdi:repeat", 2, 1, 5, 1,
+                 schedule=True, ph=ph),
             # Seconds (may be negative: IU overlaps the cycles). The YAML
             # helper said "min" but its value was always used as seconds.
-            _num(eid(c, pn, "eco_soak"), f"{lbl} pausa eco", "mdi:timer-sand", 600,
-                 -600, 3600, 1, "s", schedule=True),
+            _num(eid(c, pn, "eco_soak"), "program_eco_soak", "mdi:timer-sand", 600,
+                 -600, 3600, 1, "s", schedule=True, ph=ph),
         ]
-        for code, mname, _ in MONTHS:
-            specs.append(_sw(eid(c, pn, code), f"{lbl} {mname}", "mdi:calendar-month",
-                             code in ("apr", "may", "jun", "jul", "aug", "sep"), True))
+        for code in MONTH_CODES:
+            specs.append(_sw(eid(c, pn, code), f"program_month_{code}", "mdi:calendar-month",
+                             code in ("apr", "may", "jun", "jul", "aug", "sep"), True, ph))
         for z in ctrl.zones:
-            zl = f"{lbl} Z{z.id} {z.name}"
-            specs.append(_sw(eid(c, pn, f"z{z.id}_enabled"), zl, "mdi:sprinkler-variant",
-                             p.id == 1, True))
-            specs.append(_num(eid(c, pn, f"z{z.id}_duration"), f"{zl} durata",
+            zph = {**ph, "zone": f"Z{z.id} {z.name}"}
+            specs.append(_sw(eid(c, pn, f"z{z.id}_enabled"), "zone_enabled",
+                             "mdi:sprinkler-variant", p.id == 1, True, zph))
+            specs.append(_num(eid(c, pn, f"z{z.id}_duration"), "zone_duration",
                               "mdi:timer-outline", 10, 0, 60, 1, "min", schedule=True,
-                              mode="slider"))
-            for code, dname, _ in WEEKDAYS:
-                specs.append(_sw(eid(c, pn, f"z{z.id}_{code}"), f"{zl} {dname}",
-                                 "mdi:calendar", code in ("mon", "wed", "fri"), True))
+                              mode="slider", ph=zph))
+            for code in WEEKDAY_CODES:
+                specs.append(_sw(eid(c, pn, f"z{z.id}_{code}"), f"zone_day_{code}",
+                                 "mdi:calendar", code in ("mon", "wed", "fri"), True, zph))
     return specs
 
 

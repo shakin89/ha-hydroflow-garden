@@ -28,7 +28,7 @@ class TestButton(ManagerEntity, ButtonEntity):
     sequence is active)."""
 
     def __init__(self, rt, ctrl) -> None:
-        super().__init__(rt, "button", eid(ctrl.id, "test"), "Avvia test", "mdi:test-tube", ctrl)
+        super().__init__(rt, "button", eid(ctrl.id, "test"), "test", "mdi:test-tube", ctrl)
 
     async def async_press(self) -> None:
         secs = int(_num(self.rt.get(eid(self.ctrl.id, "test_duration")), 30))
@@ -43,7 +43,7 @@ class DashboardButton(ManagerEntity, ButtonEntity):
     _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, rt) -> None:
-        super().__init__(rt, "button", "iu_regenerate_dashboard", "Rigenera dashboard",
+        super().__init__(rt, "button", "iu_regenerate_dashboard", "regenerate_dashboard",
                          "mdi:view-dashboard-edit", None)
 
     async def async_press(self) -> None:
@@ -55,7 +55,7 @@ class WriteIUButton(ManagerEntity, ButtonEntity):
     _attr_entity_category = EntityCategory.CONFIG
 
     def __init__(self, rt) -> None:
-        super().__init__(rt, "button", "iu_write_config", "Riscrivi config IU",
+        super().__init__(rt, "button", "iu_write_config", "write_iu_config",
                          "mdi:file-refresh", None)
 
     async def async_press(self) -> None:

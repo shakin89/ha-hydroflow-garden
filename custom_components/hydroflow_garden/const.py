@@ -6,45 +6,38 @@ DOMAIN = "hydroflow_garden"
 
 SUBENTRY_CONTROLLER = "controller"
 
-# (code, Italian name, Italian short label) — codes are the IU weekday/month
-# keywords and part of every helper object_id: never change them.
-WEEKDAYS: list[tuple[str, str, str]] = [
-    ("mon", "Lunedì", "L"),
-    ("tue", "Martedì", "M"),
-    ("wed", "Mercoledì", "M"),
-    ("thu", "Giovedì", "G"),
-    ("fri", "Venerdì", "V"),
-    ("sat", "Sabato", "S"),
-    ("sun", "Domenica", "D"),
-]
-MONTHS: list[tuple[str, str, str]] = [
-    ("jan", "Gennaio", "Gen"),
-    ("feb", "Febbraio", "Feb"),
-    ("mar", "Marzo", "Mar"),
-    ("apr", "Aprile", "Apr"),
-    ("may", "Maggio", "Mag"),
-    ("jun", "Giugno", "Giu"),
-    ("jul", "Luglio", "Lug"),
-    ("aug", "Agosto", "Ago"),
-    ("sep", "Settembre", "Set"),
-    ("oct", "Ottobre", "Ott"),
-    ("nov", "Novembre", "Nov"),
-    ("dec", "Dicembre", "Dic"),
-]
-WEEKDAY_CODES = [d[0] for d in WEEKDAYS]
-MONTH_CODES = [m[0] for m in MONTHS]
+# IU weekday/month keywords, part of every helper object_id: never change them.
+WEEKDAY_CODES = ["mon", "tue", "wed", "thu", "fri", "sat", "sun"]
+MONTH_CODES = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
 
-TIME_FIXED = "Fisso"
-TIME_SUNRISE = "Alba"
-TIME_SUNSET = "Tramonto"
+# Select options and enum sensor states are language-neutral codes; their
+# labels come from translations/<lang>.json (entity.<platform>.<key>.state).
+TIME_FIXED = "fixed"
+TIME_SUNRISE = "sunrise"
+TIME_SUNSET = "sunset"
 TIME_TYPES = [TIME_FIXED, TIME_SUNRISE, TIME_SUNSET]
 
-REASON_NONE = "Nessuna"
-REASON_RAIN = "Pioggia"
-REASON_OFFLINE = "Device offline"
+REASON_NONE = "none"
+REASON_RAIN = "rain"
+REASON_OFFLINE = "device_offline"
 SUSPEND_REASONS = [REASON_NONE, REASON_RAIN, REASON_OFFLINE]
 
-STATUS_TABS = ["Prossima", "Storico", "Smart", "Timeline"]
+STATUS_TABS = ["next", "history", "smart", "timeline"]
+
+# Italian labels stored as values before the options became codes (and still
+# found in the legacy input_select helpers): migrated on load.
+LEGACY_OPTIONS = {
+    "Fisso": TIME_FIXED,
+    "Alba": TIME_SUNRISE,
+    "Tramonto": TIME_SUNSET,
+    "Nessuna": REASON_NONE,
+    "Pioggia": REASON_RAIN,
+    "Device offline": REASON_OFFLINE,
+    "Prossima": "next",
+    "Storico": "history",
+    "Smart": "smart",
+    "Timeline": "timeline",
+}
 
 # Hub entry options
 CONF_ENGINE_ENABLED = "engine_enabled"
@@ -82,7 +75,7 @@ HUB_DEFAULTS: dict = {
     CONF_LOG_KEEP: 3,
     CONF_IU_CONFIG_PATH: "irrigation_unlimited.yaml",
     CONF_DASHBOARD_URL: "hydroflow-garden",
-    CONF_DASHBOARD_TITLE: "Irrigazione",
+    CONF_DASHBOARD_TITLE: "",  # empty: the translated default
 }
 
 # Global helper (hub device)
