@@ -16,6 +16,8 @@ Pure Python: imported by the dashboard renderer and by the tests.
 
 from __future__ import annotations
 
+import re
+
 THEME_SYSTEM = "system"
 THEMES = [THEME_SYSTEM, "salvia", "laguna", "terracotta"]
 
@@ -59,7 +61,7 @@ _SYSTEM = {
 }
 
 PALETTES: dict[str, dict[str, dict[str, str]]] = {
-    THEME_SYSTEM: {"light": _SYSTEM, "dark": _SYSTEM},
+    THEME_SYSTEM: {MODE_LIGHT: _SYSTEM, MODE_DARK: _SYSTEM},
     "salvia": {
         "light": {
             "bg": "#F3F5F0", "card": "#FFFFFF", "inset": "#EDF1E9", "border": "#DCE3D5",
@@ -124,6 +126,30 @@ PALETTES: dict[str, dict[str, dict[str, str]]] = {
         },
     },
 }
+
+
+def _light_dark(light: dict[str, str], dark: dict[str, str]) -> dict[str, str]:
+    """Both variants in one, resolved by CSS ``light-dark()``.
+
+    Home Assistant publishes its dark mode as the page ``color-scheme``, so
+    the cards follow it without a re-render. ``light-dark()`` takes colours
+    only: a shadow keeps its light geometry with each colour switched to
+    transparent in dark (every dark palette has no shadow)."""
+    out = {}
+    for tok, lv in light.items():
+        dv = dark[tok]
+        if lv == dv:
+            out[tok] = lv
+        elif tok == "shadow":
+            assert dv == "none", tok
+            out[tok] = re.sub(r"rgba\([^)]*\)", lambda m: f"light-dark({m[0]}, transparent)", lv)
+        else:
+            out[tok] = f"light-dark({lv}, {dv})"
+    return out
+
+
+for _pal in PALETTES.values():
+    _pal[MODE_AUTO] = _light_dark(_pal[MODE_LIGHT], _pal[MODE_DARK])
 
 
 def view_background(theme: str | None, mode: str | None) -> str | None:

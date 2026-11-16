@@ -22,8 +22,6 @@ REASON_RAIN = "rain"
 REASON_OFFLINE = "device_offline"
 SUSPEND_REASONS = [REASON_NONE, REASON_RAIN, REASON_OFFLINE]
 
-STATUS_TABS = ["next", "history", "smart", "timeline"]
-
 # Italian labels stored as values before the options became codes (and still
 # found in the legacy input_select helpers): migrated on load.
 LEGACY_OPTIONS = {
@@ -33,10 +31,6 @@ LEGACY_OPTIONS = {
     "Nessuna": REASON_NONE,
     "Pioggia": REASON_RAIN,
     "Device offline": REASON_OFFLINE,
-    "Prossima": "next",
-    "Storico": "history",
-    "Smart": "smart",
-    "Timeline": "timeline",
 }
 
 # Hub entry options

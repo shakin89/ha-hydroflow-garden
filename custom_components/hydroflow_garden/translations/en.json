@@ -307,15 +307,6 @@
           "dark": "Dark"
         }
       },
-      "status_tab": {
-        "name": "Status tab",
-        "state": {
-          "next": "Next",
-          "history": "History",
-          "smart": "Smart",
-          "timeline": "Timeline"
-        }
-      },
       "time_type": {
         "name": "{program} time type",
         "state": {

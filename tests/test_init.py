@@ -201,6 +201,17 @@ async def test_dashboard_background_follows_appearance() -> None:
         assert all("background" not in v for v in cfg["views"]), (theme, mode)
 
 
+def test_auto_palette_uses_light_dark() -> None:
+    from custom_components.hydroflow_garden.palettes import PALETTES, TOKENS
+
+    for theme, pal in PALETTES.items():
+        assert set(pal["auto"]) == set(TOKENS), theme
+    salvia = PALETTES["salvia"]
+    assert salvia["auto"]["primary"] == f"light-dark({salvia['light']['primary']}, {salvia['dark']['primary']})"
+    assert "light-dark(rgba(" in salvia["auto"]["shadow"] and "none" not in salvia["auto"]["shadow"]
+    assert PALETTES["system"]["auto"] == PALETTES["system"]["light"]  # HA vars already follow HA
+
+
 async def test_appearance_selects(hass: HomeAssistant) -> None:
     from unittest.mock import AsyncMock, patch
 

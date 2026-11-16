@@ -19,7 +19,6 @@ from typing import Any
 from .const import (
     MONTH_CODES,
     REASON_NONE,
-    STATUS_TABS,
     TIME_FIXED,
     TIME_TYPES,
     WEEKDAY_CODES,
@@ -188,8 +187,6 @@ def controller_specs(ctrl: Controller) -> list[ValueSpec]:
         _sw(eid(c, "logging"), "logging", "mdi:file-document-outline", True),
         _sw(eid(c, "notifications"), "notifications", "mdi:bell-outline", True),
         _num(eid(c, "test_duration"), "test_duration", "mdi:timer-outline", 30, 5, 300, 5, "s"),
-        ValueSpec(eid(c, "status_tab"), KIND_SELECT, "status_tab", "mdi:tab",
-                  STATUS_TABS[0], options=tuple(STATUS_TABS), legacy_domain="input_select"),
     ]
     if ctrl.availability_entity:
         specs += [

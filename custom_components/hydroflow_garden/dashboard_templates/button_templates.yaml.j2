@@ -43,9 +43,12 @@ hf_base:
         const P = {{ palettes_js }};
         const th = states[{{ theme_entity | q }}]?.state;
         const md = states[{{ mode_entity | q }}]?.state || 'auto';
-        const dark = md === 'dark' || (md !== 'light' && !!hass.themes?.darkMode);
         const pal = P[th] || P.system;
-        return pal[dark ? 'dark' : 'light'];
+        if (md === 'light' || md === 'dark') return pal[md];
+        // auto: CSS light-dark() follows HA's colour scheme without a re-render;
+        // older browsers get the mode HA had when the card last rendered.
+        if (window.CSS?.supports?.('color', 'light-dark(#000, #fff)')) return pal.auto;
+        return pal[hass.themes?.darkMode ? 'dark' : 'light'];
       ]]]
   triggers_update:
     - {{ theme_entity }}

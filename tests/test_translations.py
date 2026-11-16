@@ -153,7 +153,7 @@ def test_dashboard_languages() -> None:
 async def test_legacy_option_values_migrated(hass: HomeAssistant, hass_storage) -> None:
     hass_storage[f"{DOMAIN}.x.values"] = {
         "version": 1, "key": f"{DOMAIN}.x.values",
-        "data": {"tt": "Alba", "tab": "Storico", "reason": "Pioggia", "other": "Alba"},
+        "data": {"tt": "Alba", "reason": "Pioggia", "other": "Alba"},
     }
     hass.states.async_set("input_select.tt2", "Tramonto")
     sel = {"kind": KIND_SELECT, "icon": "", "legacy_domain": "input_select"}
@@ -162,13 +162,10 @@ async def test_legacy_option_values_migrated(hass: HomeAssistant, hass_storage) 
                         options=("fixed", "sunrise", "sunset"), **sel),
         "tt2": ValueSpec("tt2", tkey="time_type", default="fixed",
                          options=("fixed", "sunrise", "sunset"), **sel),
-        "tab": ValueSpec("tab", tkey="status_tab", default="next",
-                         options=("next", "history", "smart", "timeline"), **sel),
     }
     store = ValueStore(hass, "x")
     await store.async_load(specs, {"reason": "none"})
     assert store.get("tt") == "sunrise"
     assert store.get("tt2") == "sunset"  # seeded from the legacy helper
-    assert store.get("tab") == "history"
     assert store.get("reason") == "rain"
     assert store.get("other") == "Alba"  # not an option value: untouched

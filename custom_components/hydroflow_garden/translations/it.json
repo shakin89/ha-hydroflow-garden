@@ -307,15 +307,6 @@
           "dark": "Scuro"
         }
       },
-      "status_tab": {
-        "name": "Tab stato",
-        "state": {
-          "next": "Prossima",
-          "history": "Storico",
-          "smart": "Smart",
-          "timeline": "Timeline"
-        }
-      },
       "time_type": {
         "name": "{program} tipo orario",
         "state": {

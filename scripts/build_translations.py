@@ -271,9 +271,6 @@ ENTITY = {
             "laguna": ("Laguna", "Laguna"), "terracotta": ("Terracotta", "Terracotta")}),
         "dashboard_mode": ("Dashboard mode", "Modalità dashboard", {
             "auto": ("Auto", "Automatica"), "light": ("Light", "Chiaro"), "dark": ("Dark", "Scuro")}),
-        "status_tab": ("Status tab", "Tab stato", {
-            "next": ("Next", "Prossima"), "history": ("History", "Storico"),
-            "smart": ("Smart", "Smart"), "timeline": ("Timeline", "Timeline")}),
         "time_type": ("{program} time type", "{program} tipo orario", {
             "fixed": ("Fixed", "Fisso"), "sunrise": ("Sunrise", "Alba"), "sunset": ("Sunset", "Tramonto")}),
     },
