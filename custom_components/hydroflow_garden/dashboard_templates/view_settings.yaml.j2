@@ -1,0 +1,300 @@
+{# "Settings" view of one controller, grouped by topic. The appearance card
+sets the theme of the whole dashboard. #}
+{%- import '_macros.j2' as m with context %}
+{%- set c = ctrl.id %}
+{%- set si_zones = ctrl.zones_v | selectattr('si') | list %}
+{{ m.nav(ctrl, 'settings') }}
+
+- type: grid
+  column_span: 3
+  cards:
+    - type: custom:button-card
+      template: hf_system
+      entity: switch.iu_{{ c }}_system_enabled
+      variables:
+        name: {{ ctrl.name | q }}
+      grid_options:
+        columns: full
+
+- type: grid
+  column_span: 1
+  cards:
+    - type: custom:button-card
+      template: hf_appearance
+      variables:
+        title: {{ t.appearance | q }}
+        sub: {{ t.appearance_sub | q }}
+      grid_options:
+        columns: full
+
+- type: grid
+  column_span: 1
+  cards:
+    - type: custom:button-card
+      template: hf_card
+      entity: binary_sensor.iu_sta_piovendo
+      triggers_update:
+        - {{ theme_entity }}
+        - {{ mode_entity }}
+        - sensor.probabilita_pioggia_oggi
+        - sensor.precipitazioni_oggi
+      variables:
+        title: {{ t.rain_heading | q }}
+        icon: mdi:weather-rainy
+        tone: water
+        sub: |
+          [[[
+            if (!entity || entity.state === 'unavailable' || entity.state === 'unknown') return {{ t.rain_sensor_none | q }};
+            return {{ t.rain_sensor | q }} + ': ' + (entity.state === 'on' ? {{ t.raining | q }} : {{ t.dry | q }});
+          ]]]
+      styles:
+        grid:
+          - grid-template-areas: '"head" "fc" "block" "note"'
+      custom_fields:
+        fc: |
+          [[[
+            const p = states['sensor.probabilita_pioggia_oggi'], mm = states['sensor.precipitazioni_oggi'];
+            if (!p && !mm) return '';
+            const v = (s, u) => s && !isNaN(Number(s.state)) ? Math.round(Number(s.state) * 10) / 10 + u : '—';
+            return `<div class="hf-stats"><span class="hf-stat"><span class="hf-cap">${ {{ t.forecast_prob | q }} }</span><b>${v(p, '%')}</b></span>
+              <span class="hf-stat"><span class="hf-cap">${ {{ t.forecast_mm | q }} }</span><b>${v(mm, ' mm')}</b></span></div>`;
+          ]]]
+        block:
+          card:
+            type: custom:button-card
+            template: hf_toggle
+            entity: switch.iu_{{ c }}_adjust_rain
+            variables:
+              label: {{ t.adjust_rain | q }}
+              hint: {{ t.adjust_rain_hint | q }}
+              icon: mdi:weather-pouring
+        note: |
+          [[[ return `<span class="hf-cap">${ {{ t.rain_note | q }} }</span>`; ]]]
+      grid_options:
+        columns: full
+{%- if ctrl.fill_switches %}
+
+- type: grid
+  column_span: 1
+  cards:
+    - type: custom:button-card
+      template: hf_card
+      variables:
+        title: {{ t.fill_heading | q }}
+        icon: mdi:storage-tank-outline
+        tone: water
+      styles:
+        grid:
+          - grid-template-areas: '"head" "now" "lead" "dur" "win"'
+      custom_fields:
+        now:
+          card:
+            type: custom:button-card
+            template: hf_toggle
+            entity: {{ ctrl.fill_switches[0] }}
+            variables:
+              label: {{ t.fill_now | q }}
+              hint: {{ t.fill_now_hint | q }}
+              icon: mdi:water-pump
+        lead:
+          card:
+            type: custom:button-card
+            template: hf_stepper
+            entity: number.iu_{{ c }}_fill_lead_minutes
+            variables:
+              label: {{ t.fill_lead | q }}
+              hint: {{ t.fill_lead_hint | q }}
+              format: hhmm
+        dur:
+          card:
+            type: custom:button-card
+            template: hf_stepper
+            entity: number.iu_{{ c }}_fill_duration_minutes
+            variables:
+              label: {{ t.fill_duration | q }}
+              hint: {{ t.fill_duration_hint | q }}
+              format: hhmm
+        win:
+          card:
+            type: custom:button-card
+            template: hf_fill_window
+            entity: {{ ctrl.cm }}
+            triggers_update:
+              - number.iu_{{ c }}_fill_lead_minutes
+              - number.iu_{{ c }}_fill_duration_minutes
+            variables:
+              lead_entity: number.iu_{{ c }}_fill_lead_minutes
+              duration_entity: number.iu_{{ c }}_fill_duration_minutes
+      grid_options:
+        columns: full
+{%- endif %}
+{%- if ctrl.availability_entity %}
+
+- type: grid
+  column_span: 1
+  cards:
+    - type: custom:button-card
+      template: hf_card
+      variables:
+        title: {{ t.preflight_heading | q }}
+        sub: {{ t.preflight_sub | q }}
+        icon: mdi:shield-check-outline
+        tone: primary
+      styles:
+        grid:
+          - grid-template-areas: '"head" "pf" "timeout" "layers"'
+      custom_fields:
+        pf:
+          card:
+            type: custom:button-card
+            template: hf_toggle
+            entity: switch.iu_{{ c }}_preflight
+            variables:
+              label: {{ t.preflight_device | q }}
+              icon: mdi:lan-check
+        timeout:
+          card:
+            type: custom:button-card
+            template: hf_stepper
+            entity: number.iu_{{ c }}_preflight_timeout_minutes
+            variables:
+              label: {{ t.preflight_timeout | q }}
+              hint: {{ t.preflight_timeout_hint | q }}
+              format: min
+        layers: |
+          [[[
+            const items = {{ t.preflight_layers | q }};
+            return `<ol style="margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:6px">${items.map((x, i) =>
+              `<li style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border-radius:12px;background:var(--hf-inset)">
+                <b style="width:22px;height:22px;flex-shrink:0;border-radius:7px;display:grid;place-items:center;font-size:12px;background:var(--hf-card);color:var(--hf-primary)">${i + 1}</b>
+                <span class="hf-cap" style="color:var(--hf-text)">${x}</span></li>`).join('')}</ol>`;
+          ]]]
+      grid_options:
+        columns: full
+{%- endif %}
+{%- if si_zones %}
+
+- type: grid
+  column_span: 1
+  cards:
+    - type: custom:button-card
+      template: hf_card
+      triggers_update: {{ ([theme_entity, mode_entity] + si_zones | map(attribute='planned') | list) | tojson }}
+      variables:
+        title: {{ t.smart_title | q }}
+        icon: mdi:leaf
+        tone: eco
+      styles:
+        grid:
+          - grid-template-areas: '"head" "info" "lead" "reset"'
+      custom_fields:
+        info: |
+          [[[
+            const p = states[{{ si_zones[0].planned | q }}]?.attributes || {};
+            const at = p.si_calcolato_alle ? new Date(p.si_calcolato_alle).toLocaleString({{ t.locale | q }},
+              {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : {{ t.never | q }};
+            return `<div class="hf-stats"><span class="hf-stat"><span class="hf-cap">${ {{ t.last_si_calc | q }} }</span><b>${at}</b></span>
+              <span class="hf-stat"><span class="hf-cap">${ {{ t.recalc | q }} }</span><b>${ {{ t.recalc_value | q }} }</b></span></div>`;
+          ]]]
+        lead:
+          card:
+            type: custom:button-card
+            template: hf_stepper
+            entity: {{ si_lead_entity }}
+            variables:
+              label: {{ t.si_lead | q }}
+              hint: {{ t.si_lead_hint | q }}
+              format: min
+        reset:
+          card:
+            type: custom:button-card
+            template: hf_btn
+            entity: {{ si_zones[0].si }}
+            icon: mdi:bucket-outline
+            variables:
+              label: {{ t.reset_buckets | q }}
+              tone: danger
+            tap_action:
+              action: call-service
+              service: smart_irrigation.set_bucket
+              target:
+                entity_id:
+{%- for z in si_zones %}
+                  - {{ z.si }}
+{%- endfor %}
+              confirmation:
+                text: {{ t.reset_buckets_confirm.format(ctrl=ctrl.name) | q }}
+      grid_options:
+        columns: full
+{%- endif %}
+
+- type: grid
+  column_span: 1
+  cards:
+    - type: custom:button-card
+      template: hf_card
+      variables:
+        title: {{ t.messages_heading | q }}
+        icon: mdi:bell-outline
+        tone: neutral
+      styles:
+        grid:
+          - grid-template-areas: '"head" "notif" "log"'
+      custom_fields:
+        notif:
+          card:
+            type: custom:button-card
+            template: hf_toggle
+            entity: switch.iu_{{ c }}_notifications
+            variables:
+              label: {{ t.notifications | q }}
+              hint: {{ t.notifications_hint | q }}
+              icon: mdi:bell-outline
+        log:
+          card:
+            type: custom:button-card
+            template: hf_toggle
+            entity: switch.iu_{{ c }}_logging
+            variables:
+              label: {{ t.logging | q }}
+              hint: {{ t.logging_hint | q }}
+              icon: mdi:file-document-outline
+      grid_options:
+        columns: full
+
+- type: grid
+  column_span: 1
+  cards:
+    - type: custom:button-card
+      template: hf_card
+      variables:
+        title: {{ t.dashboard_heading | q }}
+        sub: {{ t.dashboard_sub | q }}
+        icon: mdi:view-dashboard-outline
+        tone: neutral
+      styles:
+        grid:
+          - grid-template-areas: '"head" "chips" "regen"'
+      custom_fields:
+        chips: |
+          [[[
+            const apex = {{ 'true' if has_apexcharts else 'false' }};
+            const chip = (bg, fg, txt) => `<span class="hf-chip" style="background:${bg};color:${fg}">${txt}</span>`;
+            return `<div style="display:flex;flex-wrap:wrap;gap:6px">${apex
+              ? chip('var(--hf-primary-soft)', 'var(--hf-primary)', {{ t.apex_on | q }})
+              : chip('var(--hf-warn-soft)', 'var(--hf-warn)', {{ t.apex_off | q }})}${chip('var(--hf-inset)', 'var(--hf-text2)', {{ t.language_follows | q }})}</div>`;
+          ]]]
+        regen:
+          card:
+            type: custom:button-card
+            template: hf_btn
+            icon: mdi:refresh
+            variables:
+              label: {{ t.regenerate | q }}
+            tap_action:
+              action: call-service
+              service: button.press
+              service_data:
+                entity_id: button.iu_regenerate_dashboard
+      grid_options:
+        columns: full

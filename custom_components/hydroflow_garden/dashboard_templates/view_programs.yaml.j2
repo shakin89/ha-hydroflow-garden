@@ -1,0 +1,258 @@
+{# "Programs" view of one controller: per program its header, start time,
+months, eco, zone x weekday matrix and weekly total. Details are hidden while
+the program is off. #}
+{%- import '_macros.j2' as m with context %}
+{%- set c = ctrl.id %}
+{{ m.nav(ctrl, 'programs') }}
+{%- for p in ctrl.programs %}
+{%- set pn = "p" ~ p.id %}
+{%- set px = "iu_" ~ c ~ "_" ~ pn %}
+
+# === P{{ p.id }} {{ p.name }} ===
+- type: grid
+  column_span: 3
+  cards:
+    - type: custom:button-card
+      template: hf_program_header
+      entity: switch.{{ px }}_enabled
+      triggers_update: {{ ([theme_entity, mode_entity, ctrl.cm, "select." ~ px ~ "_time_type", "time." ~ px ~ "_time", "number." ~ px ~ "_offset"]
+        + ctrl.program_entities(p.id).zone_enabled + ctrl.program_entities(p.id).zone_duration + ctrl.program_entities(p.id).months) | tojson }}
+      variables:
+        name: "P{{ p.id }} {{ p.name }}"
+        controller_entity: {{ ctrl.cm }}
+        sequence_base: {{ ctrl.seq_base }}
+        program_prefix: "P{{ p.id }} "
+        day_prefix: switch.{{ px }}
+        zone_ids: {{ ctrl.zones | map(attribute='id') | list | tojson }}
+        time_entity: time.{{ px }}_time
+        type_entity: select.{{ px }}_time_type
+        offset_entity: number.{{ px }}_offset
+      grid_options:
+        columns: full
+
+- type: grid
+  column_span: 1
+  {{ m.visible_when_on("switch." ~ px ~ "_enabled") | indent(2) }}
+  cards:
+    - type: custom:button-card
+      template: hf_card
+      entity: select.{{ px }}_time_type
+      triggers_update:
+        - time.{{ px }}_time
+      variables:
+        title: {{ t.time_heading | q }}
+        icon: mdi:clock-outline
+        tone: primary
+      styles:
+        grid:
+          - grid-template-areas: '"head head head" "fixed sunrise sunset" "time time time" "offset offset offset"'
+          - grid-template-columns: repeat(3, minmax(0, 1fr))
+          - column-gap: 6px
+        custom_fields:
+          time:
+            - display: "[[[ return entity?.state === 'fixed' ? 'block' : 'none' ]]]"
+          offset:
+            - display: "[[[ return entity?.state && entity.state !== 'fixed' ? 'block' : 'none' ]]]"
+      custom_fields:
+{%- for code in ["fixed", "sunrise", "sunset"] %}
+        {{ code }}:
+          card:
+            type: custom:button-card
+            template: hf_seg
+            entity: select.{{ px }}_time_type
+            variables:
+              option: {{ code }}
+              label: {{ t.time_types[code] | q }}
+{%- endfor %}
+        time:
+          card:
+            type: custom:button-card
+            template: hf_part
+            entity: time.{{ px }}_time
+            show_name: true
+            show_icon: true
+            icon: mdi:clock-edit-outline
+            name: "[[[ return String(states['time.{{ px }}_time']?.state || '—').slice(0, 5) ]]]"
+            tap_action:
+              action: more-info
+            styles:
+              card:
+                - height: 64px
+                - border-radius: 14px
+                - background: var(--hf-inset)
+              grid:
+                - grid-template-areas: '"n i"'
+                - grid-template-columns: auto min-content
+                - column-gap: 12px
+                - justify-content: center
+              name:
+                - font-size: 30px
+                - font-weight: 700
+                - font-variant-numeric: tabular-nums
+              icon:
+                - width: 20px
+                - color: var(--hf-text2)
+        offset:
+          card:
+            type: custom:button-card
+            template: hf_stepper
+            entity: number.{{ px }}_offset
+            variables:
+              label: {{ t.offset | q }}
+              hint: {{ t.offset_hint | q }}
+              format: offset
+              step: 5
+      grid_options:
+        columns: full
+
+- type: grid
+  column_span: 1
+  {{ m.visible_when_on("switch." ~ px ~ "_enabled") | indent(2) }}
+  cards:
+    - type: custom:button-card
+      template: hf_card
+      variables:
+        title: {{ t.months_heading | q }}
+        icon: mdi:calendar-month-outline
+        tone: primary
+      styles:
+        grid:
+          - grid-template-areas: '"head head head head head head" "{{ months[:6] | map(attribute=0) | join(" ") }}" "{{ months[6:] | map(attribute=0) | join(" ") }}"'
+          - grid-template-columns: repeat(6, minmax(0, 1fr))
+          - column-gap: 6px
+          - row-gap: 8px
+      custom_fields:
+{%- for code, short in months %}
+        {{ code }}:
+          card:
+            type: custom:button-card
+            template: hf_chip_toggle
+            entity: switch.{{ px }}_{{ code }}
+            variables:
+              label: {{ short | q }}
+{%- endfor %}
+      grid_options:
+        columns: full
+
+- type: grid
+  column_span: 1
+  {{ m.visible_when_on("switch." ~ px ~ "_enabled") | indent(2) }}
+  cards:
+    - type: custom:button-card
+      template: hf_card
+      entity: switch.{{ px }}_eco
+      triggers_update:
+        - {{ theme_entity }}
+        - {{ mode_entity }}
+        - number.{{ px }}_eco_cycles
+        - number.{{ px }}_eco_soak
+      variables:
+        title: {{ t.eco_heading | q }}
+        sub: {{ t.eco_hint | q }}
+        icon: mdi:leaf
+        tone: eco
+      styles:
+        grid:
+          - grid-template-areas: '"head" "toggle" "cycles" "soak" "preview"'
+        custom_fields:
+          cycles:
+            - display: "[[[ return entity?.state === 'on' ? 'block' : 'none' ]]]"
+          soak:
+            - display: "[[[ return entity?.state === 'on' ? 'block' : 'none' ]]]"
+          preview:
+            - display: "[[[ return entity?.state === 'on' ? 'block' : 'none' ]]]"
+      custom_fields:
+        toggle:
+          card:
+            type: custom:button-card
+            template: hf_toggle
+            entity: switch.{{ px }}_eco
+            variables:
+              label: {{ t.eco_mode | q }}
+        cycles:
+          card:
+            type: custom:button-card
+            template: hf_stepper
+            entity: number.{{ px }}_eco_cycles
+            variables:
+              label: {{ t.cycles | q }}
+        soak:
+          card:
+            type: custom:button-card
+            template: hf_stepper
+            entity: number.{{ px }}_eco_soak
+            variables:
+              label: {{ t.soak | q }}
+              hint: {{ t.soak_hint | q }}
+              format: s
+              step: 10
+        preview: |
+          [[[
+            const c = Math.max(1, Number(states['number.{{ px }}_eco_cycles']?.state) || 1);
+            const soak = Number(states['number.{{ px }}_eco_soak']?.state) || 0;
+            const parts = [];
+            for (let i = 0; i < c; i++) {
+              parts.push('<i style="flex:10;height:22px;border-radius:6px;background:var(--hf-water)"></i>');
+              if (i < c - 1) parts.push('<i style="flex:2;height:22px;border-radius:6px;box-sizing:border-box;border:1px dashed var(--hf-text2)"></i>');
+            }
+            const txt = c === 1 ? {{ t.eco_one | q }} : {{ t.eco_many | q }}.replace('{n}', c).replace('{s}', soak);
+            return `<div class="hf-cap" style="margin-bottom:6px">${ {{ t.eco_preview | q }} }</div>
+              <div style="display:flex;gap:4px">${parts.join('')}</div><div class="hf-cap" style="margin-top:6px">${txt}</div>`;
+          ]]]
+      grid_options:
+        columns: full
+
+- type: grid
+  column_span: 3
+  {{ m.visible_when_on("switch." ~ px ~ "_enabled") | indent(2) }}
+  cards:
+    {{ m.heading(t.zones_days_heading, t.zones_days_hint) | indent(4) }}
+{%- for z in ctrl.zones_v %}
+    - type: custom:button-card
+      template: hf_zone_days
+      entity: switch.{{ px }}_z{{ z.id }}_enabled
+      triggers_update:
+        - {{ theme_entity }}
+        - {{ mode_entity }}
+        - {{ z.planned }}
+      variables:
+        name: {{ z.label | q }}
+        planned_entity: {{ z.planned }}
+      custom_fields:
+{%- for code, short in weekdays %}
+        {{ code }}:
+          card:
+            type: custom:button-card
+            template: hf_chip_toggle
+            entity: switch.{{ px }}_z{{ z.id }}_{{ code }}
+            variables:
+              label: {{ short | q }}
+{%- endfor %}
+        dur:
+          card:
+            type: custom:button-card
+            template: hf_stepper
+            entity: number.{{ px }}_z{{ z.id }}_duration
+            variables:
+              format: min
+      grid_options:
+        columns: full
+{%- endfor %}
+
+- type: grid
+  column_span: 3
+  {{ m.visible_when_on("switch." ~ px ~ "_enabled") | indent(2) }}
+  cards:
+    - type: custom:button-card
+      template: hf_week
+      triggers_update: {{ ([theme_entity, mode_entity] + ctrl.program_entities(p.id).zone_enabled
+        + ctrl.program_entities(p.id).zone_duration + ctrl.program_entities(p.id).zone_days) | tojson }}
+      variables:
+        title: {{ t.week_heading.format(program="P" ~ p.id ~ " " ~ p.name) | q }}
+        icon: mdi:chart-bar
+        tone: primary
+        prefix: {{ px }}
+        zone_ids: {{ ctrl.zones | map(attribute='id') | list | tojson }}
+      grid_options:
+        columns: full
+{%- endfor %}

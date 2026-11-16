@@ -33,6 +33,8 @@ from .const import (
     CONF_RAIN_NOW_ENTITY,
     CONF_RAIN_NOW_STATE,
     CONF_WEATHER_ENTITY,
+    DASHBOARD_MODE_KEY,
+    DASHBOARD_THEME_KEY,
     DOMAIN,
     HUB_DEFAULTS,
     IU_DOMAIN,
@@ -45,7 +47,8 @@ from .const import (
 from .i18n import Texts
 from .iu_config import _num
 from .logfile import LogFile
-from .model import Controller, ValueSpec, controller_specs, suspend_reason_key
+from .model import KIND_SELECT, Controller, ValueSpec, controller_specs, suspend_reason_key
+from .palettes import MODE_AUTO, MODES, THEME_SYSTEM, THEMES
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -57,6 +60,11 @@ HUB_SPECS = [
     ValueSpec(SI_ADJUST_LEAD_KEY, "number", "si_adjust_lead",
               "mdi:timer-cog-outline", SI_ADJUST_LEAD_DEFAULT, min=1, max=60, step=1,
               unit="min", legacy_domain="input_number"),
+    # Read live by the dashboard cards; also rewrites the page colour.
+    ValueSpec(DASHBOARD_THEME_KEY, KIND_SELECT, "dashboard_theme", "mdi:palette-outline",
+              THEME_SYSTEM, options=tuple(THEMES)),
+    ValueSpec(DASHBOARD_MODE_KEY, KIND_SELECT, "dashboard_mode", "mdi:theme-light-dark",
+              MODE_AUTO, options=tuple(MODES)),
 ]
 
 

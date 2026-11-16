@@ -290,6 +290,23 @@
       }
     },
     "select": {
+      "dashboard_theme": {
+        "name": "Dashboard theme",
+        "state": {
+          "system": "System",
+          "salvia": "Salvia",
+          "laguna": "Laguna",
+          "terracotta": "Terracotta"
+        }
+      },
+      "dashboard_mode": {
+        "name": "Dashboard mode",
+        "state": {
+          "auto": "Auto",
+          "light": "Light",
+          "dark": "Dark"
+        }
+      },
       "status_tab": {
         "name": "Status tab",
         "state": {

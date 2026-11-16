@@ -1,0 +1,50 @@
+{# Shared pieces of the view templates. #}
+
+{# Header section of every view: controller state + the four views. #}
+{%- macro nav(ctrl, active) -%}
+- type: grid
+  column_span: 3
+  cards:
+    - type: custom:button-card
+      template: hf_nav
+      entity: {{ ctrl.cm }}
+{%- if ctrl.availability_entity %}
+      triggers_update:
+        - {{ ctrl.availability_entity }}
+{%- endif %}
+      variables:
+        name: {{ ctrl.name | q }}
+        availability_entity: {{ ctrl.availability_entity | q }}
+      custom_fields:
+{%- for key, label in nav_items %}
+        l{{ loop.index }}:
+          card:
+            type: custom:button-card
+            template: hf_nav_link
+            variables:
+              label: {{ label | q }}
+              path: {{ ('/' ~ url ~ '/' ~ ctrl.paths[key]) | q }}
+              active: {{ 'true' if key == active else 'false' }}
+{%- endfor %}
+      grid_options:
+        columns: full
+{%- endmacro %}
+
+{# Section heading card. #}
+{%- macro heading(title, sub="") -%}
+- type: custom:button-card
+  template: hf_heading
+  variables:
+    title: {{ title | q }}
+    sub: {{ sub | q }}
+  grid_options:
+    columns: full
+{%- endmacro %}
+
+{# Shown only while a switch is on. #}
+{%- macro visible_when_on(entity) -%}
+visibility:
+  - condition: state
+    entity: {{ entity }}
+    state: "on"
+{%- endmacro %}

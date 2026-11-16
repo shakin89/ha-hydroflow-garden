@@ -4,6 +4,7 @@ notifications and dashboard, migration of the old Italian option values."""
 from __future__ import annotations
 
 import copy
+import json
 import importlib.util
 import re
 import string
@@ -92,6 +93,7 @@ async def test_every_entity_has_a_translated_name(hass: HomeAssistant) -> None:
     assert names["switch.iu_alpha_p1_z1_mon"] == "Controller Alpha P1 Morning Z1 Lawn Monday"
     assert names["sensor.iu_controller_alpha_z1_lawn_oggi"] == "Controller Alpha Z1 Lawn today"
     assert names["select.iu_alpha_p1_time_type"] == "Controller Alpha P1 Morning time type"
+    assert names["select.iu_dashboard_theme"] == "HydroFlow Garden Dashboard theme"
 
 
 async def test_italian(hass: HomeAssistant) -> None:
@@ -134,13 +136,18 @@ def _render(lang: str) -> str:
 
 def test_dashboard_languages() -> None:
     en, it = _render("en"), _render("it")
-    assert "Next irrigation" in en and "Prossima Irrigazione" in it
-    for word in ("Prossima", "Sospeso", "Riprende", "Lun", "Gen"):
+    assert "Next start" in en and "Prossima partenza" in it
+    assert "Zones and days" in en and "Zone e giorni" in it
+    for word in ("Prossima", "Sospeso", "Riprende", "Lun", "Gen", "Programmi", "Impostazioni"):
         assert not re.search(rf"\b{word}\b", en), word
     # state comparisons use the codes, whatever the language
     for text in (en, it):
-        assert "state: fixed" in text and "option: next" in text and "'rain'" in text
+        assert "option: fixed" in text and "option: sunrise" in text and "option: dark" in text
         assert "button.iu_alpha_test" not in text  # test mode not in the dashboard
+    for lang in ("en", "it"):
+        ctrls = [Controller.from_dict(c) for c in TOPOLOGY["controllers"]]
+        raw = json.dumps(render_dashboard(ctrls, "T", i18n.load(lang)["dashboard"]), ensure_ascii=False)
+        assert "=== 'fixed'" in raw and '{\\"rain\\":' in raw, lang
 
 
 async def test_legacy_option_values_migrated(hass: HomeAssistant, hass_storage) -> None:

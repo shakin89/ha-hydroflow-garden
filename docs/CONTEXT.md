@@ -111,7 +111,28 @@ integration registers the dashboard itself: a `LovelaceStorage` plus a panel.
 It is therefore not listed under Settings → Dashboards. When a storage
 dashboard with the same URL already exists, it is written in place. A new
 render is saved only when its digest changes, or on demand.
-The Timeline tab needs apexcharts-card: it is rendered only when that resource
-is registered (or when the resources cannot be read), so install the card and
-press *Rigenera dashboard* to get it. Manual edits last
+The history chart of the Zones view needs apexcharts-card: it is rendered only
+when that resource is registered (or when the resources cannot be read), so
+install the card and press *Rigenera dashboard* to get it. Manual edits last
 until the next configuration change.
+
+Every card is a custom button-card; native cards are only nested inside one
+(the apexcharts chart). Stepper, toggles and segmented selects are
+button-cards too, so numberbox-card and auto-entities are no longer needed.
+Each controller gets four views: the first keeps the old path
+`irrigazione-<id>`, the others add `-programmi`, `-zone`, `-impostazioni`.
+
+### Themes
+
+`palettes.py` holds the colours: one set of token names for every theme and
+mode. `hf_base` reads `select.iu_dashboard_theme` and `select.iu_dashboard_mode`
+live and publishes the palette as `--hf-*` CSS custom properties on the card;
+nested cards inherit them through the DOM. `system` maps the tokens to the
+Home Assistant theme variables, so with it the mode select has no effect.
+The page behind the cards cannot be styled from a card, so the views get a
+static `background` only for a HydroFlow theme with a fixed mode, and a change
+of either select regenerates the dashboard.
+
+Templates written inline in a nested card's config are evaluated by the
+parent card (button-card does this unless `do_not_eval` is set): their
+entities must be in the parent's `triggers_update`, or they go stale.

@@ -1,148 +1,889 @@
-{# Rendered by hydroflow_garden/dashboard.py into the storage dashboard. #}
+{# Rendered by hydroflow_garden/dashboard.py into the storage dashboard.
 
-iu_controller_status:
+Only custom:button-card. extra_styles add up along a template chain (hf_base
+and hf_part carry the shared classes). Every top-level card uses hf_base (directly or via a
+template that extends it): it computes the palette of the theme chosen in
+{{ theme_entity }} / {{ mode_entity }} and publishes it as --hf-* CSS custom
+properties on the card. Nested cards inherit them through the DOM, so the
+hf_part templates only read var(--hf-*).
+
+Templates written inline in a nested card's config are evaluated by the
+parent card (parent `entity` and `variables`); templates coming from a
+button_card_template of the nested card run in the nested card itself. #}
+
+{%- set base_css -%}
+.hf-row { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.hf-col { display: flex; flex-direction: column; gap: 2px; min-width: 0; text-align: left; }
+.hf-tile { width: 44px; height: 44px; border-radius: 13px; display: grid; place-items: center; flex-shrink: 0; }
+.hf-tile ha-icon { --mdc-icon-size: 24px; }
+.hf-title { font-size: 17px; font-weight: 600; line-height: 1.25; white-space: normal; text-align: left; }
+.hf-sub { font-size: 13px; color: var(--hf-text2); line-height: 1.35; white-space: normal; text-align: left; }
+.hf-cap { font-size: 12px; color: var(--hf-text2); line-height: 1.4; white-space: normal; text-align: left; }
+.hf-big { font-size: 34px; font-weight: 700; line-height: 1.05; font-variant-numeric: tabular-nums; }
+.hf-unit { font-size: 15px; font-weight: 500; color: var(--hf-text2); }
+.hf-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.hf-stat { padding: 10px 12px; border-radius: 14px; background: var(--hf-inset); text-align: left; min-width: 0; }
+.hf-stat b { display: block; font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.hf-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(96px, 1fr)); gap: 8px; }
+.hf-bar { height: 8px; border-radius: 4px; background: var(--hf-inset); overflow: hidden; }
+.hf-bar > i { display: block; height: 100%; border-radius: 4px; }
+#container { overflow: visible; }
+/* custom fields come with the "ellipsis" class: let them wrap and overflow */
+#container > div:not(#name):not(#label):not(#state):not(#img-cell) { white-space: normal; overflow: visible; text-align: left; }
+{%- endset %}
+
+# ---------------------------------------------------------------------------
+# Base
+# ---------------------------------------------------------------------------
+
+hf_base:
   variables:
-    name: "Controller"
-    # binary_sensor status del device ESPHome, "" se il controller non ne ha uno.
-    # Serve a distinguere una sospensione da device offline (azione richiesta)
-    # da una sospensione per pioggia (nessuna azione richiesta).
-    availability_entity: ""
-    # input_select con il motivo dell'ultima sospensione. L'attributo
-    # `suspended` dice CHE e' sospeso, non PERCHE'.
-    suspend_reason_entity: ""
-  show_name: true
-  show_icon: true
-  # Il dettaglio sta nella label (seconda riga), non nel name: lo stato IU
-  # grezzo ("on"/"off") non aggiunge niente che il name non dica gia'.
+    hf: |
+      [[[
+        const P = {{ palettes_js }};
+        const th = states[{{ theme_entity | q }}]?.state;
+        const md = states[{{ mode_entity | q }}]?.state || 'auto';
+        const dark = md === 'dark' || (md !== 'light' && !!hass.themes?.darkMode);
+        const pal = P[th] || P.system;
+        return pal[dark ? 'dark' : 'light'];
+      ]]]
+  triggers_update:
+    - {{ theme_entity }}
+    - {{ mode_entity }}
+  show_name: false
+  show_icon: false
   show_state: false
-  show_label: true
-  name: "[[[ return variables.name ]]]"
-  label: ""
-  icon: mdi:sprinkler
-  color_type: icon
+  show_label: false
+  styles:
+    card:
+{%- for tok in tokens %}
+      - --hf-{{ tok | replace('_', '-') }}: "[[[ return variables.hf.{{ tok }} ]]]"
+{%- endfor %}
+      - background: var(--hf-card)
+      - color: var(--hf-text)
+      - border: 1px solid var(--hf-border)
+      - border-radius: 22px
+      - box-shadow: var(--hf-shadow)
+      - padding: 18px
+      - overflow: visible
+      - container-type: inline-size
+      - cursor: default
+    grid:
+      - row-gap: 14px
+      - column-gap: 16px
+      - align-items: start
+  extra_styles: |
+    {{ base_css | indent(4) }}
+
+# Nested part: no card chrome, reads the --hf-* inherited from its parent.
+hf_part:
+  show_name: false
+  show_icon: false
+  show_state: false
+  show_label: false
+  styles:
+    card:
+      - background: none
+      - box-shadow: none
+      - border: none
+      - border-radius: 12px
+      - padding: 0
+      - overflow: visible
+      - color: var(--hf-text)
+  extra_styles: |
+    {{ base_css | indent(4) }}
+
+# Section heading: a transparent hf_base, so it follows the theme colours.
+hf_heading:
+  template: hf_base
+  variables:
+    title: ""
+    sub: ""
+  styles:
+    card:
+      - background: none
+      - border: none
+      - box-shadow: none
+      - padding: 8px 4px 0
+    grid:
+      - grid-template-areas: '"h"'
+  custom_fields:
+    h: |
+      [[[
+        const sub = variables.sub ? `<span class="hf-sub">${variables.sub}</span>` : '';
+        return `<div class="hf-row" style="justify-content:space-between;flex-wrap:wrap">
+          <span style="font-size:20px;font-weight:600">${variables.title}</span>${sub}</div>`;
+      ]]]
+
+# Generic card: icon tile + title + subtitle in the "head" field. Callers add
+# their own custom_fields and grid areas.
+hf_card:
+  template: hf_base
+  variables:
+    title: ""
+    sub: ""
+    icon: ""
+    tone: neutral
   styles:
     grid:
-      # Icona a min-content e testo a 1fr: prima era `30% min-content`, che
-      # non manda a capo e sfonda la card appena il name supera la larghezza
-      # disponibile (es. "Sospeso (device offline) fino alle 26/08 00:00").
-      - grid-template-columns: min-content 1fr
-      - grid-template-rows: auto auto
-      - grid-template-areas: '"i n" "i l"'
-      - align-items: center
-      - column-gap: 12px
-    card:
-      - padding: 12px
-    icon:
-      - color: >-
-          [[[
-            if (entity.state === 'on') return 'var(--state-active-color, #4caf50)';
-            return 'var(--state-icon-color, grey)';
-          ]]]
-      - height: 36px
-      - width: 36px
-      - justify-self: start
-    name:
-      - font-weight: bold
-      - font-size: 14px
-      - justify-self: start
-      - text-align: start
-      # Senza questi il testo lungo esce dal blocco invece di andare a capo.
-      - white-space: normal
-      - overflow-wrap: anywhere
-      - line-height: 1.25
-    label:
-      - justify-self: start
-      - text-align: start
-      - font-size: 12px
-      - color: var(--secondary-text-color)
-      - white-space: normal
-      - overflow-wrap: anywhere
-      - line-height: 1.25
-  # NB: l'ordine conta, button-card ferma alla prima corrispondenza.
-  # Device offline prima di sospeso: se valgono entrambe, quella azionabile
-  # per l'utente e' il device giu'.
-  state:
-    - operator: template
-      value: |
-        [[[
-          const av = variables.availability_entity;
-          return av !== '' && states[av] !== undefined && states[av].state !== 'on';
-        ]]]
-      name: |
-        [[[ return variables.name + ' - ' + {{ t.device_offline | q }} ]]]
-      label: {{ t.unreachable | q }}
-      icon: mdi:lan-disconnect
-      styles:
-        card:
-          - background-color: "rgba(244, 67, 54, 0.15)"
-        icon:
-          - color: "var(--error-color, #f44336)"
-        label:
-          - color: "var(--error-color, #f44336)"
-    - operator: template
-      value: |
-        [[[ return entity.attributes.suspended != null ]]]
-      name: |
-        [[[
-          const re = variables.suspend_reason_entity;
-          const motivo = (re !== '' && states[re] !== undefined) ? states[re].state : 'none';
-          const reasons = {{ t.reasons | q }};
-          const causa = reasons[motivo] ? ' (' + reasons[motivo] + ')' : '';
-          return variables.name + ' - ' + {{ t.suspended | q }} + causa;
-        ]]]
-      label: |
-        [[[
-          const fine = new Date(entity.attributes.suspended);
-          const ora = fine.toLocaleTimeString({{ t.locale | q }}, {hour: '2-digit', minute: '2-digit'});
-          const oggi = new Date().toDateString() === fine.toDateString();
-          if (oggi) return {{ t.resumes_at | q }} + ' ' + ora;
-          return {{ t.resumes_on | q }} + ' ' + fine.toLocaleDateString({{ t.locale | q }}, {day: '2-digit', month: '2-digit'}) + ' ' + {{ t.at | q }} + ' ' + ora;
-        ]]]
-      icon: |
-        [[[
-          const re = variables.suspend_reason_entity;
-          const motivo = (re !== '' && states[re] !== undefined) ? states[re].state : 'none';
-          if (motivo === 'rain') return 'mdi:weather-pouring';
-          if (motivo === 'device_offline') return 'mdi:lan-disconnect';
-          return 'mdi:pause-octagon';
-        ]]]
-      styles:
-        card:
-          - background-color: "rgba(255, 152, 0, 0.15)"
-        icon:
-          - color: "var(--warning-color, #ff9800)"
-    - value: "on"
-      name: |
-        [[[ return variables.name + ' - ' + {{ t.watering | q }} ]]]
-      label: |
-        [[[
-          const z = entity.attributes.current_zone;
-          return (z && z !== 'not running') ? {{ t.zone | q }} + ' ' + z : {{ t.running | q }};
-        ]]]
-      icon: mdi:sprinkler
-      styles:
-        card:
-          - background-color: "rgba(76, 175, 80, 0.1)"
-    - value: "off"
-      name: |
-        [[[ return variables.name + ' - ' + {{ t.idle | q }} ]]]
-      label: ""
-      icon: mdi:sprinkler-variant
+      - grid-template-areas: '"head"'
+      - grid-template-columns: minmax(0, 1fr)
+  custom_fields:
+    head: |
+      [[[
+        const tones = {
+          neutral: ['var(--hf-inset)', 'var(--hf-text2)'], primary: ['var(--hf-primary-soft)', 'var(--hf-primary)'],
+          water: ['var(--hf-water-soft)', 'var(--hf-water)'], warn: ['var(--hf-warn-soft)', 'var(--hf-warn)'],
+          danger: ['var(--hf-danger-soft)', 'var(--hf-danger)'], eco: ['var(--hf-eco-soft)', 'var(--hf-eco)']
+        };
+        const [bg, fg] = tones[variables.tone] || tones.neutral;
+        const icon = variables.icon
+          ? `<span class="hf-tile" style="background:${bg};color:${fg};width:40px;height:40px;border-radius:12px"><ha-icon icon="${variables.icon}" style="--mdc-icon-size:22px"></ha-icon></span>` : '';
+        const sub = variables.sub ? `<span class="hf-sub">${variables.sub}</span>` : '';
+        return `<div class="hf-row">${icon}<div class="hf-col"><span class="hf-title">${variables.title}</span>${sub}</div></div>`;
+      ]]]
 
-iu_program_header:
+# Wrapper for native cards (apexcharts, entities...): HA colour variables are
+# pointed at the palette so the nested card blends in.
+hf_embed:
+  template: hf_card
+  styles:
+    card:
+      - --primary-text-color: "[[[ return variables.hf.text.startsWith('var(') ? 'unset' : variables.hf.text ]]]"
+      - --secondary-text-color: "[[[ return variables.hf.text2.startsWith('var(') ? 'unset' : variables.hf.text2 ]]]"
+      - --divider-color: "[[[ return variables.hf.border.startsWith('var(') ? 'unset' : variables.hf.border ]]]"
+      - --ha-card-background: transparent
+      - --card-background-color: transparent
+      - --ha-card-box-shadow: none
+      - --ha-card-border-width: 0px
+    grid:
+      - grid-template-areas: '"head" "body"'
+    custom_fields:
+      body:
+        - margin: 0 -16px -16px
+
+# ---------------------------------------------------------------------------
+# Controls (nested)
+# ---------------------------------------------------------------------------
+
+# Action button. tone: primary | neutral | warn | danger | water | ghost
+hf_btn:
+  template: hf_part
   variables:
-    name: {{ t.program | q }}
-    controller_entity: ""   # binary_sensor.irrigation_unlimited_c<N>_m
-    sequence_base: ""       # binary_sensor.irrigation_unlimited_c<N>_s
-    program_prefix: ""      # "P1 " — prefisso nome delle sequence del programma
-    day_prefix: ""          # switch.iu_<ctrl>_p<N> (toggle zona/giorno)
+    label: ""
+    tone: neutral
+  show_name: true
+  show_icon: true
+  name: "[[[ return variables.label ]]]"
+  styles:
+    card:
+      - height: 44px
+      - padding: 0 16px
+      - border-radius: 12px
+      - background: >-
+          [[[ return {primary: 'var(--hf-primary)', danger: 'transparent', warn: 'var(--hf-warn-soft)',
+                      water: 'var(--hf-water-soft)', ghost: 'transparent'}[variables.tone] || 'var(--hf-inset)'; ]]]
+      - color: >-
+          [[[ return {primary: 'var(--hf-on-primary)', danger: 'var(--hf-danger)', warn: 'var(--hf-warn)',
+                      water: 'var(--hf-water)'}[variables.tone] || 'var(--hf-text)'; ]]]
+      - border: >-
+          [[[ return {primary: '1px solid var(--hf-primary)', danger: '1px solid var(--hf-danger)',
+                      warn: '1px solid var(--hf-warn)', water: '1px solid transparent',
+                      ghost: '1px dashed var(--hf-border)'}[variables.tone] || '1px solid var(--hf-border)'; ]]]
+    grid:
+      - grid-template-areas: '"i n"'
+      - grid-template-columns: min-content auto
+      - column-gap: 8px
+      - justify-content: center
+      - height: 100%
+    icon:
+      - width: 18px
+      - color: inherit
+    name:
+      - font-size: 14px
+      - font-weight: 600
+      - color: inherit
+
+# One option of a select, drawn as a segment of a segmented control.
+hf_seg:
+  template: hf_part
+  variables:
+    option: ""
+    label: ""
+  show_name: true
+  name: "[[[ return variables.label ]]]"
+  tap_action:
+    action: call-service
+    service: select.select_option
+    service_data:
+      entity_id: "[[[ return entity.entity_id ]]]"
+      option: "[[[ return variables.option ]]]"
+  styles:
+    card:
+      - height: 40px
+      - padding: 0 12px
+      - border-radius: 10px
+      - background: "[[[ return entity?.state === variables.option ? 'var(--hf-primary)' : 'var(--hf-inset)' ]]]"
+      - color: "[[[ return entity?.state === variables.option ? 'var(--hf-on-primary)' : 'var(--hf-text2)' ]]]"
+    name:
+      - font-size: 13px
+      - font-weight: "[[[ return entity?.state === variables.option ? '600' : '500' ]]]"
+      - color: inherit
+
+# Small toggle chip for a switch (months, weekdays). label = text shown.
+hf_chip_toggle:
+  template: hf_part
+  variables:
+    label: ""
+  show_name: true
+  name: "[[[ return variables.label ]]]"
+  tap_action:
+    action: toggle
+  styles:
+    card:
+      - height: 40px
+      - min-width: 36px
+      - padding: 0 4px
+      - border-radius: 10px
+      - background: "[[[ return entity?.state === 'on' ? 'var(--hf-primary)' : 'transparent' ]]]"
+      - border: "[[[ return entity?.state === 'on' ? '1px solid var(--hf-primary)' : '1px solid var(--hf-border)' ]]]"
+      - color: "[[[ return entity?.state === 'on' ? 'var(--hf-on-primary)' : 'var(--hf-text2)' ]]]"
+    name:
+      - font-size: 13px
+      - font-weight: 600
+      - color: inherit
+
+# Switch row: icon, name, hint and a drawn toggle. Tap toggles.
+hf_toggle:
+  template: hf_part
+  variables:
+    label: ""
+    hint: ""
+    icon: ""
+  tap_action:
+    action: toggle
+  styles:
+    card:
+      - min-height: 52px
+      - padding: 4px 0
+      - opacity: "[[[ return entity && entity.state !== 'unavailable' ? 1 : 0.45 ]]]"
+    grid:
+      - grid-template-areas: '"t"'
+  custom_fields:
+    t: |
+      [[[
+        const on = entity?.state === 'on';
+        const icon = variables.icon ? `<ha-icon icon="${variables.icon}" style="--mdc-icon-size:20px;color:var(--hf-text2)"></ha-icon>` : '';
+        const hint = variables.hint ? `<span class="hf-cap">${variables.hint}</span>` : '';
+        return `<div class="hf-row">${icon}
+          <div class="hf-col" style="flex:1"><span style="font-size:14px;font-weight:500;text-align:left">${variables.label}</span>${hint}</div>
+          <span role="switch" aria-checked="${on}" style="width:48px;height:30px;border-radius:15px;padding:3px;box-sizing:border-box;display:flex;flex-shrink:0;
+            justify-content:${on ? 'flex-end' : 'flex-start'};background:${on ? 'var(--hf-primary)' : 'var(--hf-inset)'};
+            border:1px solid ${on ? 'var(--hf-primary)' : 'var(--hf-border)'}">
+            <i style="width:22px;height:22px;border-radius:11px;background:${on ? 'var(--hf-on-primary)' : 'var(--hf-text2)'}"></i></span></div>`;
+      ]]]
+
+# − / + of a number. dir: -1 | 1; step: 0 = the entity's own step. Hold repeats.
+hf_step_btn:
+  template: hf_part
+  variables:
+    dir: 1
+    step: 0
+  show_icon: true
+  icon: "[[[ return variables.dir < 0 ? 'mdi:minus' : 'mdi:plus' ]]]"
+  tap_action:
+    action: call-service
+    service: number.set_value
+    service_data:
+      entity_id: "[[[ return entity.entity_id ]]]"
+      value: >
+        [[[
+          const a = entity.attributes;
+          const step = Number(variables.step) || Number(a.step) || 1;
+          const v = Number(entity.state) + Number(variables.dir) * step;
+          return Math.max(Number(a.min), Math.min(Number(a.max), v));
+        ]]]
+  hold_action:
+    action: call-service
+    service: number.set_value
+    service_data:
+      entity_id: "[[[ return entity.entity_id ]]]"
+      value: >
+        [[[
+          const a = entity.attributes;
+          const step = Number(variables.step) || Number(a.step) || 1;
+          const v = Number(entity.state) + Number(variables.dir) * step;
+          return Math.max(Number(a.min), Math.min(Number(a.max), v));
+        ]]]
+    repeat: 250
+  styles:
+    card:
+      - width: 40px
+      - height: 40px
+      - border-radius: 10px
+    icon:
+      - width: 18px
+      - color: var(--hf-text)
+
+# Number with − value +. format: min | hhmm (minutes) | s | int | offset
+hf_stepper:
+  template: hf_part
+  variables:
+    label: ""
+    hint: ""
+    format: int
+    step: 0
+  styles:
+    card:
+      - min-height: 52px
+      - opacity: "[[[ return entity && entity.state !== 'unavailable' ? 1 : 0.45 ]]]"
+    grid:
+      - grid-template-areas: '"txt minus val plus"'
+      - grid-template-columns: minmax(0, 1fr) 40px minmax(56px, auto) 40px
+      - align-items: center
+      - column-gap: 2px
+    custom_fields:
+      minus: [background: var(--hf-inset), border-radius: 12px 0 0 12px, padding: 2px]
+      plus: [background: var(--hf-inset), border-radius: 0 12px 12px 0, padding: 2px]
+      val:
+        - background: var(--hf-inset)
+        - height: 44px
+        - display: grid
+        - place-items: center
+        - padding: 0 4px
+        - font-size: 15px
+        - font-weight: 600
+        - font-variant-numeric: tabular-nums
+  custom_fields:
+    txt: |
+      [[[
+        if (!variables.label) return '';
+        const hint = variables.hint ? `<span class="hf-cap">${variables.hint}</span>` : '';
+        return `<div class="hf-col" style="padding-right:10px"><span style="font-size:14px;font-weight:500;text-align:left">${variables.label}</span>${hint}</div>`;
+      ]]]
+    val: |
+      [[[
+        const v = Number(entity?.state);
+        if (!entity || isNaN(v)) return '—';
+        const pad = (n) => String(n).padStart(2, '0');
+        switch (variables.format) {
+          case 'min': return `${v} min`;
+          case 's': return `${v} s`;
+          case 'hhmm': return `${pad(Math.floor(v / 60))}:${pad(v % 60)}`;
+          case 'offset': return `${v > 0 ? '+' : ''}${v} min`;
+          default: return `${v}`;
+        }
+      ]]]
+    minus:
+      card:
+        type: custom:button-card
+        template: hf_step_btn
+        entity: "[[[ return entity.entity_id ]]]"
+        variables:
+          dir: -1
+          step: "[[[ return variables.step ]]]"
+    plus:
+      card:
+        type: custom:button-card
+        template: hf_step_btn
+        entity: "[[[ return entity.entity_id ]]]"
+        variables:
+          dir: 1
+          step: "[[[ return variables.step ]]]"
+
+# Navigation tab inside the page header.
+hf_nav_link:
+  template: hf_part
+  variables:
+    label: ""
+    path: ""
+    active: false
+  show_name: true
+  name: "[[[ return variables.label ]]]"
+  tap_action:
+    action: navigate
+    navigation_path: "[[[ return variables.path ]]]"
+  extra_styles: |
+    @media (max-width: 600px) { ha-card { padding: 0 2px !important; } #name { font-size: 13px !important; } }
+  styles:
+    card:
+      - height: 44px
+      - padding: 0 14px
+      - border-radius: 12px
+      - background: "[[[ return variables.active ? 'var(--hf-primary-soft)' : 'transparent' ]]]"
+      - color: "[[[ return variables.active ? 'var(--hf-primary)' : 'var(--hf-text2)' ]]]"
+    name:
+      - font-size: 14px
+      - font-weight: "[[[ return variables.active ? '600' : '500' ]]]"
+      - color: inherit
+
+# ---------------------------------------------------------------------------
+# Every view: header with the controller state and the four views
+# ---------------------------------------------------------------------------
+
+hf_nav:
+  template: hf_base
+  variables:
+    name: ""
+    availability_entity: ""
+  styles:
+    card:
+      - padding: 10px 14px
+    grid:
+      - grid-template-areas: '"who l1 l2 l3 l4"'
+      - grid-template-columns: minmax(0, 1fr) repeat(4, auto)
+      - align-items: center
+      - column-gap: 4px
+  extra_styles: |
+    @container (max-width: 620px) {
+      #container { grid-template-areas: "who who who who" "l1 l2 l3 l4" !important;
+                   grid-template-columns: repeat(4, minmax(0, 1fr)) !important; row-gap: 8px !important; }
+    }
+  custom_fields:
+    who: |
+      [[[
+        const a = entity?.attributes || {};
+        const av = variables.availability_entity;
+        let color = 'var(--hf-text2)', text = {{ t.idle | q }};
+        if (av && states[av] && states[av].state !== 'on') { color = 'var(--hf-danger)'; text = {{ t.device_offline | q }}; }
+        else if (a.suspended) { color = 'var(--hf-warn)'; text = {{ t.suspended | q }}; }
+        else if (entity?.state === 'on') { color = 'var(--hf-water)'; text = {{ t.watering | q }}; }
+        return `<div class="hf-row"><span class="hf-tile" style="width:36px;height:36px;border-radius:11px;background:var(--hf-primary);color:var(--hf-on-primary)">
+            <ha-icon icon="mdi:sprinkler-variant" style="--mdc-icon-size:20px"></ha-icon></span>
+          <div class="hf-col"><span style="font-size:16px;font-weight:600;text-align:left">${variables.name}</span>
+          <span class="hf-cap" style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:4px;background:${color}"></i>${text}</span></div></div>`;
+      ]]]
+
+# ---------------------------------------------------------------------------
+# Today
+# ---------------------------------------------------------------------------
+
+# entity: IU controller (binary_sensor.irrigation_unlimited_c<N>_m)
+hf_hero:
+  template: hf_base
+  variables:
+    name: ""
+    availability_entity: ""
+    reason_entity: ""
+    sequence_base: ""
+    fill_lead_entity: ""
+    fill_duration_entity: ""
+    preflight_entity: ""
+    preflight_timeout_entity: ""
+    si_lead_entity: ""
+    zones: []
+    # sequence entity of the earliest scheduled run, '' when none
+    next_seq: |
+      [[[
+        const seqs = (entity?.attributes?.sequence_status || []).filter(s => s.start);
+        if (!seqs.length) return '';
+        const s = seqs.reduce((a, b) => new Date(a.start) <= new Date(b.start) ? a : b);
+        return variables.sequence_base + (s.index + 1);
+      ]]]
+    # sequence entity running (or paused) now, '' when none
+    run_seq: |
+      [[[
+        const seqs = entity?.attributes?.sequence_status || [];
+        const s = seqs.find(x => hass.states[variables.sequence_base + (x.index + 1)]?.state === 'on');
+        return s ? variables.sequence_base + (s.index + 1) : '';
+      ]]]
+  styles:
+    card:
+      - padding: 22px
+      - border-radius: 26px
+      - background: >-
+          [[[
+            const av = variables.availability_entity;
+            if (av && states[av] && states[av].state !== 'on') return 'var(--hf-danger-soft)';
+            if (entity?.attributes?.suspended) return 'var(--hf-warn-soft)';
+            return 'var(--hf-card)';
+          ]]]
+      - border: >-
+          [[[
+            const av = variables.availability_entity;
+            if (av && states[av] && states[av].state !== 'on') return '1px dashed var(--hf-danger)';
+            if (entity?.attributes?.suspended) return '1px solid var(--hf-warn)';
+            return '1px solid var(--hf-border)';
+          ]]]
+    grid:
+      - grid-template-areas: '"main main main main main steps" "start pause skip stop . steps"'
+      - grid-template-columns: repeat(4, max-content) minmax(0, 1fr) minmax(0, 0.95fr)
+      - row-gap: 18px
+      - column-gap: 8px
+    custom_fields:
+      steps:
+        - padding-left: 16px
+  extra_styles: |
+    @container (max-width: 640px) {
+      #container { grid-template-areas: "main main main main main" "start pause skip stop ." "steps steps steps steps steps" !important;
+                   grid-template-columns: repeat(4, max-content) minmax(0, 1fr) !important; }
+      #steps { padding-left: 0 !important; }
+    }
+  custom_fields:
+    main: |
+      [[[
+        const a = entity?.attributes || {};
+        const loc = {{ t.locale | q }};
+        const av = variables.availability_entity;
+        const pad = (n) => String(n).padStart(2, '0');
+        const hm = (d) => d.toLocaleTimeString(loc, {hour: '2-digit', minute: '2-digit'});
+        let tone = 'var(--hf-primary)', state = {{ t.idle | q }}, big = '—', sub = {{ t.nothing_scheduled | q }};
+        const seqs = (a.sequence_status || []).filter(s => s.start);
+        const next = seqs.length ? seqs.reduce((x, y) => new Date(x.start) <= new Date(y.start) ? x : y) : null;
+        const prog = (s) => String(s?.name || '').replace(/\s*#\d+$/, '');
+        if (next) {
+          const st = new Date(next.start);
+          const mins = Math.round((st - new Date()) / 60000);
+          const today = st.toDateString() === new Date().toDateString();
+          const day = today ? {{ t.today_lc | q }} : st.toLocaleDateString(loc, {weekday: 'short', day: '2-digit', month: '2-digit'});
+          const rel = mins > 0 ? ' · ' + {{ t.in_time | q }} + ' ' + (mins >= 60 ? Math.floor(mins / 60) + ' h ' + pad(mins % 60) : mins + ' min') : '';
+          big = hm(st);
+          sub = `${day} · ${prog(next)}${rel}`;
+        }
+        if (av && states[av] && states[av].state !== 'on') {
+          tone = 'var(--hf-danger)'; state = {{ t.device_offline | q }}; sub = {{ t.unreachable | q }};
+        } else if (a.suspended) {
+          const reasons = {{ t.reasons | q }};
+          const re = variables.reason_entity && states[variables.reason_entity]?.state;
+          const end = new Date(a.suspended);
+          tone = 'var(--hf-warn)';
+          state = {{ t.suspended | q }} + (reasons[re] ? ' · ' + reasons[re] : '');
+          sub = (end.toDateString() === new Date().toDateString() ? {{ t.resumes_at | q }} + ' ' + hm(end)
+                 : {{ t.resumes_on | q }} + ' ' + end.toLocaleDateString(loc, {day: '2-digit', month: '2-digit'}) + ' ' + {{ t.at | q }} + ' ' + hm(end));
+        } else if (entity?.state === 'on') {
+          const cz = String(a.current_zone ?? '');
+          const z = (variables.zones || []).find(z => String(z.id) === cz);
+          tone = 'var(--hf-water)'; state = {{ t.watering | q }};
+          big = String(a.time_remaining || '').replace(/^0:/, '') || '…';
+          sub = (z ? `Z${z.id} ${z.name}` : {{ t.running | q }}) + (a.current_name ? ' · ' + prog({name: a.current_name}) : '') + ' · ' + {{ t.remaining | q }};
+        }
+        const label = entity?.state === 'on' && !a.suspended ? {{ t.remaining_cap | q }} : {{ t.next_start | q }};
+        return `<div class="hf-col" style="gap:10px">
+          <span style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--hf-text2)">
+            <i style="width:10px;height:10px;border-radius:5px;background:${tone}"></i>${variables.name} · <span style="color:${tone}">${state}</span></span>
+          <div class="hf-col"><span class="hf-cap">${label}</span>
+            <span style="font-size:60px;font-weight:700;line-height:1.05;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;text-align:left">${big}</span>
+            <span class="hf-sub" style="font-size:15px">${sub}</span></div></div>`;
+      ]]]
+    steps: |
+      [[[
+        const a = entity?.attributes || {};
+        const loc = {{ t.locale | q }};
+        const hm = (d) => d.toLocaleTimeString(loc, {hour: '2-digit', minute: '2-digit'});
+        const num = (e) => e && states[e] ? Number(states[e].state) : NaN;
+        const box = (title, rows) => `<div style="padding:16px;border-radius:18px;background:var(--hf-inset)">
+          <div class="hf-cap" style="font-weight:600;margin-bottom:10px">${title}</div>${rows}</div>`;
+        if (entity?.state === 'on' && !a.suspended) {
+          const pct = Math.max(0, Math.min(100, Number(a.percent_complete) || 0));
+          return box({{ t.current_run | q }}, `<div class="hf-bar"><i style="width:${pct}%;background:var(--hf-water)"></i></div>
+            <div class="hf-cap" style="margin-top:8px">${pct}% · ${String(a.current_name || '').replace(/\s*#\d+$/, '')}</div>`);
+        }
+        const seqs = (a.sequence_status || []).filter(s => s.start);
+        if (!seqs.length) return box({{ t.before_start | q }}, `<div class="hf-cap">${ {{ t.nothing_scheduled | q }} }</div>`);
+        const next = seqs.reduce((x, y) => new Date(x.start) <= new Date(y.start) ? x : y);
+        const st = new Date(next.start);
+        const steps = [];
+        const lead = num(variables.fill_lead_entity), dur = num(variables.fill_duration_entity);
+        if (!isNaN(lead) && lead > 0) steps.push({t: new Date(st - lead * 60000), label: {{ t.fill_tank | q }},
+          hint: {{ t.lasts | q }} + ' ' + Math.floor(dur / 60) + ' h ' + String(dur % 60).padStart(2, '0'), c: 'var(--hf-water)'});
+        if (variables.preflight_entity && states[variables.preflight_entity]?.state === 'on') {
+          const to = num(variables.preflight_timeout_entity);
+          if (!isNaN(to)) steps.push({t: new Date(st - to * 60000), label: {{ t.preflight_device | q }}, hint: {{ t.preflight_hint | q }}, c: 'var(--hf-warn)'});
+        }
+        const sl = num(variables.si_lead_entity);
+        if (!isNaN(sl)) steps.push({t: new Date(st - sl * 60000), label: {{ t.si_adjust | q }}, hint: {{ t.si_adjust_hint | q }}, c: 'var(--hf-eco)'});
+        steps.push({t: st, label: String(next.name || '').replace(/\s*#\d+$/, ''), hint: {{ t.start_lc | q }}, c: 'var(--hf-primary)', last: true});
+        steps.sort((x, y) => x.t - y.t);
+        const now = new Date();
+        const rows = steps.map(s => {
+          const done = s.t <= now;
+          return `<div style="display:grid;grid-template-columns:48px 14px minmax(0,1fr);gap:10px;align-items:start;min-height:44px">
+            <span style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:${s.last ? 'var(--hf-primary)' : 'var(--hf-text)'}">${hm(s.t)}</span>
+            <i style="width:12px;height:12px;margin-top:3px;border-radius:6px;box-sizing:border-box;border:2px solid ${s.c};background:${done ? s.c : 'transparent'}"></i>
+            <span class="hf-col"><span style="font-size:14px;font-weight:500;text-align:left">${s.label}</span><span class="hf-cap">${s.hint}</span></span></div>`;
+        }).join('');
+        return box({{ t.before_start | q }}, rows);
+      ]]]
+    start:
+      card:
+        type: custom:button-card
+        template: hf_btn
+        entity: "[[[ return variables.next_seq || entity.entity_id ]]]"
+        icon: mdi:play
+        variables:
+          label: {{ t.start_now | q }}
+          tone: primary
+        tap_action:
+          action: call-service
+          service: irrigation_unlimited.manual_run
+          service_data:
+            entity_id: "[[[ return variables.next_seq ]]]"
+        styles:
+          card:
+            - display: "[[[ return variables.next_seq && !variables.run_seq ? 'block' : 'none' ]]]"
+    pause:
+      card:
+        type: custom:button-card
+        template: hf_btn
+        entity: "[[[ return variables.run_seq || entity.entity_id ]]]"
+        icon: "[[[ return hass.states[variables.run_seq]?.attributes?.status === 'paused' ? 'mdi:play' : 'mdi:pause' ]]]"
+        variables:
+          label: >-
+            [[[ return hass.states[variables.run_seq]?.attributes?.status === 'paused' ? {{ t.resume | q }} : {{ t.pause | q }} ]]]
+        tap_action:
+          action: call-service
+          service: "[[[ return hass.states[variables.run_seq]?.attributes?.status === 'paused' ? 'irrigation_unlimited.resume' : 'irrigation_unlimited.pause' ]]]"
+          service_data:
+            entity_id: "[[[ return variables.run_seq ]]]"
+        styles:
+          card:
+            - display: "[[[ return variables.run_seq ? 'block' : 'none' ]]]"
+    skip:
+      card:
+        type: custom:button-card
+        template: hf_btn
+        entity: "[[[ return variables.run_seq || entity.entity_id ]]]"
+        icon: mdi:skip-next
+        variables:
+          label: {{ t.skip_zone | q }}
+        tap_action:
+          action: call-service
+          service: irrigation_unlimited.skip
+          service_data:
+            entity_id: "[[[ return variables.run_seq ]]]"
+        styles:
+          card:
+            - display: "[[[ return variables.run_seq ? 'block' : 'none' ]]]"
+    stop:
+      card:
+        type: custom:button-card
+        template: hf_btn
+        entity: "[[[ return variables.run_seq || entity.entity_id ]]]"
+        icon: mdi:stop
+        variables:
+          label: {{ t.stop | q }}
+          tone: danger
+        tap_action:
+          action: call-service
+          service: irrigation_unlimited.cancel
+          service_data:
+            entity_id: "[[[ return variables.run_seq ]]]"
+        styles:
+          card:
+            - display: "[[[ return variables.run_seq ? 'block' : 'none' ]]]"
+
+# Summary tile. value / sub: templates given by the caller.
+hf_kpi:
+  template: hf_base
+  variables:
+    label: ""
+    value: ""
+    unit: ""
+    icon: ""
+    tone: neutral
+  styles:
+    card:
+      - height: 100%
+      - box-sizing: border-box
+    grid:
+      - grid-template-areas: '"k"'
+  custom_fields:
+    k: |
+      [[[
+        const tones = {neutral: ['var(--hf-inset)', 'var(--hf-text2)'], primary: ['var(--hf-primary-soft)', 'var(--hf-primary)'],
+          water: ['var(--hf-water-soft)', 'var(--hf-water)'], eco: ['var(--hf-eco-soft)', 'var(--hf-eco)'],
+          warn: ['var(--hf-warn-soft)', 'var(--hf-warn)']};
+        const [bg, fg] = tones[variables.tone] || tones.neutral;
+        return `<div class="hf-col" style="gap:10px"><span class="hf-tile" style="width:40px;height:40px;border-radius:12px;background:${bg};color:${fg}">
+          <ha-icon icon="${variables.icon}" style="--mdc-icon-size:20px"></ha-icon></span>
+          <div class="hf-col"><span style="font-size:28px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums;text-align:left">${variables.value}<span class="hf-unit"> ${variables.unit}</span></span>
+          <span class="hf-sub">${variables.label}</span></div></div>`;
+      ]]]
+
+# Today's runs per zone, from the `timeline` attribute of the IU zones.
+# zones: [{name, entity}]; fill_lead_entity / fill_duration_entity optional.
+hf_timeline:
+  template: hf_card
+  variables:
+    zones: []
+    fill_lead_entity: ""
+    fill_duration_entity: ""
+    preflight_entity: ""
+    preflight_timeout_entity: ""
+  styles:
+    grid:
+      - grid-template-areas: '"head" "chart"'
+  custom_fields:
+    chart: |
+      [[[
+        const loc = {{ t.locale | q }};
+        const hm = (d) => d.toLocaleTimeString(loc, {hour: '2-digit', minute: '2-digit'});
+        const now = new Date();
+        const d0 = new Date(now); d0.setHours(0, 0, 0, 0);
+        const d1 = new Date(d0.getTime() + 86400000);
+        const num = (e) => e && states[e] ? Number(states[e].state) : NaN;
+        const rows = [];
+        let first = null;
+        for (const z of variables.zones || []) {
+          const items = (states[z.entity]?.attributes?.timeline || [])
+            .map(i => ({s: new Date(i.start), e: new Date(i.end), st: i.status}))
+            .filter(i => i.e > d0 && i.s < d1);
+          if (items.length) rows.push({name: z.name, items});
+          for (const i of items) if (i.st !== 'history' && i.s > now && (!first || i.s < first)) first = i.s;
+        }
+        const lead = num(variables.fill_lead_entity), dur = num(variables.fill_duration_entity);
+        if (first && !isNaN(lead) && lead > 0) {
+          const s = new Date(first - lead * 60000);
+          rows.unshift({name: {{ t.fill_tank | q }}, items: [{s, e: new Date(s.getTime() + dur * 60000), st: 'fill'}]});
+        }
+        if (first && variables.preflight_entity && states[variables.preflight_entity]?.state === 'on') {
+          const to = num(variables.preflight_timeout_entity);
+          if (!isNaN(to)) rows.splice(rows.length && rows[0].items[0].st === 'fill' ? 1 : 0, 0,
+            {name: {{ t.preflight | q }}, items: [{s: new Date(first - to * 60000), e: first, st: 'pre'}]});
+        }
+        if (!rows.length) return `<div class="hf-sub" style="padding:8px 0">${ {{ t.nothing_today | q }} }</div>`;
+        let lo = Math.min(...rows.flatMap(r => r.items.map(i => +i.s)), +now);
+        let hi = Math.max(...rows.flatMap(r => r.items.map(i => +i.e)), +now);
+        lo = Math.max(+d0, Math.floor((lo - 1800000) / 3600000) * 3600000);
+        hi = Math.min(+d1, Math.ceil((hi + 1800000) / 3600000) * 3600000);
+        if (hi - lo < 4 * 3600000) hi = Math.min(+d1, lo + 4 * 3600000);
+        const span = hi - lo;
+        const x = (t) => Math.max(0, Math.min(100, (t - lo) / span * 100));
+        const col = {history: 'var(--hf-primary)', running: 'var(--hf-water)', fill: 'var(--hf-water-soft)', pre: 'var(--hf-warn)'};
+        const edge = {fill: 'var(--hf-water)'};
+        const bars = rows.map(r => `<div style="display:grid;grid-template-columns:128px minmax(0,1fr);gap:10px;align-items:center">
+          <span class="hf-cap" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}</span>
+          <span style="position:relative;height:24px;border-radius:7px;background:var(--hf-inset)">${r.items.map(i =>
+            `<i title="${hm(i.s)}–${hm(i.e)}" style="position:absolute;top:0;height:24px;border-radius:7px;box-sizing:border-box;min-width:4px;
+              left:${x(+i.s)}%;width:${x(+i.e) - x(+i.s)}%;background:${col[i.st] || 'var(--hf-water)'};border:1px solid ${edge[i.st] || col[i.st] || 'var(--hf-water)'};
+              opacity:${i.st === 'history' ? 0.75 : 1}"></i>`).join('')}</span></div>`).join('');
+        const step = span > 10 * 3600000 ? 3 : span > 6 * 3600000 ? 2 : 1;
+        const ticks = [];
+        for (let t = lo; t <= hi; t += step * 3600000)
+          ticks.push(`<span style="position:absolute;left:${x(t)}%;transform:translateX(${t === lo ? 0 : t + step * 3600000 > hi ? -100 : -50}%)">${hm(new Date(t))}</span>`);
+        const nowLine = now >= lo && now <= hi
+          ? `<i style="position:absolute;top:-4px;bottom:-4px;left:calc(138px + (100% - 138px) * ${x(+now) / 100});width:2px;border-radius:1px;background:var(--hf-danger)"></i>` : '';
+        return `<div style="position:relative;display:flex;flex-direction:column;gap:8px">${bars}${nowLine}</div>
+          <div style="display:grid;grid-template-columns:128px minmax(0,1fr);gap:10px;margin-top:6px"><span></span>
+          <span class="hf-cap" style="position:relative;height:16px;font-variant-numeric:tabular-nums">${ticks.join('')}</span></div>
+          <div class="hf-cap" style="display:flex;gap:14px;flex-wrap:wrap;margin-top:10px">
+            <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--hf-primary);opacity:.75"></i> ${ {{ t.done | q }} }</span>
+            <span><i style="display:inline-block;width:10px;height:10px;border-radius:3px;background:var(--hf-water)"></i> ${ {{ t.planned | q }} }</span>
+            <span><i style="display:inline-block;width:2px;height:12px;background:var(--hf-danger)"></i> ${ {{ t.now | q }} } ${hm(now)}</span></div>`;
+      ]]]
+
+# Zone summary. entity: IU zone (binary_sensor.irrigation_unlimited_c<N>_z<M>).
+# programs: [{enabled, zone_enabled}] switches deciding whether it is scheduled.
+hf_zone_card:
+  template: hf_base
+  variables:
+    name: ""
+    planned_entity: ""
+    si_entity: ""
+    usage: []
+    programs: []
+    in_program: |
+      [[[ return (variables.programs || []).some(p => states[p.enabled]?.state === 'on' && states[p.zone_enabled]?.state === 'on'); ]]]
+  styles:
+    card:
+      - opacity: "[[[ return variables.in_program ? 1 : 0.62 ]]]"
+      - border: "[[[ return entity?.state === 'on' ? '1px solid var(--hf-water)' : '1px solid var(--hf-border)' ]]]"
+      - background: "[[[ return entity?.state === 'on' ? 'var(--hf-water-soft)' : 'var(--hf-card)' ]]]"
+    grid:
+      - grid-template-areas: '"head run" "body body"'
+      - grid-template-columns: minmax(0, 1fr) 44px
+  custom_fields:
+    head: |
+      [[[
+        const a = entity?.attributes || {};
+        const loc = {{ t.locale | q }};
+        let when = {{ t.not_scheduled | q }};
+        if (entity?.state === 'on') when = {{ t.watering | q }} + (a.time_remaining ? ' · ' + String(a.time_remaining).replace(/^0:/, '') : '');
+        else if (variables.in_program && a.next_start) {
+          const d = new Date(a.next_start);
+          if (!isNaN(d)) when = (d.toDateString() === new Date().toDateString() ? {{ t.today_lc | q }} : d.toLocaleDateString(loc, {weekday: 'short', day: '2-digit'}))
+            + ' ' + {{ t.at | q }} + ' ' + d.toLocaleTimeString(loc, {hour: '2-digit', minute: '2-digit'});
+        }
+        return `<div class="hf-row"><span class="hf-tile" style="background:var(--hf-water-soft);color:var(--hf-water)">
+          <ha-icon icon="mdi:sprinkler-variant"></ha-icon></span>
+          <div class="hf-col"><span class="hf-title" style="font-size:16px">${variables.name}</span><span class="hf-sub">${when}</span></div></div>`;
+      ]]]
+    body: |
+      [[[
+        const p = states[variables.planned_entity];
+        const secs = Number(p?.state) || 0;
+        const mins = Math.round(secs / 60);
+        const si = variables.si_entity ? states[variables.si_entity] : null;
+        const eco = si ? `<span class="hf-cap" style="color:var(--hf-eco)">SI ${p?.attributes?.si_next_hms ?? '—'} · ${ {{ t.base | q }} } ${p?.attributes?.base_minutes ?? '—'} min</span>` : '';
+        const h = (variables.usage || []).map(e => Math.round((Number(states[e]?.state) || 0) * 60));
+        const mx = Math.max(10, ...h);
+        const labels = {{ t.days3 | q }};
+        const bars = [2, 1, 0].map(i => `<span style="display:flex;flex-direction:column;align-items:center;gap:4px">
+          <span class="hf-cap" style="font-size:11px">${h[i] ?? 0}</span>
+          <i style="width:18px;height:${Math.max(2, Math.round((h[i] || 0) / mx * 46))}px;border-radius:5px 5px 2px 2px;background:var(--hf-primary);opacity:${[1, .6, .35][i]}"></i>
+          <span class="hf-cap" style="font-size:11px">${labels[i]}</span></span>`).join('');
+        const bucket = si ? Number(si.attributes?.bucket) : NaN;
+        const stats = si ? `<div class="hf-stats" style="margin-top:12px">
+          <span class="hf-stat"><span class="hf-cap">Bucket</span><b>${isNaN(bucket) ? '—' : (bucket > 0 ? '+' : '') + bucket.toFixed(1) + ' mm'}</b></span>
+          <span class="hf-stat"><span class="hf-cap">${ {{ t.col_liters | q }} }</span><b>${p?.attributes?.litri ?? '—'}</b></span></div>` : '';
+        return `<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">
+          <div class="hf-col"><span class="hf-cap">${ {{ t.planned_duration | q }} }</span>
+            <span class="hf-big">${mins}<span class="hf-unit"> min</span></span>${eco}</div>
+          <div style="display:flex;gap:6px;align-items:flex-end" title="${ {{ t.last_3_days | q }} }">${bars}</div></div>${stats}`;
+      ]]]
+    run:
+      card:
+        type: custom:button-card
+        template: hf_zone_run
+        entity: "[[[ return entity.entity_id ]]]"
+
+# Play / stop of one IU zone (manual run for its planned adjustment).
+hf_zone_run:
+  template: hf_part
+  show_icon: true
+  icon: "[[[ return entity?.state === 'on' ? 'mdi:stop' : 'mdi:play' ]]]"
+  tap_action:
+    action: call-service
+    service: "[[[ return entity?.state === 'on' ? 'irrigation_unlimited.cancel' : 'irrigation_unlimited.manual_run' ]]]"
+    service_data: >
+      [[[
+        if (entity?.state === 'on') return { entity_id: entity.entity_id };
+        const adj = entity?.attributes?.adjustment || '';
+        const parts = (adj.startsWith('=') ? adj.slice(1) : adj).split(':');
+        if (parts.length < 2) return { entity_id: entity.entity_id };
+        return { entity_id: entity.entity_id, time: { hours: parseInt(parts[0] || '0'), minutes: parseInt(parts[1] || '0'), seconds: parseInt(parts[2] || '0') } };
+      ]]]
+  styles:
+    card:
+      - width: 44px
+      - height: 44px
+      - border-radius: 12px
+      - background: "[[[ return entity?.state === 'on' ? 'var(--hf-danger-soft)' : 'var(--hf-inset)' ]]]"
+    icon:
+      - width: 20px
+      - color: "[[[ return entity?.state === 'on' ? 'var(--hf-danger)' : 'var(--hf-primary)' ]]]"
+
+# ---------------------------------------------------------------------------
+# Programs
+# ---------------------------------------------------------------------------
+
+# entity: switch.iu_<c>_p<N>_enabled. Tap toggles the program.
+hf_program_header:
+  template: hf_base
+  variables:
+    name: ""
+    controller_entity: ""
+    sequence_base: ""
+    program_prefix: ""
+    day_prefix: ""
     zone_ids: []
-    # Entity IU = c<N>_s<posizione in config>, non sequence_id, e un programma
-    # può avere più sequence (una per insieme di zone giornaliero): la
-    # posizione cambia a ogni --update-iu, quindi si risolve a runtime da
-    # sequence_status del controller. Priorità: sequence in corso (anche in
-    # pausa) > sequence con le zone abilitate oggi > prima del programma.
-    sequence_entity: >
+    time_entity: ""
+    type_entity: ""
+    offset_entity: ""
+    # IU sequence of this program: running (even paused) > the one with
+    # today's zones > the first. Positions change with the days, so resolved
+    # here from the controller's sequence_status.
+    sequence_entity: |
       [[[
         const seqs = (hass.states[variables.controller_entity]?.attributes?.sequence_status || [])
           .filter(s => s.name.startsWith(variables.program_prefix));
@@ -153,135 +894,111 @@ iu_program_header:
           const day = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][new Date().getDay()];
           const p = variables.day_prefix;
           const today = variables.zone_ids.filter(z =>
-            hass.states[`${p}_z${z}_enabled`]?.state === 'on' &&
-            hass.states[`${p}_z${z}_${day}`]?.state === 'on'
-          ).join(',');
+            hass.states[`${p}_z${z}_enabled`]?.state === 'on' && hass.states[`${p}_z${z}_${day}`]?.state === 'on').join(',');
           seq = seqs.find(s => s.zones.flatMap(z => z.zone_ids).join(',') === today) || seqs[0];
         }
         return eid(seq);
       ]]]
-  show_name: true
-  show_icon: true
-  show_state: true
-  icon: mdi:calendar-check
-  color_type: icon
-  name: "[[[ return variables.name ]]]"
   tap_action:
     action: toggle
   styles:
     card:
-      - padding: 10px
+      - padding: 18px 22px
+      - border-radius: 26px
+      - cursor: pointer
+      - background: "[[[ return entity?.state === 'on' ? 'var(--hf-primary-soft)' : 'var(--hf-card)' ]]]"
+      - border: "[[[ return entity?.state === 'on' ? '1px solid var(--hf-primary)' : '1px solid var(--hf-border)' ]]]"
     grid:
-      - grid-template-areas: '"i n s"'
-      - grid-template-columns: 10% 70% 20%
-      - grid-template-rows: min-content
-    icon:
-      - justify-self: start
-      - width: 30px
-      - color: >-
-          [[[
-            if (entity.state === 'on') return 'var(--state-active-color, #4caf50)';
-            return 'var(--state-icon-color, grey)';
-          ]]]
-    name:
-      - justify-self: start
-      - font-weight: bold
-      - font-size: 16px
-    state:
-      - justify-self: end
-    custom_fields:
-      action:
-        - justify-self: center
-      pause:
-        - justify-self: center
-      skip:
-        - justify-self: center
+      - grid-template-areas: '"sw who skip pause action"'
+      - grid-template-columns: 52px minmax(0, 1fr) auto auto auto
+      - align-items: center
+      - column-gap: 12px
   custom_fields:
+    sw: |
+      [[[
+        const on = entity?.state === 'on';
+        return `<span role="switch" aria-checked="${on}" style="width:52px;height:32px;border-radius:16px;padding:3px;box-sizing:border-box;display:flex;
+          justify-content:${on ? 'flex-end' : 'flex-start'};background:${on ? 'var(--hf-primary)' : 'var(--hf-inset)'};border:1px solid ${on ? 'var(--hf-primary)' : 'var(--hf-border)'}">
+          <i style="width:24px;height:24px;border-radius:12px;background:${on ? 'var(--hf-on-primary)' : 'var(--hf-text2)'}"></i></span>`;
+      ]]]
+    who: |
+      [[[
+        if (entity?.state !== 'on') return `<div class="hf-col"><span style="font-size:22px;font-weight:700;text-align:left">${variables.name}</span>
+          <span class="hf-sub">${ {{ t.disabled | q }} }</span></div>`;
+        const p = variables.day_prefix;
+        const months = {{ months | map(attribute=0) | list | tojson }};
+        const mnames = {{ months | map(attribute=1) | list | tojson }};
+        const on = months.map(m => hass.states[`${p}_${m}`]?.state === 'on');
+        const ranges = [];
+        for (let i = 0; i < 12; i++) if (on[i] && !on[(i + 11) % 12]) {
+          let j = i; while (on[(j + 1) % 12] && (j + 1) % 12 !== i) j = (j + 1) % 12;
+          ranges.push(i === j ? mnames[i] : `${mnames[i]}–${mnames[j]}`);
+        }
+        const tt = hass.states[variables.type_entity]?.state;
+        const types = {{ t.time_types | q }};
+        let when = String(hass.states[variables.time_entity]?.state || '').slice(0, 5);
+        if (tt && tt !== 'fixed') {
+          const off = Number(hass.states[variables.offset_entity]?.state) || 0;
+          when = types[tt] + (off ? ` ${off > 0 ? '+' : ''}${off} min` : '');
+        }
+        const zones = variables.zone_ids.filter(z => hass.states[`${p}_z${z}_enabled`]?.state === 'on');
+        const total = zones.reduce((s, z) => s + (Number(hass.states[`number.${p.slice(7)}_z${z}_duration`]?.state) || 0), 0);
+        const parts = [when, on.every(Boolean) ? {{ t.all_year | q }} : (ranges.join(', ') || {{ t.no_month | q }}),
+          `${zones.length} ${ {{ t.zones_lc | q }} }`, `${total} min`];
+        return `<div class="hf-col"><span style="font-size:22px;font-weight:700;text-align:left">${variables.name}</span>
+          <span class="hf-sub">${parts.join(' · ')}</span></div>`;
+      ]]]
     action:
       card:
         type: custom:button-card
-        entity: "[[[ return variables.sequence_entity ]]]"
-        show_name: false
+        template: hf_part
+        entity: "[[[ return variables.sequence_entity || entity.entity_id ]]]"
         show_icon: true
-        icon: >
-          [[[
-            return hass.states[variables.sequence_entity]?.state === 'on' ? 'mdi:stop-circle-outline' : 'mdi:play-circle-outline';
-          ]]]
+        icon: "[[[ return hass.states[variables.sequence_entity]?.state === 'on' ? 'mdi:stop' : 'mdi:play' ]]]"
         tap_action:
           action: call-service
-          service: >
-            [[[
-              return hass.states[variables.sequence_entity]?.state === 'on' ? 'irrigation_unlimited.cancel' : 'irrigation_unlimited.manual_run';
-            ]]]
+          service: "[[[ return hass.states[variables.sequence_entity]?.state === 'on' ? 'irrigation_unlimited.cancel' : 'irrigation_unlimited.manual_run' ]]]"
           service_data:
             entity_id: "[[[ return variables.sequence_entity ]]]"
         styles:
           card:
-            - background: none
-            - box-shadow: none
-            - padding: 0px
-            - border: none
-            - overflow: visible
-            - min-width: 40px
-            - min-height: 40px
+            - display: "[[[ return entity.state === 'on' && variables.sequence_entity ? 'block' : 'none' ]]]"
+            - width: 48px
+            - height: 48px
+            - border-radius: 14px
+            - background: "[[[ return hass.states[variables.sequence_entity]?.state === 'on' ? 'var(--hf-danger)' : 'var(--hf-primary)' ]]]"
           icon:
-            - color: >
-                [[[
-                  return hass.states[variables.sequence_entity]?.state === 'on' ? '#f44336' : '#2196f3';
-                ]]]
-            - --mdc-icon-size: 30px
-            - justify-self: center
-            - width: 30px
-            - height: 30px
+            - width: 22px
+            - color: "[[[ return hass.states[variables.sequence_entity]?.state === 'on' ? 'var(--hf-on-danger)' : 'var(--hf-on-primary)' ]]]"
     pause:
       card:
         type: custom:button-card
-        entity: "[[[ return variables.sequence_entity ]]]"
-        show_name: false
+        template: hf_part
+        entity: "[[[ return variables.sequence_entity || entity.entity_id ]]]"
         show_icon: true
-        # Pause se sequence in run normale, Resume se status=paused.
-        # irrigation_unlimited.pause/resume su sequence entity (no sequence_id).
-        icon: >
-          [[[
-            const paused = hass.states[variables.sequence_entity]?.attributes?.status === 'paused';
-            return paused ? 'mdi:play-circle-outline' : 'mdi:pause-circle-outline';
-          ]]]
+        icon: "[[[ return hass.states[variables.sequence_entity]?.attributes?.status === 'paused' ? 'mdi:play-pause' : 'mdi:pause' ]]]"
         tap_action:
           action: call-service
-          service: >
-            [[[
-              const paused = hass.states[variables.sequence_entity]?.attributes?.status === 'paused';
-              return paused ? 'irrigation_unlimited.resume' : 'irrigation_unlimited.pause';
-            ]]]
+          service: "[[[ return hass.states[variables.sequence_entity]?.attributes?.status === 'paused' ? 'irrigation_unlimited.resume' : 'irrigation_unlimited.pause' ]]]"
           service_data:
             entity_id: "[[[ return variables.sequence_entity ]]]"
         styles:
           card:
-            - background: none
-            - box-shadow: none
-            - padding: 0px
-            - border: none
-            - overflow: visible
-            - min-width: 40px
-            - min-height: 40px
+            - display: "[[[ return hass.states[variables.sequence_entity]?.state === 'on' ? 'block' : 'none' ]]]"
+            - width: 48px
+            - height: 48px
+            - border-radius: 14px
+            - background: var(--hf-inset)
           icon:
-            - color: >
-                [[[
-                  const paused = hass.states[variables.sequence_entity]?.attributes?.status === 'paused';
-                  return paused ? '#4caf50' : '#ff9800';
-                ]]]
-            - --mdc-icon-size: 30px
-            - justify-self: center
-            - width: 30px
-            - height: 30px
+            - width: 22px
+            - color: var(--hf-text)
     skip:
       card:
         type: custom:button-card
-        entity: "[[[ return variables.sequence_entity ]]]"
-        show_name: false
+        template: hf_part
+        entity: "[[[ return variables.sequence_entity || entity.entity_id ]]]"
         show_icon: true
-        icon: mdi:skip-next-outline
-        # irrigation_unlimited.skip su sequence entity (passa a sequence-zone successiva).
+        icon: mdi:skip-next
         tap_action:
           action: call-service
           service: irrigation_unlimited.skip
@@ -289,611 +1006,307 @@ iu_program_header:
             entity_id: "[[[ return variables.sequence_entity ]]]"
         styles:
           card:
-            - background: none
-            - box-shadow: none
-            - padding: 0px
-            - border: none
-            - overflow: visible
-            - min-width: 40px
-            - min-height: 40px
+            - display: "[[[ return hass.states[variables.sequence_entity]?.state === 'on' ? 'block' : 'none' ]]]"
+            - width: 48px
+            - height: 48px
+            - border-radius: 14px
+            - background: var(--hf-inset)
           icon:
-            - color: "#2196f3"
-            - --mdc-icon-size: 30px
-            - justify-self: center
-            - width: 30px
-            - height: 30px
-  state:
-    - value: 'on'
-      icon: mdi:toggle-switch
-      styles:
-        grid:
-          # Quando sequence running: skip + pause + stop. Altrimenti solo play.
-          - grid-template-areas: >
-              [[[
-                const seqOn = hass.states[variables.sequence_entity]?.state === 'on';
-                return seqOn ? '"i n s skip pause action"' : '"i n s action"';
-              ]]]
-          - grid-template-columns: >
-              [[[
-                const seqOn = hass.states[variables.sequence_entity]?.state === 'on';
-                return seqOn ? '10% 40% 22% 9% 9% 10%' : '10% 60% 22% 8%';
-              ]]]
-        custom_fields:
-          action:
-            - display: "[[[ return variables.sequence_entity ? 'block' : 'none'; ]]]"
-          pause:
-            - display: >
-                [[[
-                  return hass.states[variables.sequence_entity]?.state === 'on' ? 'block' : 'none';
-                ]]]
-          skip:
-            - display: >
-                [[[
-                  return hass.states[variables.sequence_entity]?.state === 'on' ? 'block' : 'none';
-                ]]]
-    - value: 'off'
-      icon: mdi:toggle-switch-off-outline
-      styles:
-        grid:
-          - grid-template-areas: '"i n s"'
-          - grid-template-columns: 10% 70% 20%
-        custom_fields:
-          action: [display: none]
-          pause: [display: none]
-          skip: [display: none]
+            - width: 22px
+            - color: var(--hf-text)
 
-iu_weekday_toggle:
-  show_name: true
-  show_icon: false
-  show_state: false
-  color_type: card
-  tap_action:
-    action: toggle
-  styles:
-    card:
-      - padding: 4px
-      - background-color: >-
-          [[[
-            if (!entity || !entity.state) return 'var(--card-background-color, #444)';
-            if (entity.state === 'on') return 'var(--state-active-color, #4caf50)';
-            return 'var(--card-background-color, #444)';
-          ]]]
-    name:
-      - font-weight: bold
-      - font-size: 10px
-      - color: >-
-          [[[
-            if (!entity || !entity.state) return 'var(--primary-text-color)';
-            if (entity.state === 'on') return 'white';
-            return 'var(--primary-text-color)';
-          ]]]
-
-iu_month_toggle:
-  show_name: true
-  show_icon: false
-  show_state: false
-  color_type: card
-  tap_action:
-    action: toggle
-  styles:
-    card:
-      - padding: 2px
-      - background-color: >-
-          [[[
-            if (entity.state === 'on') return 'var(--state-active-color, #4caf50)';
-            return 'var(--card-background-color, #444)';
-          ]]]
-    name:
-      - font-weight: bold
-      - font-size: 14px
-      - color: >-
-          [[[
-            if (entity.state === 'on') return 'white';
-            return 'var(--primary-text-color)';
-          ]]]
-
-iu_eco_toggle:
+# One zone of a program: enable, weekdays, duration. entity: zone enabled switch.
+hf_zone_days:
+  template: hf_base
   variables:
-    cycles_entity: ""
-    soak_entity: ""
-  show_name: false
-  show_icon: true
-  show_state: false
-  color_type: icon
-  icon: mdi:leaf
-  tap_action:
-    action: toggle
+    name: ""
+    planned_entity: ""
   styles:
     card:
-      - padding: 12px
-      - height: auto
+      - padding: 12px 14px
+      - border-radius: 18px
+      - background: "[[[ return entity?.state === 'on' ? 'var(--hf-card)' : 'transparent' ]]]"
+      - border: "[[[ return entity?.state === 'on' ? '1px solid var(--hf-border)' : '1px dashed var(--hf-border)' ]]]"
+      - box-shadow: "[[[ return entity?.state === 'on' ? 'var(--hf-shadow)' : 'none' ]]]"
     grid:
-      - grid-template-areas: '"i eco"'
-      - grid-template-rows: auto
-      - grid-template-columns: 20% 80%
-    icon:
-      - height: 40px
-      - width: 40px
-      - justify-self: start
-      - color: >-
-          [[[
-            if (entity.state === 'on') return '#4caf50';
-            return 'grey';
-          ]]]
+      - grid-template-areas: '"sw who mon tue wed thu fri sat sun dur"'
+      - grid-template-columns: 52px minmax(120px, 1fr) repeat(7, 40px) 150px
+      - align-items: center
+      - column-gap: 6px
     custom_fields:
-      eco:
-        - font-size: 14px
-        - font-weight: bold
-        - justify-self: start
-      cicli:
-        - font-size: 12px
-      pausa:
-        - font-size: 12px
+{%- for code, _ in weekdays %}
+      {{ code }}:
+        - opacity: "[[[ return entity?.state === 'on' ? 1 : 0.35 ]]]"
+        - pointer-events: "[[[ return entity?.state === 'on' ? 'auto' : 'none' ]]]"
+{%- endfor %}
+      dur:
+        - opacity: "[[[ return entity?.state === 'on' ? 1 : 0.35 ]]]"
+  extra_styles: |
+    @container (max-width: 720px) {
+      #container { grid-template-areas: "sw sw who who who who who" "mon tue wed thu fri sat sun" "dur dur dur dur dur dur dur" !important;
+                   grid-template-columns: repeat(7, minmax(0, 1fr)) !important; row-gap: 10px !important; }
+    }
   custom_fields:
-    eco: {{ t.eco_mode | q }}
-    cicli:
+    sw:
       card:
-        type: custom:numberbox-card
-        entity: "[[[ return variables.cycles_entity ]]]"
-        name: {{ t.cycles | q }}
-        border: false
-        min: 1
-        step: 1
-        initial: 1
-        unit: false
-    pausa:
-      card:
-        type: custom:numberbox-card
-        entity: "[[[ return variables.soak_entity ]]]"
-        name: {{ t.soak | q }}
-        unit: s
-        border: false
-        initial: 0
-        speed: 200
-        delay: 500
-        step: 1
-  state:
-    - value: 'on'
-      styles:
-        grid:
-          - grid-template-areas: '"i eco eco eco" "cicli cicli pausa pausa"'
-          - grid-template-columns: 10% 40% 20% 30%
+        type: custom:button-card
+        template: hf_part
+        entity: "[[[ return entity.entity_id ]]]"
+        tap_action:
+          action: toggle
         custom_fields:
-          cicli: [display: block]
-          pausa: [display: block]
-    - value: 'off'
-      styles:
-        grid:
-          - grid-template-areas: '"i eco"'
-          - grid-template-columns: 10% 90%
-        custom_fields:
-          cicli: [display: none]
-          pausa: [display: none]
+          k: >
+            [[[
+              const on = entity?.state === 'on';
+              return `<span role="switch" aria-checked="${on}" style="width:48px;height:30px;border-radius:15px;padding:3px;box-sizing:border-box;display:flex;
+                justify-content:${on ? 'flex-end' : 'flex-start'};background:${on ? 'var(--hf-primary)' : 'var(--hf-inset)'};border:1px solid ${on ? 'var(--hf-primary)' : 'var(--hf-border)'}">
+                <i style="width:22px;height:22px;border-radius:11px;background:${on ? 'var(--hf-on-primary)' : 'var(--hf-text2)'}"></i></span>`;
+            ]]]
+        styles:
+          grid:
+            - grid-template-areas: '"k"'
+    who: |
+      [[[
+        const p = states[variables.planned_entity]?.attributes || {};
+        const sub = entity?.state === 'on' ? (p.next_duration && p.next_duration !== 'n/a' ? {{ (t.effective ~ ' ') | q }} + p.next_duration : '') : {{ t.not_in_program | q }};
+        return `<div class="hf-col"><span style="font-size:14px;font-weight:600;text-align:left">${variables.name}</span>
+          ${sub ? `<span class="hf-cap">${sub}</span>` : ''}</div>`;
+      ]]]
 
-# iu_zone_row: zone abilita/durata + 7 sub-buttons giorni nested.
-# I sub-buttons sono visibili solo quando la zona è abilitata (state: on).
-iu_zone_row:
+# Weekly minutes of one program, from its zone switches and durations.
+hf_week:
+  template: hf_card
   variables:
-    zone_name: {{ t.zone | q }}
+    prefix: ""
+    zone_ids: []
+    sub: |
+      [[[
+        const p = variables.prefix;
+        const days = {{ weekdays | map(attribute=0) | list | tojson }};
+        const total = days.reduce((t, d) => t + variables.zone_ids.reduce((s, z) =>
+          s + (states[`switch.${p}_z${z}_enabled`]?.state === 'on' && states[`switch.${p}_z${z}_${d}`]?.state === 'on'
+            ? (Number(states[`number.${p}_z${z}_duration`]?.state) || 0) : 0), 0), 0);
+        return `${total} ${ {{ t.min_per_week | q }} }`;
+      ]]]
+  styles:
+    grid:
+      - grid-template-areas: '"head" "chart"'
+  custom_fields:
+    chart: |
+      [[[
+        const p = variables.prefix;
+        const days = {{ weekdays | map(attribute=0) | list | tojson }};
+        const names = {{ weekdays | map(attribute=1) | list | tojson }};
+        const per = days.map(d => variables.zone_ids.reduce((s, z) =>
+          s + (states[`switch.${p}_z${z}_enabled`]?.state === 'on' && states[`switch.${p}_z${z}_${d}`]?.state === 'on'
+            ? (Number(states[`number.${p}_z${z}_duration`]?.state) || 0) : 0), 0));
+        const mx = Math.max(10, ...per);
+        const cols = per.map((m, i) => `<span style="flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:150px">
+          <span class="hf-cap" style="font-weight:600;color:var(--hf-text)">${m}</span>
+          <i style="width:100%;max-width:52px;height:${Math.max(2, Math.round(m / mx * 110))}px;border-radius:8px 8px 2px 2px;background:var(--hf-primary)"></i></span>`).join('');
+        const labels = names.map(n => `<span class="hf-cap" style="flex:1;text-align:center">${n}</span>`).join('');
+        return `<div style="display:flex;gap:12px;align-items:flex-end;border-bottom:1px solid var(--hf-border)">${cols}</div>
+          <div style="display:flex;gap:12px;margin-top:6px">${labels}</div>
+          <div class="hf-cap" style="margin-top:10px">${ {{ t.week_note | q }} }</div>`;
+      ]]]
+
+# ---------------------------------------------------------------------------
+# Zones
+# ---------------------------------------------------------------------------
+
+# entity: IU zone. programs: [{name, enabled, zone_enabled, days: [7 switches]}]
+hf_zone_detail:
+  template: hf_base
+  variables:
+    name: ""
+    planned_entity: ""
+    si_entity: ""
+    usage: []
+    programs: []
+  styles:
+    card:
+      - border: "[[[ return entity?.state === 'on' ? '1px solid var(--hf-water)' : '1px solid var(--hf-border)' ]]]"
+    grid:
+      - grid-template-areas: '"head run" "si si" "hist hist" "progs progs"'
+      - grid-template-columns: minmax(0, 1fr) 44px
+  custom_fields:
+    head: |
+      [[[
+        const a = entity?.attributes || {};
+        const loc = {{ t.locale | q }};
+        const inp = (variables.programs || []).some(p => states[p.enabled]?.state === 'on' && states[p.zone_enabled]?.state === 'on');
+        const chip = inp ? `<span class="hf-chip" style="background:var(--hf-primary-soft);color:var(--hf-primary)">${ {{ t.in_program | q }} }</span>`
+                         : `<span class="hf-chip" style="background:var(--hf-inset);color:var(--hf-text2)">${ {{ t.not_in_program | q }} }</span>`;
+        let when = '';
+        if (entity?.state === 'on') when = {{ t.watering | q }} + (a.time_remaining ? ' · ' + String(a.time_remaining).replace(/^0:/, '') : '');
+        else if (inp && a.next_start) {
+          const d = new Date(a.next_start);
+          if (!isNaN(d)) when = {{ t.next_start | q }} + ': ' + d.toLocaleString(loc, {weekday: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit'})
+            + (a.next_duration ? ' · ' + a.next_duration : '');
+        }
+        return `<div class="hf-row"><span class="hf-tile" style="width:52px;height:52px;border-radius:15px;background:var(--hf-water-soft);color:var(--hf-water)">
+          <ha-icon icon="mdi:sprinkler-variant" style="--mdc-icon-size:28px"></ha-icon></span>
+          <div class="hf-col" style="gap:4px"><span style="display:flex;flex-wrap:wrap;align-items:center;gap:8px"><span class="hf-title" style="font-size:20px">${variables.name}</span>${chip}</span>
+          ${when ? `<span class="hf-sub">${when}</span>` : ''}</div></div>`;
+      ]]]
+    si: |
+      [[[
+        if (!variables.si_entity) return `<div class="hf-cap" style="padding:12px;border-radius:14px;border:1px dashed var(--hf-border)">${ {{ t.si_off | q }} }</div>`;
+        const p = states[variables.planned_entity]?.attributes || {};
+        const si = states[variables.si_entity];
+        const b = Number(si?.attributes?.bucket);
+        const s = (k, v) => `<span class="hf-stat"><span class="hf-cap">${k}</span><b>${v ?? '—'}</b></span>`;
+        return `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px">
+            <span style="font-size:15px;font-weight:600">Smart Irrigation</span>
+            <span class="hf-cap">${ {{ t.last_si_calc | q }} }: ${p.si_calcolato_alle ? new Date(p.si_calcolato_alle).toLocaleString({{ t.locale | q }}, {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : {{ t.never | q }}}</span></div>
+          <div class="hf-stats">
+            ${s('Bucket', isNaN(b) ? '—' : (b > 0 ? '+' : '') + b.toFixed(2) + ' mm')}
+            ${s({{ t.col_duration | q }}, (Number(si?.state) || 0) + ' s')}
+            ${s({{ t.col_liters | q }}, p.litri)}
+            ${s('mm', p.mm_erogati)}
+            ${s({{ t.col_size | q }}, p.size_m2 != null ? p.size_m2 + ' m²' : '—')}
+            ${s({{ t.col_throughput | q }}, p.throughput_l_min != null ? p.throughput_l_min + ' l/min' : '—')}
+            ${s({{ t.col_s_per_mm | q }}, p.s_per_mm)}
+            ${s({{ t.col_at_2mm | q }}, Math.round((Number(p.s_per_mm) || 0) * 2) + ' s')}
+          </div>
+          <div class="hf-cap" style="margin-top:8px">${ {{ t.calibration_hint | q }} }</div>`;
+      ]]]
+    hist: |
+      [[[
+        const h = (variables.usage || []).map(e => Math.round((Number(states[e]?.state) || 0) * 60));
+        const labels = {{ [t.col_today, t.col_yesterday, t.col_two_days_ago] | tojson }};
+        return `<div class="hf-stats">${labels.map((l, i) => `<span class="hf-stat"><span class="hf-cap">${l}</span><b>${h[i] ?? 0} min</b></span>`).join('')}</div>`;
+      ]]]
+    progs: |
+      [[[
+        const names = {{ weekdays | map(attribute=1) | list | tojson }};
+        return (variables.programs || []).map(p => {
+          const pon = states[p.enabled]?.state === 'on', zon = states[p.zone_enabled]?.state === 'on';
+          const sub = !pon ? {{ t.program_off | q }} : !zon ? {{ t.not_included | q }} : (Number(states[p.duration]?.state) || 0) + ' min';
+          const days = pon && zon ? p.days.map((d, i) => {
+            const on = states[d]?.state === 'on';
+            return `<span style="width:30px;height:30px;border-radius:8px;display:grid;place-items:center;font-size:11px;font-weight:600;box-sizing:border-box;
+              background:${on ? 'var(--hf-primary)' : 'transparent'};color:${on ? 'var(--hf-on-primary)' : 'var(--hf-text2)'};border:1px solid ${on ? 'var(--hf-primary)' : 'var(--hf-border)'}">${names[i].slice(0, 2)}</span>`;
+          }).join('') : '';
+          return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;margin-top:6px;
+              ${pon && zon ? 'background:var(--hf-inset)' : 'border:1px dashed var(--hf-border)'}">
+            <span class="hf-col" style="flex:1 1 140px"><span style="font-size:14px;font-weight:600;text-align:left">${p.name}</span><span class="hf-cap">${sub}</span></span>
+            <span style="display:flex;gap:4px">${days}</span></div>`;
+        }).join('');
+      ]]]
+    run:
+      card:
+        type: custom:button-card
+        template: hf_zone_run
+        entity: "[[[ return entity.entity_id ]]]"
+
+# ---------------------------------------------------------------------------
+# Settings
+# ---------------------------------------------------------------------------
+
+# entity: switch.iu_<c>_system_enabled
+hf_system:
+  template: hf_base
+  variables:
+    name: ""
+  tap_action:
+    action: toggle
+  styles:
+    card:
+      - padding: 20px 24px
+      - border-radius: 26px
+      - cursor: pointer
+      - background: "[[[ return entity?.state === 'on' ? 'var(--hf-card)' : 'var(--hf-warn-soft)' ]]]"
+      - border: "[[[ return entity?.state === 'on' ? '1px solid var(--hf-border)' : '1px solid var(--hf-warn)' ]]]"
+    grid:
+      - grid-template-areas: '"x"'
+  custom_fields:
+    x: |
+      [[[
+        const on = entity?.state === 'on';
+        return `<div class="hf-row" style="gap:18px"><span class="hf-tile" style="width:56px;height:56px;border-radius:16px;
+            background:${on ? 'var(--hf-primary-soft)' : 'var(--hf-card)'};color:${on ? 'var(--hf-primary)' : 'var(--hf-warn)'}">
+            <ha-icon icon="mdi:power" style="--mdc-icon-size:28px"></ha-icon></span>
+          <div class="hf-col" style="flex:1"><span style="font-size:22px;font-weight:700;text-align:left">${variables.name} · ${on ? {{ t.on | q }} : {{ t.off | q }}}</span>
+            <span class="hf-sub">${on ? {{ t.system_on_hint | q }} : {{ t.system_off_hint | q }}}</span></div>
+          <span role="switch" aria-checked="${on}" style="width:64px;height:38px;border-radius:19px;padding:4px;box-sizing:border-box;display:flex;flex-shrink:0;
+            justify-content:${on ? 'flex-end' : 'flex-start'};background:${on ? 'var(--hf-primary)' : 'var(--hf-inset)'};border:1px solid ${on ? 'var(--hf-primary)' : 'var(--hf-border)'}">
+            <i style="width:28px;height:28px;border-radius:14px;background:${on ? 'var(--hf-on-primary)' : 'var(--hf-text2)'}"></i></span></div>`;
+      ]]]
+
+# Fill window against the next start. entity: IU controller.
+hf_fill_window:
+  template: hf_part
+  variables:
+    lead_entity: ""
     duration_entity: ""
-    duration_adjusted: ""
-    zone_entity: ""
-    day_mon: ""
-    day_tue: ""
-    day_wed: ""
-    day_thu: ""
-    day_fri: ""
-    day_sat: ""
-    day_sun: ""
-  show_name: true
-  show_icon: true
-  show_state: false
-  color_type: icon
-  icon: mdi:sprinkler-variant
-  name: "[[[ return variables.zone_name ]]]"
-  tap_action:
-    action: toggle
   custom_fields:
-    duration_adjusted:
-      card:
-        type: custom:button-card
-        entity: "[[[ return variables.duration_adjusted ]]]"
-        show_name: false
-        show_icon: false
-        show_state: false
-        show_label: true
-        label: >
-          [[[
-            if (!variables.duration_adjusted) return '';
-            const nd = hass.states[variables.duration_adjusted]?.attributes?.next_duration;
-            return nd != null ? {{ (t.effective ~ ': ') | q }} + nd : 'n/a';
-          ]]]
-        styles:
-          card:
-            - background: none
-            - box-shadow: none
-            - border: none
-            - padding: 0px
-          label:
-            - font-size: 13px
-            - color: var(--primary-text-color)
-            - justify-self: left
-            - filter: opacity(70%)
-    duration:
-      card:
-        type: custom:numberbox-card
-        entity: "[[[ return variables.duration_entity ]]]"
-        border: false
-        unit: time
-        name: false
-        icon: false
-        speed: 200
-        icon_plus: mdi:chevron-up
-        icon_minus: mdi:chevron-down
-        initial: 300
-        min: 0
-        max: 60
-        step: 1
-        delay: 500
-    mon:
-      card:
-        type: custom:button-card
-        template: iu_weekday_toggle
-        entity: "[[[ return variables.day_mon ]]]"
-        name: {{ t.weekdays_short[0] | q }}
-    tue:
-      card:
-        type: custom:button-card
-        template: iu_weekday_toggle
-        entity: "[[[ return variables.day_tue ]]]"
-        name: {{ t.weekdays_short[1] | q }}
-    wed:
-      card:
-        type: custom:button-card
-        template: iu_weekday_toggle
-        entity: "[[[ return variables.day_wed ]]]"
-        name: {{ t.weekdays_short[2] | q }}
-    thu:
-      card:
-        type: custom:button-card
-        template: iu_weekday_toggle
-        entity: "[[[ return variables.day_thu ]]]"
-        name: {{ t.weekdays_short[3] | q }}
-    fri:
-      card:
-        type: custom:button-card
-        template: iu_weekday_toggle
-        entity: "[[[ return variables.day_fri ]]]"
-        name: {{ t.weekdays_short[4] | q }}
-    sat:
-      card:
-        type: custom:button-card
-        template: iu_weekday_toggle
-        entity: "[[[ return variables.day_sat ]]]"
-        name: {{ t.weekdays_short[5] | q }}
-    sun:
-      card:
-        type: custom:button-card
-        template: iu_weekday_toggle
-        entity: "[[[ return variables.day_sun ]]]"
-        name: {{ t.weekdays_short[6] | q }}
-    all:
-      card:
-        type: custom:button-card
-        show_name: true
-        show_icon: false
-        show_state: false
-        name: {{ t.all_days | q }}
-        color_type: card
-        tap_action:
-          action: call-service
-          service: >
-            [[[
-              const days = [
-                variables.day_mon, variables.day_tue, variables.day_wed,
-                variables.day_thu, variables.day_fri, variables.day_sat, variables.day_sun
-              ];
-              const allOn = days.every(d => hass.states[d]?.state === 'on');
-              return allOn ? 'switch.turn_off' : 'switch.turn_on';
-            ]]]
-          service_data:
-            entity_id: >
-              [[[
-                return [
-                  variables.day_mon, variables.day_tue, variables.day_wed,
-                  variables.day_thu, variables.day_fri, variables.day_sat, variables.day_sun
-                ];
-              ]]]
-        styles:
-          card:
-            - padding: 4px
-            - background-color: >-
-                [[[
-                  const days = [
-                    variables.day_mon, variables.day_tue, variables.day_wed,
-                    variables.day_thu, variables.day_fri, variables.day_sat, variables.day_sun
-                  ];
-                  const allOn = days.every(d => hass.states[d]?.state === 'on');
-                  if (allOn) return 'var(--state-active-color, #4caf50)';
-                  return 'var(--card-background-color, #444)';
-                ]]]
-          name:
-            - font-weight: bold
-            - font-size: 10px
-            - color: >-
-                [[[
-                  const days = [
-                    variables.day_mon, variables.day_tue, variables.day_wed,
-                    variables.day_thu, variables.day_fri, variables.day_sat, variables.day_sun
-                  ];
-                  const allOn = days.every(d => hass.states[d]?.state === 'on');
-                  if (allOn) return 'white';
-                  return 'var(--primary-text-color)';
-                ]]]
-    action:
-      card:
-        type: custom:button-card
-        entity: "[[[ return variables.zone_entity ]]]"
-        show_name: false
-        show_icon: true
-        icon: >
-          [[[
-            return hass.states[variables.zone_entity]?.state === 'on' ? 'mdi:stop-circle-outline' : 'mdi:play-circle-outline';
-          ]]]
-        tap_action:
-          action: call-service
-          service: >
-            [[[
-              return hass.states[variables.zone_entity]?.state === 'on' ? 'irrigation_unlimited.cancel' : 'irrigation_unlimited.manual_run';
-            ]]]
-          service_data: >
-            [[[
-              if (hass.states[variables.zone_entity]?.state === 'on') {
-                return { entity_id: variables.zone_entity };
-              }
-              const adj = hass.states[variables.zone_entity]?.attributes?.adjustment || '';
-              const timeStr = adj.startsWith('=') ? adj.slice(1) : adj;
-              const parts = timeStr.split(':');
-              return {
-                entity_id: variables.zone_entity,
-                time: {
-                  hours: parseInt(parts[0] || '0'),
-                  minutes: parseInt(parts[1] || '0'),
-                  seconds: parseInt(parts[2] || '0')
-                }
-              };
-            ]]]
-        styles:
-          card:
-            - background: none
-            - box-shadow: none
-            - padding: 0px
-            - border: none
-            - overflow: visible
-            - min-width: 40px
-            - min-height: 40px
-          icon:
-            - color: >
-                [[[
-                  return hass.states[variables.zone_entity]?.state === 'on' ? '#f44336' : '#2196f3';
-                ]]]
-            - --mdc-icon-size: 30px
-            - justify-self: center
-            - width: 30px
-            - height: 30px
+    w: |
+      [[[
+        const loc = {{ t.locale | q }};
+        const hm = (d) => d.toLocaleTimeString(loc, {hour: '2-digit', minute: '2-digit'});
+        const seqs = (entity?.attributes?.sequence_status || []).filter(s => s.start);
+        if (!seqs.length) return `<div class="hf-cap">${ {{ t.nothing_scheduled | q }} }</div>`;
+        const st = new Date(seqs.reduce((a, b) => new Date(a.start) <= new Date(b.start) ? a : b).start);
+        const lead = Number(states[variables.lead_entity]?.state) || 0, dur = Number(states[variables.duration_entity]?.state) || 0;
+        const s = new Date(st - lead * 60000), e = new Date(s.getTime() + dur * 60000);
+        const lo = Math.min(+s, +st) - 1800000, hi = Math.max(+e, +st) + 900000;
+        const x = (t) => ((t - lo) / (hi - lo) * 100).toFixed(1);
+        const gap = Math.round((st - e) / 60000);
+        const msg = gap >= 0 ? {{ t.fill_ok | q }}.replace('{a}', hm(s)).replace('{b}', hm(e)).replace('{m}', gap)
+                             : {{ t.fill_late | q }}.replace('{m}', -gap);
+        return `<div style="padding:12px;border-radius:14px;background:var(--hf-inset)">
+          <div style="position:relative;height:22px;border-radius:6px;background:var(--hf-card)">
+            <i style="position:absolute;top:0;height:22px;border-radius:6px;box-sizing:border-box;left:${x(+s)}%;width:${x(+e) - x(+s)}%;background:var(--hf-water-soft);border:1px solid var(--hf-water)"></i>
+            <i style="position:absolute;top:-3px;bottom:-3px;width:3px;border-radius:2px;left:${x(+st)}%;background:var(--hf-primary)"></i></div>
+          <div class="hf-cap" style="position:relative;height:16px;margin-top:6px">
+            <span style="position:absolute;left:${x(+s)}%">${hm(s)}</span>
+            <span style="position:absolute;left:${x(+st)}%;transform:translateX(-50%);color:var(--hf-primary);font-weight:600">${hm(st)}</span></div>
+          <div style="font-size:13px;font-weight:500;margin-top:6px;color:${gap >= 0 ? 'var(--hf-text)' : 'var(--hf-danger)'}">${msg}</div></div>`;
+      ]]]
   styles:
-    card:
-      - padding: 4px
     grid:
-      - grid-template-areas: '"i n duration"'
-      - grid-template-columns: 15% 35% 50%
-      - grid-template-rows: auto
-    icon:
-      - color: >-
-          [[[
-            if (entity.state === 'on') return '#4caf50';
-            return 'grey';
-          ]]]
-      - height: 30px
-    name:
-      - font-size: 13px
-      - justify-self: start
-    custom_fields:
-      duration:
-        - justify-self: end
-        - font-size: 13px
-  state:
-    - value: 'on'
-      styles:
-        grid:
-          - grid-template-areas: '"i n n n duration_adjusted duration_adjusted duration action" "mon tue wed thu fri sat sun all"'
-          - grid-template-columns: 12.5% 12.5% 12.5% 12.5% 12.5% 12.5% 12.5% 12.5%
-          - grid-template-rows: auto auto
-        custom_fields:
-          duration:
-            - filter: opacity(100%)
-          duration_adjusted:
-            - display: block
-            - filter: opacity(100%)
-          mon: [display: block]
-          tue: [display: block]
-          wed: [display: block]
-          thu: [display: block]
-          fri: [display: block]
-          sat: [display: block]
-          sun: [display: block]
-          all: [display: block]
-          action: [display: block]
-    - value: 'off'
-      styles:
-        grid:
-          - grid-template-areas: '"i n duration_adjusted duration"'
-          - grid-template-columns: 15% 35% 25% 25%
-        custom_fields:
-          duration:
-            - filter: opacity(50%)
-          duration_adjusted:
-            - display: block
-            - filter: opacity(50%)
-          mon: [display: none]
-          tue: [display: none]
-          wed: [display: none]
-          thu: [display: none]
-          fri: [display: none]
-          sat: [display: none]
-          sun: [display: none]
-          all: [display: none]
-          action: [display: none]
+      - grid-template-areas: '"w"'
 
-iu_system_toggle:
+# Theme and mode of the whole dashboard (hub selects, shared by every view).
+hf_appearance:
+  template: hf_card
   variables:
-    label: "Toggle"
-    icon: "mdi:toggle-switch"
-  show_name: true
-  show_icon: true
-  show_state: false
-  color_type: icon
-  icon: "[[[ return variables.icon ]]]"
-  name: "[[[ return variables.label ]]]"
-  tap_action:
-    action: toggle
+    icon: mdi:palette-outline
+    tone: primary
   styles:
-    card:
-      - padding: 8px
     grid:
-      - grid-template-areas: '"i n"'
-      - grid-template-columns: 20% 80%
-      - grid-template-rows: auto
-    icon:
-      - width: 30px
-      - color: >-
-          [[[
-            if (entity.state === 'on') return '#4caf50';
-            return 'grey';
-          ]]]
-    name:
-      - font-weight: bold
-      - font-size: 14px
-      - justify-self: start
-
-iu_rain_status:
-  variables:
-    adjust_rain_entity: ""
-  show_name: true
-  show_icon: true
-  show_state: true
-  color_type: icon
-  icon: mdi:weather-pouring
-  name: >
-    [[[
-      if (entity.state === 'on') {
-        if (variables.adjust_rain_entity && hass.states[variables.adjust_rain_entity]?.state === 'on')
-          return {{ t.raining_blocked | q }};
-        return {{ t.raining_ignored | q }};
-      }
-      return {{ t.rain_ok | q }};
-    ]]]
-  styles:
-    card:
-      - padding: 8px
-      - background-color: >-
-          [[[
-            if (entity.state === 'on') return 'rgba(33, 150, 243, 0.1)';
-            return '';
-          ]]]
-    icon:
-      - height: 30px
-      - color: >-
-          [[[
-            if (!entity || !entity.state) return 'grey';
-            if (entity.state === 'on') return '#2196f3';
-            return 'grey';
-          ]]]
-      - justify-self: start
-    name:
-      - justify-self: start
-    grid:
-      - grid-template-areas: '"i n s"'
-      - grid-template-rows: auto
-      - grid-template-columns: "15% 65% 20%"
-
-iu_fill_card:
-  show_name: true
-  show_icon: true
-  variables:
-    name: {{ t.fill | q }}
-    durata: ""
-    icon: ""
-  icon: "[[[ return variables.icon ]]]"
-  name: "[[[ return variables.name ]]]"
-  color_type: icon
-  styles:
-    card:
-      - padding: 8px
-    grid:
-      - grid-template-areas: '"i n durata"'
-      - grid-template-rows: auto
-      - grid-template-columns: 10% 45% 45%
-    icon:
-      - color: "#ff9800"
-      - height: 30px
-      - justify-self: start
-    name:
-      - justify-self: start
-      - font-weight: bold
-      - font-size: 14px
+      - grid-template-areas: '"head head head head" "tl tl tl tl" "th_system th_salvia th_laguna th_terracotta" "ml ml ml ml" "md_auto md_light md_dark ." "note note note note"'
+      - grid-template-columns: repeat(4, minmax(0, 1fr))
+      - column-gap: 6px
+      - row-gap: 10px
   custom_fields:
-    durata:
+    tl: |
+      [[[ return `<span class="hf-cap" style="font-weight:600">${ {{ t.theme | q }} }</span>`; ]]]
+    ml: |
+      [[[ return `<span class="hf-cap" style="font-weight:600">${ {{ t.mode | q }} }</span>`; ]]]
+{%- for code in themes %}
+    th_{{ code }}:
       card:
-        type: custom:numberbox-card
-        entity: "[[[ return variables.durata ]]]"
-        border: false
-        unit: time
-        name: false
-        icon: false
-        speed: 200
-        icon_plus: mdi:plus
-        icon_minus: mdi:minus
-        min: 0
-        max: 300
-        step: 1
-        delay: 500
-
-iu_tab_button:
-  variables:
-    label: "Tab"
-    icon: "mdi:tab"
-    option: ""
-  show_name: true
-  show_icon: true
-  color_type: icon
-  icon: "[[[ return variables.icon ]]]"
-  name: "[[[ return variables.label ]]]"
-  tap_action:
-    action: call-service
-    service: select.select_option
-    service_data:
-      entity_id: "[[[ return entity.entity_id ]]]"
-      option: "[[[ return variables.option ]]]"
-  state:
-    - value: "[[[ return variables.option ]]]"
-      styles:
-        card:
-          - border: "2px solid var(--state-active-color)"
-        icon:
-          - color: "var(--state-active-color)"
-  styles:
-    card:
-      - padding: 8px
-      - border: "2px solid transparent"
-    grid:
-      - grid-template-areas: '"i n"'
-      - grid-template-columns: 30% 70%
-      - grid-template-rows: auto
-    icon:
-      - width: 24px
-      - color: "grey"
-    name:
-      - font-weight: bold
-      - font-size: 13px
-      - justify-self: start
+        type: custom:button-card
+        template: hf_seg
+        entity: {{ theme_entity }}
+        variables:
+          option: {{ code }}
+          label: {{ t.theme_names[code] | q }}
+{%- endfor %}
+{%- for code in modes %}
+    md_{{ code }}:
+      card:
+        type: custom:button-card
+        template: hf_seg
+        entity: {{ mode_entity }}
+        variables:
+          option: {{ code }}
+          label: {{ t.mode_names[code] | q }}
+{%- endfor %}
+    note: |
+      [[[
+        const th = states[{{ theme_entity | q }}]?.state;
+        return `<span class="hf-cap">${th === 'system' ? {{ t.theme_system_note | q }} : {{ t.theme_note | q }}}</span>`;
+      ]]]

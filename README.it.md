@@ -40,19 +40,21 @@ HydroFlow Garden è quello strato mancante, realizzato come integrazione nativa.
   notify, app mobile o notifiche persistenti. Ogni valvola e ogni corsa finiscono anche in un log
   testuale con rotazione.
 - **Dashboard generata.** Una dashboard pronta, riscritta in automatico a ogni modifica della
-  configurazione.
+  configurazione: quattro viste per impianto (*Oggi*, *Programmi*, *Zone*, *Impostazioni*), con tre temi
+  colore (*Salvia*, *Laguna*, *Terracotta*) o il tema di Home Assistant, in chiaro, scuro o come Home
+  Assistant.
 
 ## Requisiti
 
 | Obbligatorio | A cosa serve |
 |---|---|
 | [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited) | Comanda le valvole. La sua configurazione deve essere inclusa da file: `irrigation_unlimited: !include irrigation_unlimited.yaml`. **Quel file lo scrive e lo sovrascrive HydroFlow Garden.** |
-| [button-card](https://github.com/custom-cards/button-card), [auto-entities](https://github.com/thomasloven/lovelace-auto-entities) | Dashboard generata |
+| [button-card](https://github.com/custom-cards/button-card) | Dashboard generata (tutte le card sono button-card) |
 
 | Facoltativo | A cosa serve |
 |---|---|
 | [Smart Irrigation](https://github.com/jeroenterheerdt/HAsmartirrigation) | Durate per zona calcolate dal meteo |
-| [apexcharts-card](https://github.com/RomRider/apexcharts-card) | Grafico *Timeline* in dashboard. Senza, il grafico e la sua tab non vengono mostrati. |
+| [apexcharts-card](https://github.com/RomRider/apexcharts-card) | Grafico storico nella vista *Zone*. Senza, il grafico non viene mostrato. |
 | Un'entità `weather` con previsioni giornaliere | Skip pioggia giornaliero e sensori di previsione |
 
 ## Installazione
@@ -151,6 +153,7 @@ Ogni valore è un'entità con id stabile: `iu_<controller>_…`.
 | `sensor.iu_<nome controller>_z<Z>_<zona>_programmato` / `_oggi` / `_ieri` / `_2gg_fa` | Prossima durata prevista con i dettagli di Smart Irrigation; tempo irrigato oggi, ieri e 2 giorni fa |
 | `sensor.precipitazioni_oggi`, `sensor.probabilita_pioggia_oggi`, `binary_sensor.iu_sta_piovendo` | Previsione e pioggia in corso |
 | `button.iu_<c>_test`, `button.iu_regenerate_dashboard`, `button.iu_write_config` | Test, manutenzione |
+| `select.iu_dashboard_theme`, `select.iu_dashboard_mode` | Colori della dashboard: `system`, `salvia`, `laguna`, `terracotta`; `auto`, `light`, `dark` |
 
 ## Lingue
 

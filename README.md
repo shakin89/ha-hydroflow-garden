@@ -39,19 +39,21 @@ HydroFlow Garden is that missing layer, built as a native integration.
   entities, mobile apps or persistent notifications. Every valve and run is also written to a plain text
   log with rotation.
 - **Generated dashboard.** A ready-made storage dashboard, rewritten automatically whenever the
-  configuration changes.
+  configuration changes: four views per controller (*Today*, *Programs*, *Zones*, *Settings*), with
+  three colour themes (*Salvia*, *Laguna*, *Terracotta*) or the Home Assistant theme, each light, dark
+  or following Home Assistant.
 
 ## Requirements
 
 | Required | What for |
 |---|---|
 | [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited) | Runs the valves. Its configuration must be included from a file: `irrigation_unlimited: !include irrigation_unlimited.yaml`. **HydroFlow Garden owns and overwrites that file.** |
-| [button-card](https://github.com/custom-cards/button-card), [auto-entities](https://github.com/thomasloven/lovelace-auto-entities) | Generated dashboard |
+| [button-card](https://github.com/custom-cards/button-card) | Generated dashboard (every card is a button-card) |
 
 | Optional | What for |
 |---|---|
 | [Smart Irrigation](https://github.com/jeroenterheerdt/HAsmartirrigation) | Weather-based durations per zone |
-| [apexcharts-card](https://github.com/RomRider/apexcharts-card) | *Timeline* chart in the dashboard. Without it the chart and its tab are left out. |
+| [apexcharts-card](https://github.com/RomRider/apexcharts-card) | History chart in the *Zones* view. Without it the chart is left out. |
 | A `weather` entity with daily forecasts | Daily rain skip and the forecast sensors |
 
 ## Installation
@@ -150,6 +152,7 @@ Each value is an entity with a stable id: `iu_<controller>_…`.
 | `sensor.iu_<controller name>_z<Z>_<zone>_programmato` / `_oggi` / `_ieri` / `_2gg_fa` | Next planned duration with Smart Irrigation details; watering time today, yesterday and 2 days ago |
 | `sensor.precipitazioni_oggi`, `sensor.probabilita_pioggia_oggi`, `binary_sensor.iu_sta_piovendo` | Forecast and rain now |
 | `button.iu_<c>_test`, `button.iu_regenerate_dashboard`, `button.iu_write_config` | Test run, maintenance |
+| `select.iu_dashboard_theme`, `select.iu_dashboard_mode` | Dashboard colours: `system`, `salvia`, `laguna`, `terracotta`; `auto`, `light`, `dark` |
 
 ## Languages
 

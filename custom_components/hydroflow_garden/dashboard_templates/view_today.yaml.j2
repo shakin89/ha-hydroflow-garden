@@ -1,0 +1,187 @@
+{# "Today" view of one controller: state, next start, today's runs, zones.
+Rendered by hydroflow_garden/dashboard.py; the output is the view's sections. #}
+{%- import '_macros.j2' as m with context %}
+{%- set c = ctrl.id %}
+{%- set si_zones = ctrl.zones_v | selectattr('si') | list %}
+{{ m.nav(ctrl, 'today') }}
+
+- type: grid
+  column_span: 2
+  cards:
+    - type: custom:button-card
+      template: hf_hero
+      entity: {{ ctrl.cm }}
+      triggers_update:
+        - {{ theme_entity }}
+        - {{ mode_entity }}
+{%- if ctrl.availability_entity %}
+        - {{ ctrl.availability_entity }}
+        - switch.iu_{{ c }}_preflight
+        - number.iu_{{ c }}_preflight_timeout_minutes
+{%- endif %}
+        - sensor.iu_{{ c }}_suspend_reason
+{%- if ctrl.fill_switches %}
+        - number.iu_{{ c }}_fill_lead_minutes
+        - number.iu_{{ c }}_fill_duration_minutes
+{%- endif %}
+{%- for z in ctrl.zones_v %}
+        - {{ z.iu }}
+{%- endfor %}
+      variables:
+        name: {{ ctrl.name | q }}
+        availability_entity: {{ ctrl.availability_entity | q }}
+        reason_entity: sensor.iu_{{ c }}_suspend_reason
+        sequence_base: {{ ctrl.seq_base }}
+{%- if ctrl.fill_switches %}
+        fill_lead_entity: number.iu_{{ c }}_fill_lead_minutes
+        fill_duration_entity: number.iu_{{ c }}_fill_duration_minutes
+{%- endif %}
+{%- if ctrl.availability_entity %}
+        preflight_entity: switch.iu_{{ c }}_preflight
+        preflight_timeout_entity: number.iu_{{ c }}_preflight_timeout_minutes
+{%- endif %}
+{%- if si_zones %}
+        si_lead_entity: {{ si_lead_entity }}
+{%- endif %}
+        zones: {{ ctrl.zones_v | map(attribute='ref') | list | tojson }}
+      grid_options:
+        columns: full
+
+- type: grid
+  column_span: 1
+  cards:
+    - type: custom:button-card
+      template: hf_kpi
+      triggers_update: {{ ([theme_entity, mode_entity] + ctrl.zones_v | map(attribute='today') | list) | tojson }}
+      variables:
+        label: {{ t.watered_today | q }}
+        icon: mdi:water-check-outline
+        tone: water
+        unit: min
+        value: |
+          [[[ return Math.round({{ ctrl.zones_v | map(attribute='today') | list | tojson }}
+                .reduce((s, e) => s + (Number(states[e]?.state) || 0), 0) * 60); ]]]
+      grid_options:
+        columns: 6
+    - type: custom:button-card
+      template: hf_kpi
+      triggers_update: {{ ([theme_entity, mode_entity] + ctrl.zones_v | map(attribute='planned') | list) | tojson }}
+      variables:
+        label: {{ t.next_cycle | q }}
+        icon: mdi:timer-outline
+        tone: primary
+        unit: min
+        value: |
+          [[[
+            const zones = {{ ctrl.zones_v | map(attribute='ref') | list | tojson }};
+            const secs = zones.reduce((s, z) => {
+              const p = states[z.planned];
+              const pn = p?.attributes?.next_prog || 'p1';
+              const on = states[`switch.iu_{{ c }}_${pn}_enabled`]?.state === 'on'
+                && states[`switch.iu_{{ c }}_${pn}_z${z.id}_enabled`]?.state === 'on';
+              return s + (on ? Number(p?.state) || 0 : 0);
+            }, 0);
+            return Math.round(secs / 60);
+          ]]]
+      grid_options:
+        columns: 6
+{%- if si_zones %}
+    - type: custom:button-card
+      template: hf_kpi
+      triggers_update: {{ ([theme_entity, mode_entity] + si_zones | map(attribute='si') | list) | tojson }}
+      variables:
+        label: {{ t.bucket_avg | q }}
+        icon: mdi:leaf
+        tone: eco
+        unit: mm
+        value: |
+          [[[
+            const v = {{ si_zones | map(attribute='si') | list | tojson }}
+              .map(e => Number(states[e]?.attributes?.bucket)).filter(x => !isNaN(x));
+            if (!v.length) return '—';
+            const m = v.reduce((a, b) => a + b, 0) / v.length;
+            return (m > 0 ? '+' : '') + m.toFixed(1);
+          ]]]
+      grid_options:
+        columns: 6
+{%- else %}
+    - type: custom:button-card
+      template: hf_kpi
+      triggers_update: {{ ([theme_entity, mode_entity] + ctrl.program_switches) | tojson }}
+      variables:
+        label: {{ t.zones_active | q }}
+        icon: mdi:sprinkler-variant
+        tone: eco
+        unit: "/ {{ ctrl.zones | length }}"
+        value: |
+          [[[
+            const progs = {{ ctrl.programs | map(attribute='id') | list | tojson }};
+            const zones = {{ ctrl.zones | map(attribute='id') | list | tojson }};
+            return zones.filter(z => progs.some(p => states[`switch.iu_{{ c }}_p${p}_enabled`]?.state === 'on'
+              && states[`switch.iu_{{ c }}_p${p}_z${z}_enabled`]?.state === 'on')).length;
+          ]]]
+      grid_options:
+        columns: 6
+{%- endif %}
+    - type: custom:button-card
+      template: hf_kpi
+      entity: binary_sensor.iu_sta_piovendo
+      variables:
+        label: |
+          [[[
+            const p = states['sensor.probabilita_pioggia_oggi'];
+            const base = {{ t.rain_sensor | q }};
+            return p && !isNaN(Number(p.state)) ? `${base} · ${ {{ t.forecast | q }} } ${Math.round(Number(p.state))}%` : base;
+          ]]]
+        icon: mdi:weather-rainy
+        tone: |
+          [[[ return entity?.state === 'on' ? 'water' : 'neutral'; ]]]
+        unit: ""
+        value: |
+          [[[
+            if (!entity || entity.state === 'unavailable' || entity.state === 'unknown') return {{ t.not_available | q }};
+            return entity.state === 'on' ? {{ t.raining | q }} : {{ t.dry | q }};
+          ]]]
+      grid_options:
+        columns: 6
+
+- type: grid
+  column_span: 3
+  cards:
+    - type: custom:button-card
+      template: hf_timeline
+      triggers_update: {{ ([theme_entity, mode_entity] + ctrl.zones_v | map(attribute='iu') | list) | tojson }}
+      variables:
+        title: {{ t.today_programme | q }}
+        icon: mdi:chart-timeline-variant
+        tone: water
+        zones: {{ ctrl.zones_v | map(attribute='ref') | list | tojson }}
+{%- if ctrl.fill_switches %}
+        fill_lead_entity: number.iu_{{ c }}_fill_lead_minutes
+        fill_duration_entity: number.iu_{{ c }}_fill_duration_minutes
+{%- endif %}
+{%- if ctrl.availability_entity %}
+        preflight_entity: switch.iu_{{ c }}_preflight
+        preflight_timeout_entity: number.iu_{{ c }}_preflight_timeout_minutes
+{%- endif %}
+      grid_options:
+        columns: full
+
+- type: grid
+  column_span: 3
+  cards:
+    {{ m.heading(t.zones_heading) | indent(4) }}
+{%- for z in ctrl.zones_v %}
+    - type: custom:button-card
+      template: hf_zone_card
+      entity: {{ z.iu }}
+      triggers_update: {{ ([theme_entity, mode_entity] + z.watch) | tojson }}
+      variables:
+        name: {{ z.label | q }}
+        planned_entity: {{ z.planned }}
+        si_entity: {{ z.si | q }}
+        usage: {{ z.usage | tojson }}
+        programs: {{ z.programs | tojson }}
+      grid_options:
+        columns: 4
+{%- endfor %}

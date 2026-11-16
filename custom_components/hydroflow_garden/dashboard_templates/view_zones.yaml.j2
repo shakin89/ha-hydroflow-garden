@@ -1,0 +1,82 @@
+{# "Zones" view of one controller: history chart (apexcharts-card, optional)
+and one detail card per zone. #}
+{%- import '_macros.j2' as m with context %}
+{%- set c = ctrl.id %}
+{{ m.nav(ctrl, 'zones') }}
+{%- if has_apexcharts %}
+
+- type: grid
+  column_span: 3
+  cards:
+    - type: custom:button-card
+      template: hf_embed
+      variables:
+        title: {{ t.timeline_title | q }}
+        sub: {{ t.timeline_sub | q }}
+        icon: mdi:chart-bar
+        tone: primary
+      custom_fields:
+        body:
+          card:
+            type: custom:apexcharts-card
+            header:
+              show: false
+            graph_span: 10d
+            span:
+              start: day
+              offset: '-7day'
+            all_series_config:
+              type: column
+              group_by:
+                duration: 1d
+                func: sum
+                fill: 'null'
+              show:
+                as_duration: minute
+            now:
+              show: true
+              label: {{ t.today | q }}
+            series:
+{%- for z in ctrl.zones_v %}
+              - entity: {{ z.iu }}
+                name: {{ z.name | q }}
+                data_generator: |
+                  return (entity.attributes.timeline || []).map((item) => {
+                    const sd = new Date(item.start);
+                    const ed = new Date(item.end);
+                    return [sd, (ed - sd) / 60000];
+                  });
+{%- endfor %}
+            yaxis:
+              - decimals: 0
+                apex_config:
+                  title:
+                    text: {{ t.minutes | q }}
+            apex_config:
+              chart:
+                background: transparent
+              tooltip:
+                enabled: true
+                x:
+                  format: dd MMM
+      grid_options:
+        columns: full
+{%- endif %}
+
+- type: grid
+  column_span: 3
+  cards:
+{%- for z in ctrl.zones_v %}
+    - type: custom:button-card
+      template: hf_zone_detail
+      entity: {{ z.iu }}
+      triggers_update: {{ ([theme_entity, mode_entity] + z.watch) | tojson }}
+      variables:
+        name: {{ z.label | q }}
+        planned_entity: {{ z.planned }}
+        si_entity: {{ z.si | q }}
+        usage: {{ z.usage | tojson }}
+        programs: {{ z.programs | tojson }}
+      grid_options:
+        columns: 6
+{%- endfor %}

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import copy
+import re
 from datetime import timedelta
 from pathlib import Path
 
@@ -170,11 +171,52 @@ async def test_dashboard_render() -> None:
 
     ctrls = [Controller.from_dict(c) for c in TOPOLOGY["controllers"]]
     cfg = render_dashboard(ctrls, "Irrigazione", _texts("en"))
-    assert [v["path"] for v in cfg["views"]] == ["irrigazione-alpha", "irrigazione-beta"]
-    assert "iu_zone_row" in cfg["button_card_templates"]
+    assert [v["path"] for v in cfg["views"]] == [
+        f"irrigazione-{c}{s}" for c in ("alpha", "beta") for s in ("", "-programmi", "-zone", "-impostazioni")]
+    for name in ("hf_base", "hf_hero", "hf_zone_days", "hf_stepper", "hf_appearance"):
+        assert name in cfg["button_card_templates"]
     text = yaml.safe_dump(cfg)
     assert "input_boolean" not in text and "input_number" not in text
     assert "switch.iu_alpha_p1_z1_mon" in text
+    # button-card (+ optional apexcharts) only
+    cards = set(re.findall(r"custom:[a-z-]+", text))
+    assert cards == {"custom:button-card", "custom:apexcharts-card"}
+    # the navigation of each view points at the dashboard URL
+    assert "/hydroflow-garden/irrigazione-alpha-zone" in text
+    # no fill / preflight cards for a controller without them
+    beta = yaml.safe_dump([v for v in cfg["views"] if v["path"].startswith("irrigazione-beta")])
+    assert "fill_lead" not in beta and "preflight" not in beta
+
+
+async def test_dashboard_background_follows_appearance() -> None:
+    from custom_components.hydroflow_garden.dashboard import render_dashboard
+    from custom_components.hydroflow_garden.model import Controller
+    from custom_components.hydroflow_garden.palettes import PALETTES
+
+    ctrls = [Controller.from_dict(c) for c in TOPOLOGY["controllers"]]
+    forced = render_dashboard(ctrls, "T", _texts("en"), theme="laguna", mode="dark")
+    assert {v["background"] for v in forced["views"]} == {PALETTES["laguna"]["dark"]["bg"]}
+    for theme, mode in (("system", "dark"), ("laguna", "auto"), (None, None)):
+        cfg = render_dashboard(ctrls, "T", _texts("en"), theme=theme, mode=mode)
+        assert all("background" not in v for v in cfg["views"]), (theme, mode)
+
+
+async def test_appearance_selects(hass: HomeAssistant) -> None:
+    from unittest.mock import AsyncMock, patch
+
+    await _setup(hass)
+    theme = hass.states.get("select.iu_dashboard_theme")
+    mode = hass.states.get("select.iu_dashboard_mode")
+    assert theme.state == "system" and theme.attributes["options"] == ["system", "salvia", "laguna", "terracotta"]
+    assert mode.state == "auto" and mode.attributes["options"] == ["auto", "light", "dark"]
+    with patch("custom_components.hydroflow_garden.dashboard.async_generate_dashboard",
+               new=AsyncMock(return_value=True)) as gen:
+        await hass.services.async_call("select", "select_option", {
+            "entity_id": "select.iu_dashboard_mode", "option": "dark"}, blocking=True)
+        await hass.async_block_till_done()
+    assert hass.states.get("select.iu_dashboard_mode").state == "dark"
+    gen.assert_awaited_once()
+    assert gen.await_args.kwargs == {"force": False}
 
 
 async def test_preflight_suspends_when_device_stays_offline(hass: HomeAssistant) -> None:
@@ -251,6 +293,6 @@ async def test_dashboard_render_without_apexcharts() -> None:
     ctrls = [Controller.from_dict(c) for c in TOPOLOGY["controllers"]]
     with_chart = yaml.safe_dump(render_dashboard(ctrls, "Irrigazione", _texts("en"), True))
     without = yaml.safe_dump(render_dashboard(ctrls, "Irrigazione", _texts("en"), False))
-    assert "apexcharts-card" in with_chart and "Timeline" in with_chart
-    assert "apexcharts-card" not in without and "Timeline" not in without
+    assert "custom:apexcharts-card" in with_chart and "History, last days" in with_chart
+    assert "custom:apexcharts-card" not in without and "History, last days" not in without
 

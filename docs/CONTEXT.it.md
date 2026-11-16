@@ -118,7 +118,29 @@ pannello. Per questo non compare in Impostazioni → Plance. Se esiste già una
 dashboard storage con lo stesso URL, viene sovrascritta sul posto. Una nuova
 generazione viene salvata solo quando cambia il suo digest, oppure su
 richiesta.
-La scheda Timeline richiede apexcharts-card: viene generata solo quando quella
-risorsa è registrata (o quando le risorse non si possono leggere), quindi
-installa la card e premi *Rigenera dashboard* per ottenerla. Le modifiche
-manuali durano fino al successivo cambio di configurazione.
+Il grafico storico della vista Zone richiede apexcharts-card: viene generato
+solo quando quella risorsa è registrata (o quando le risorse non si possono
+leggere), quindi installa la card e premi *Rigenera dashboard* per ottenerlo.
+Le modifiche manuali durano fino al successivo cambio di configurazione.
+
+Tutte le card sono button-card; le card native compaiono solo annidate dentro
+una di esse (il grafico apexcharts). Anche stepper, interruttori e selettori
+segmentati sono button-card, quindi numberbox-card e auto-entities non servono
+più. Ogni impianto ha quattro viste: la prima mantiene il vecchio percorso
+`irrigazione-<id>`, le altre aggiungono `-programmi`, `-zone`, `-impostazioni`.
+
+### Temi
+
+I colori stanno in `palettes.py`: gli stessi nomi di token per ogni tema e
+modalità. `hf_base` legge dal vivo `select.iu_dashboard_theme` e
+`select.iu_dashboard_mode` e pubblica la palette come proprietà CSS `--hf-*`
+sulla card; le card annidate le ereditano dal DOM. `system` collega i token
+alle variabili del tema di Home Assistant, quindi con questo tema la modalità
+non ha effetto. Lo sfondo della pagina non si può colorare da una card: le
+viste ricevono un `background` statico solo con un tema HydroFlow e una
+modalità fissa, e un cambio di uno dei due select rigenera la dashboard.
+
+I template scritti direttamente nella configurazione di una card annidata
+vengono valutati dalla card che la contiene (button-card fa così salvo
+`do_not_eval`): le loro entità devono stare nel `triggers_update` della card
+esterna, altrimenti non si aggiornano.

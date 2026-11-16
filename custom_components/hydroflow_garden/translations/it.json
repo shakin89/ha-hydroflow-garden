@@ -290,6 +290,23 @@
       }
     },
     "select": {
+      "dashboard_theme": {
+        "name": "Tema dashboard",
+        "state": {
+          "system": "Sistema",
+          "salvia": "Salvia",
+          "laguna": "Laguna",
+          "terracotta": "Terracotta"
+        }
+      },
+      "dashboard_mode": {
+        "name": "Modalità dashboard",
+        "state": {
+          "auto": "Automatica",
+          "light": "Chiaro",
+          "dark": "Scuro"
+        }
+      },
       "status_tab": {
         "name": "Tab stato",
         "state": {

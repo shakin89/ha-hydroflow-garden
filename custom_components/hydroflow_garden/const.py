@@ -82,6 +82,10 @@ HUB_DEFAULTS: dict = {
 SI_ADJUST_LEAD_KEY = "iu_si_adjust_lead_minutes"
 SI_ADJUST_LEAD_DEFAULT = 5
 
+# Dashboard appearance (hub device): codes in palettes.THEMES / palettes.MODES
+DASHBOARD_THEME_KEY = "iu_dashboard_theme"
+DASHBOARD_MODE_KEY = "iu_dashboard_mode"
+
 # IU events / services
 IU_DOMAIN = "irrigation_unlimited"
 EVENT_IU_START = "irrigation_unlimited_start"
