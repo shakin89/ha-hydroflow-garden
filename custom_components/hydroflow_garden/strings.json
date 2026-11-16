@@ -97,7 +97,6 @@
   },
   "config_subentries": {
     "controller": {
-      "title": "Controller",
       "initiate_flow": {
         "user": "Add controller"
       },

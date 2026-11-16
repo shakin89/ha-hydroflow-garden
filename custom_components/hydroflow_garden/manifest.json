@@ -8,6 +8,9 @@
     "smart_irrigation",
     "weather"
   ],
+  "categories": [
+    "garden_plants"
+  ],
   "codeowners": [
     "@shakin89"
   ],
@@ -18,5 +21,5 @@
   "issue_tracker": "https://github.com/shakin89/ha-hydroflow-garden/issues",
   "requirements": [],
   "single_config_entry": true,
-  "version": "0.2.2"
+  "version": "0.2.3"
 }

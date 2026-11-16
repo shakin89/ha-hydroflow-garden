@@ -260,7 +260,6 @@ def build(lang: str) -> dict:
         "options": {"step": {"init": {"title": TITLE, "description": hub_desc,
                                       "data": hub_d, "data_description": hub_h}}},
         "config_subentries": {"controller": {
-            "title": "Controller",
             "initiate_flow": {"user": "Aggiungi controller" if it else "Add controller"},
             "entry_type": "Controller",
             "step": {
