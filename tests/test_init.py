@@ -173,6 +173,8 @@ async def test_dashboard_render() -> None:
     cfg = render_dashboard(ctrls, "Irrigazione", _texts("en"))
     assert [v["path"] for v in cfg["views"]] == [
         f"irrigazione-{c}{s}" for c in ("alpha", "beta") for s in ("", "-programmi", "-zone", "-impostazioni")]
+    # only the Today view of each controller is in the tab bar
+    assert [v["path"] for v in cfg["views"] if v.get("visible", True)] == ["irrigazione-alpha", "irrigazione-beta"]
     for name in ("hf_base", "hf_hero", "hf_zone_days", "hf_stepper", "hf_appearance"):
         assert name in cfg["button_card_templates"]
     text = yaml.safe_dump(cfg)

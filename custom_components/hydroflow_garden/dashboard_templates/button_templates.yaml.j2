@@ -96,6 +96,23 @@ hf_part:
   extra_styles: |
     {{ base_css | indent(4) }}
 
+# Responsive grid of nested cards, one per custom field: at most four per
+# row, fewer when a column would get narrower than variables.min.
+hf_tiles:
+  template: hf_part
+  variables:
+    min: 240px
+  tap_action:
+    action: none
+  styles:
+    card:
+      - --hf-tiles-min: "[[[ return variables.min ]]]"
+      - cursor: default
+  extra_styles: |
+    #container { display: grid !important; grid-template-areas: none !important; gap: 8px !important;
+                 grid-template-columns: repeat(auto-fill, minmax(min(100%, max(var(--hf-tiles-min), calc((100% - 24px) / 4))), 1fr)) !important; }
+    #container > * { grid-area: auto !important; overflow: visible !important; }
+
 # Section heading: a transparent hf_base, so it follows the theme colours.
 hf_heading:
   template: hf_base
@@ -729,11 +746,24 @@ hf_timeline:
         let first = null;
         for (const z of variables.zones || []) {
           const items = (states[z.entity]?.attributes?.timeline || [])
-            .map(i => ({s: new Date(i.start), e: new Date(i.end), st: i.status}))
-            .filter(i => i.e > d0 && i.s < d1);
-          if (items.length) rows.push({name: z.name, items});
-          for (const i of items) if (i.st !== 'history' && i.s > now && (!first || i.s < first)) first = i.s;
+            .map(i => ({s: new Date(i.start), e: new Date(i.end), st: i.status}));
+          rows.push({name: z.name, items});
         }
+        // Today, widened to whole cycles: a run within an hour of either
+        // edge pulls it out, so a cycle across midnight stays in one piece.
+        const all = rows.flatMap(r => r.items);
+        let a = +d0, b = +d1, grown = true;
+        while (grown) {
+          grown = false;
+          for (const i of all) {
+            if (+i.s < b + 3600000 && +i.e > b) { b = +i.e; grown = true; }
+            if (+i.e > a - 3600000 && +i.s < a) { a = +i.s; grown = true; }
+          }
+        }
+        for (const r of rows) r.items = r.items.filter(i => +i.e > a && +i.s < b);
+        rows.splice(0, rows.length, ...rows.filter(r => r.items.length));
+        for (const i of rows.flatMap(r => r.items))
+          if (i.st !== 'history' && i.s > now && (!first || i.s < first)) first = i.s;
         const lead = num(variables.fill_lead_entity), dur = num(variables.fill_duration_entity);
         if (first && !isNaN(lead) && lead > 0) {
           const s = new Date(first - lead * 60000);
@@ -747,9 +777,10 @@ hf_timeline:
         if (!rows.length) return `<div class="hf-sub" style="padding:8px 0">${ {{ t.nothing_today | q }} }</div>`;
         let lo = Math.min(...rows.flatMap(r => r.items.map(i => +i.s)), +now);
         let hi = Math.max(...rows.flatMap(r => r.items.map(i => +i.e)), +now);
-        lo = Math.max(+d0, Math.floor((lo - 1800000) / 3600000) * 3600000);
-        hi = Math.min(+d1, Math.ceil((hi + 1800000) / 3600000) * 3600000);
-        if (hi - lo < 4 * 3600000) hi = Math.min(+d1, lo + 4 * 3600000);
+        const H = 3600000, a0 = Math.floor(a / H) * H, b0 = Math.ceil(b / H) * H;
+        lo = Math.max(a0, Math.floor((lo - H / 2) / H) * H);
+        hi = Math.min(b0, Math.ceil((hi + H / 2) / H) * H);
+        if (hi - lo < 4 * H) hi = Math.min(b0, lo + 4 * H);
         const span = hi - lo;
         const x = (t) => Math.max(0, Math.min(100, (t - lo) / span * 100));
         const col = {history: 'var(--hf-primary)', running: 'var(--hf-water)', fill: 'var(--hf-water-soft)', pre: 'var(--hf-warn)'};

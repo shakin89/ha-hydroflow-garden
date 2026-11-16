@@ -233,6 +233,9 @@ def render_dashboard(
             }
             if key == "today":
                 view["icon"] = "mdi:sprinkler-variant"
+            else:
+                # Reached through the in-page header, kept out of the tab bar.
+                view["visible"] = False
             if background:
                 view["background"] = background
             views.append(view)

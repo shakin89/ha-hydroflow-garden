@@ -66,17 +66,24 @@ and one detail card per zone. #}
 - type: grid
   column_span: 3
   cards:
-{%- for z in ctrl.zones_v %}
     - type: custom:button-card
-      template: hf_zone_detail
-      entity: {{ z.iu }}
-      triggers_update: {{ ([theme_entity, mode_entity] + z.watch) | tojson }}
+      template: hf_tiles
       variables:
-        name: {{ z.label | q }}
-        planned_entity: {{ z.planned }}
-        si_entity: {{ z.si | q }}
-        usage: {{ z.usage | tojson }}
-        programs: {{ z.programs | tojson }}
-      grid_options:
-        columns: 6
+        min: 320px
+      custom_fields:
+{%- for z in ctrl.zones_v %}
+        z{{ z.id }}:
+          card:
+            type: custom:button-card
+            template: hf_zone_detail
+            entity: {{ z.iu }}
+            triggers_update: {{ ([theme_entity, mode_entity] + z.watch) | tojson }}
+            variables:
+              name: {{ z.label | q }}
+              planned_entity: {{ z.planned }}
+              si_entity: {{ z.si | q }}
+              usage: {{ z.usage | tojson }}
+              programs: {{ z.programs | tojson }}
 {%- endfor %}
+      grid_options:
+        columns: full

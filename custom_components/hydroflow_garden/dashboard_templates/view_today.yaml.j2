@@ -171,17 +171,22 @@ Rendered by hydroflow_garden/dashboard.py; the output is the view's sections. #}
   column_span: 3
   cards:
     {{ m.heading(t.zones_heading) | indent(4) }}
-{%- for z in ctrl.zones_v %}
     - type: custom:button-card
-      template: hf_zone_card
-      entity: {{ z.iu }}
-      triggers_update: {{ ([theme_entity, mode_entity] + z.watch) | tojson }}
-      variables:
-        name: {{ z.label | q }}
-        planned_entity: {{ z.planned }}
-        si_entity: {{ z.si | q }}
-        usage: {{ z.usage | tojson }}
-        programs: {{ z.programs | tojson }}
-      grid_options:
-        columns: 4
+      template: hf_tiles
+      custom_fields:
+{%- for z in ctrl.zones_v %}
+        z{{ z.id }}:
+          card:
+            type: custom:button-card
+            template: hf_zone_card
+            entity: {{ z.iu }}
+            triggers_update: {{ ([theme_entity, mode_entity] + z.watch) | tojson }}
+            variables:
+              name: {{ z.label | q }}
+              planned_entity: {{ z.planned }}
+              si_entity: {{ z.si | q }}
+              usage: {{ z.usage | tojson }}
+              programs: {{ z.programs | tojson }}
 {%- endfor %}
+      grid_options:
+        columns: full
