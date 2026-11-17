@@ -303,6 +303,33 @@ hf_toggle:
             <i style="width:22px;height:22px;border-radius:11px;background:${on ? 'var(--hf-on-primary)' : 'var(--hf-text2)'}"></i></span></div>`;
       ]]]
 
+# Settings row that opens another page (icon, label, hint, chevron).
+hf_link_row:
+  template: hf_part
+  variables:
+    label: ""
+    hint: ""
+    icon: ""
+    path: ""
+  tap_action:
+    action: navigate
+    navigation_path: "[[[ return variables.path ]]]"
+  styles:
+    card:
+      - min-height: 52px
+      - padding: 4px 0
+    grid:
+      - grid-template-areas: '"t"'
+  custom_fields:
+    t: |
+      [[[
+        const icon = variables.icon ? `<ha-icon icon="${variables.icon}" style="--mdc-icon-size:20px;color:var(--hf-text2)"></ha-icon>` : '';
+        const hint = variables.hint ? `<span class="hf-cap" style="overflow-wrap:anywhere">${variables.hint}</span>` : '';
+        return `<div class="hf-row">${icon}
+          <div class="hf-col" style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500;text-align:left">${variables.label}</span>${hint}</div>
+          <ha-icon icon="mdi:chevron-right" style="--mdc-icon-size:20px;color:var(--hf-text2);flex-shrink:0"></ha-icon></div>`;
+      ]]]
+
 # − / + of a number. dir: -1 | 1; step: 0 = the entity's own step. Hold repeats.
 hf_step_btn:
   template: hf_part

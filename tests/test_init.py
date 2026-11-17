@@ -451,3 +451,17 @@ def test_format_line_with_and_without_duration() -> None:
     assert line.endswith("[valve_on] ctrl=Garden zone=Z1 Lawn entity=switch.v1 duration=600s")
     marker = format_line("HA RESTART", "Garden", zone="none", duration=None)
     assert marker.endswith("[HA RESTART] ctrl=Garden zone=none")
+
+
+async def test_dashboard_lists_notify_targets() -> None:
+    """The settings view shows where notifications go and links to the options (#2)."""
+    from custom_components.hydroflow_garden.dashboard import render_dashboard
+    from custom_components.hydroflow_garden.model import Controller
+
+    ctrls = [Controller.from_dict(TOPOLOGY["controllers"][0])]
+    texts = _texts("en")
+    with_targets = yaml.safe_dump(render_dashboard(
+        ctrls, "T", texts, notify_targets=["notify.phone", "notify.mobile_app_x"]))
+    assert "notify.phone, notify.mobile_app_x" in with_targets
+    assert "/config/integrations/integration/hydroflow_garden" in with_targets
+    assert texts["notify_targets_none"] in yaml.safe_dump(render_dashboard(ctrls, "T", texts))

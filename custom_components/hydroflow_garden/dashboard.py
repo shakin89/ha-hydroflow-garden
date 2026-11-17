@@ -38,6 +38,9 @@ from homeassistant.helpers.storage import Store
 
 from .const import (
     CONF_DASHBOARD_URL,
+    CONF_NOTIFY_ENTITIES,
+    CONF_NOTIFY_PERSISTENT,
+    CONF_NOTIFY_SERVICES,
     DASHBOARD_MODE_KEY,
     DASHBOARD_THEME_KEY,
     DOMAIN,
@@ -212,13 +215,17 @@ def _env(texts: dict[str, Any]) -> jinja2.Environment:
 def render_dashboard(
     controllers: list[Controller], title: str, texts: dict[str, Any], has_apexcharts: bool = True,
     url: str = "hydroflow-garden", theme: str | None = None, mode: str | None = None,
+    notify_targets: list[str] | None = None,
 ) -> dict:
     """Full Lovelace config (pure, blocking: run in an executor).
 
     ``theme`` / ``mode``: current values of the appearance selects, only used
-    for the page colour (the cards read the selects live)."""
+    for the page colour (the cards read the selects live). ``notify_targets``:
+    where notifications go, shown in the settings (options change -> reload ->
+    new render)."""
     env = _env(texts)
-    env.globals.update(has_apexcharts=has_apexcharts, url=url)
+    env.globals.update(has_apexcharts=has_apexcharts, url=url, domain=DOMAIN,
+                       notify_targets=list(notify_targets or []))
     background = view_background(theme, mode)
     many = len(controllers) > 1
     views = []
@@ -246,6 +253,14 @@ def render_dashboard(
             views.append(view)
     templates = yaml.safe_load(env.get_template("button_templates.yaml.j2").render())
     return {"title": title, "button_card_templates": templates, "views": views}
+
+
+def _notify_targets(rt) -> list[str]:
+    """Notification targets of the hub options, as the settings view lists them."""
+    out = [*rt.options.get(CONF_NOTIFY_ENTITIES, []), *rt.options.get(CONF_NOTIFY_SERVICES, [])]
+    if rt.options.get(CONF_NOTIFY_PERSISTENT):
+        out.append(rt.texts("dashboard.notify_persistent"))
+    return out
 
 
 def _lovelace(hass: HomeAssistant):
@@ -334,7 +349,8 @@ async def async_generate_dashboard(rt, force: bool = True) -> bool:
     has_apex = urls is None or any(APEXCHARTS in u for u in urls)
     config = await hass.async_add_executor_job(
         render_dashboard, rt.controller_list, rt.dashboard_title, rt.texts.data["dashboard"], has_apex,
-        rt.options[CONF_DASHBOARD_URL], rt.values.get(DASHBOARD_THEME_KEY), rt.values.get(DASHBOARD_MODE_KEY))
+        rt.options[CONF_DASHBOARD_URL], rt.values.get(DASHBOARD_THEME_KEY), rt.values.get(DASHBOARD_MODE_KEY),
+        _notify_targets(rt))
     digest = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
     store: Store[dict] = Store(hass, 1, f"{DOMAIN}.{rt.entry.entry_id}.dashboard")
     saved = (await store.async_load()) or {}

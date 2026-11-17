@@ -239,7 +239,7 @@ sets the theme of the whole dashboard. #}
         tone: neutral
       styles:
         grid:
-          - grid-template-areas: '"head" "notif" "log"'
+          - grid-template-areas: '"head" "notif" "targets" "log"'
       custom_fields:
         notif:
           card:
@@ -250,6 +250,15 @@ sets the theme of the whole dashboard. #}
               label: {{ t.notifications | q }}
               hint: {{ t.notifications_hint | q }}
               icon: mdi:bell-outline
+        targets:
+          card:
+            type: custom:button-card
+            template: hf_link_row
+            variables:
+              label: {{ t.notify_targets | q }}
+              hint: {{ (notify_targets | join(", ") if notify_targets else t.notify_targets_none) | q }}
+              icon: mdi:send-outline
+              path: /config/integrations/integration/{{ domain }}
         log:
           card:
             type: custom:button-card
