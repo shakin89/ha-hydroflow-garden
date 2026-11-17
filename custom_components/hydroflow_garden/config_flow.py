@@ -20,7 +20,6 @@ from .const import (
     CONF_DASHBOARD_TITLE,
     CONF_DASHBOARD_URL,
     CONF_ENGINE_ENABLED,
-    CONF_IU_CONFIG_PATH,
     CONF_LOG_KEEP,
     CONF_LOG_MAX_MB,
     CONF_LOG_PATH,
@@ -76,7 +75,6 @@ def hub_schema(values: dict) -> vol.Schema:
         vol.Required(CONF_LOG_PATH, default=v[CONF_LOG_PATH]): sel.TextSelector(),
         vol.Required(CONF_LOG_MAX_MB, default=v[CONF_LOG_MAX_MB]): _num(1, 500, 1, "MB"),
         vol.Required(CONF_LOG_KEEP, default=v[CONF_LOG_KEEP]): _num(0, 20),
-        vol.Required(CONF_IU_CONFIG_PATH, default=v[CONF_IU_CONFIG_PATH]): sel.TextSelector(),
         vol.Required(CONF_DASHBOARD_URL, default=v[CONF_DASHBOARD_URL]): sel.TextSelector(),
         _opt(CONF_DASHBOARD_TITLE, v): sel.TextSelector(),
     })
@@ -84,6 +82,7 @@ def hub_schema(values: dict) -> vol.Schema:
 
 def _clean_hub(data: dict) -> dict:
     out = {**HUB_DEFAULTS, **data}
+    out.pop("iu_config_path", None)  # up to 0.4.0-beta.2: the file the integration wrote
     for key in (CONF_WEATHER_ENTITY, CONF_RAIN_NOW_ENTITY, CONF_DASHBOARD_TITLE):
         out[key] = data.get(key) or ""
     for key in (CONF_NOTIFY_ENTITIES, CONF_NOTIFY_SERVICES):

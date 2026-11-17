@@ -23,9 +23,9 @@ HydroFlow Garden is that missing layer, built as a native integration.
   start times a day per controller.
 - **Everything programmable from the UI.** For every program you set the start time (fixed, sunrise or
   sunset with an offset), the active months and eco cycles, and for every zone its own weekdays and
-  duration. HydroFlow Garden turns this into a valid Irrigation Unlimited configuration. It
-  guarantees that zones of the same program never open together.
-- **Smart Irrigation in the loop.** Before each program, the Smart Irrigation durations are written to
+  duration. HydroFlow Garden sends this to Irrigation Unlimited through its actions, without
+  writing any file. It guarantees that zones of the same program never open together.
+- **Smart Irrigation in the loop.** Before each program, the Smart Irrigation durations are sent to
   IU. After the run, a zone's bucket is reset only if it delivered at least 90% of the plan with its
   valve device online.
 - **Rain aware.** Every day it reads the forecast and suspends the active controllers when the
@@ -47,7 +47,7 @@ HydroFlow Garden is that missing layer, built as a native integration.
 
 | Required | What for |
 |---|---|
-| [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited) | Runs the valves. Its configuration must be included from a file: `irrigation_unlimited: !include irrigation_unlimited.yaml`. **HydroFlow Garden owns and overwrites that file.** |
+| [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited) | Runs the valves. Its configuration must be included from a file: `irrigation_unlimited: !include irrigation_unlimited.yaml`. HydroFlow Garden gives you the content to paste in that file and never writes it. |
 | [button-card](https://github.com/custom-cards/button-card) | Generated dashboard (every card is a button-card) |
 
 | Optional | What for |
@@ -61,12 +61,13 @@ HydroFlow Garden is that missing layer, built as a native integration.
 1. Marketplace / HACS → ⋮ → **Custom repositories** → `https://github.com/shakin89/ha-hydroflow-garden`,
    category **Integration** → install → restart Home Assistant.
 2. Make sure `configuration.yaml` contains `irrigation_unlimited: !include irrigation_unlimited.yaml`.
+   You paste the content of that file in step 4.
 3. Settings → Devices & services → **Add integration** → *HydroFlow Garden*.
 
 ## How to use
 
 1. **Global settings.** The first form sets notifications, weather and rain thresholds, the log file,
-   the IU file and the dashboard. Leave **Engine active** off for now. Every field is explained below.
+   and the dashboard. Leave **Engine active** off for now. Every field is explained below.
 2. **Add a controller.** On the integration page choose **Add controller**: one controller is one
    system with its own pump and valves. Fill in its zones (a valve each) and its programs (a daily start
    each). Every field has a help text under it.
@@ -75,19 +76,36 @@ HydroFlow Garden is that missing layer, built as a native integration.
    - the active months;
    - eco cycles;
    - for each zone, the weekdays and the duration.
-4. **Turn the engine on.** Integration page → **Configure** → *Engine active*. The IU file is written,
-   IU reloads, and from then on every change in the dashboard reaches IU within about 5 seconds.
+4. **Turn the engine on.** Integration page → **Configure** → *Engine active*. A repair issue
+   (Settings → **Repairs**) shows the Irrigation Unlimited configuration. Paste it as the content of
+   `irrigation_unlimited.yaml`, then run the *Irrigation Unlimited: Reload* action. The issue goes away
+   when IU runs it. From then on every change in the dashboard reaches IU within about 5 seconds.
+   The action `hydroflow_garden.get_iu_config` returns the same text.
 5. **Test.** The **Start test** button of a controller (`button.iu_<c>_test`, on its device page) runs
    every zone for the test duration. It is not in the dashboard for now.
 
 To change zones or programs later, use **Reconfigure** on the controller. The dashboard is regenerated
 automatically.
 
+### The Irrigation Unlimited file
+
+HydroFlow Garden never writes files. The text you paste only describes the structure: controllers,
+zones, and for each program up to 7 sequences (one per set of zones), all disabled. Times, weekdays, months, durations and
+which zones run are sent at runtime through IU's actions, and sent again after every restart and IU
+reload. Paste a new text only when the repair issue asks for it: after adding, removing or renaming
+zones or programs, or changing eco cycles or soak. Until then those controllers get no updates.
+
+Durations are set on the zones of each sequence. HydroFlow Garden clears zone-level adjustments made in
+IU at every restart and IU reload, because IU ignores them inside a sequence that has its own.
+
+Up to 0.4.0-beta.2 the integration wrote this file itself. After the update the repair issue appears
+once: paste the new text and reload IU.
+
 ### Global settings (Configure)
 
 | Field | Meaning |
 |---|---|
-| Engine active | Off: entities only, nothing is written or triggered. On: writes the IU file and runs every automation. |
+| Engine active | Off: entities only, nothing is sent to IU or triggered. On: sends times, days and durations to IU and runs every automation. |
 | Notify entities | Entities called with `notify.send_message`, e.g. a Telegram bot. |
 | Legacy notify services | Full service names, e.g. `notify.mobile_app_my_phone`. |
 | Persistent notifications | Also show each message as a persistent notification. |
@@ -98,7 +116,6 @@ automatically.
 | Forecast check time | When the daily check runs. Put it before your earliest program. |
 | Suspension length | Hours the active controllers stay suspended after a rain skip. |
 | Event log file, Rotate log above, Rotated copies | Plain text event log and its size-based rotation. |
-| Irrigation Unlimited file | The file included as `irrigation_unlimited:`. It is overwritten. |
 | Dashboard URL, Dashboard title | Where the generated dashboard lives and its sidebar name. The URL must contain a dash. A dashboard already on that URL and not created by the integration is never overwritten: a repair issue asks for another URL. |
 
 ### Controller (Add controller / Reconfigure)
@@ -107,7 +124,7 @@ automatically.
 |---|---|
 | Name | Shown in the dashboard and in notifications. |
 | Id | Short slug in every entity id (`switch.iu_<id>_…`). Cannot change later; empty = from the name. |
-| IU controller_id | `controller_id` written to the IU file; empty = from the name. |
+| IU controller_id | `controller_id` in the IU configuration; empty = from the name. |
 | Pump / master valve | Switch IU turns on while any zone of this controller waters. |
 | Max zone run | Safety cap for one zone run (`HH:MM`). |
 | Zones | One row per valve (see below). |
@@ -151,7 +168,7 @@ Each value is an entity with a stable id: `iu_<controller>_…`.
 | `sensor.iu_<c>_suspend_reason` | Why the controller is suspended: `none`, `rain`, `device_offline` |
 | `sensor.iu_<controller name>_z<Z>_<zone>_programmato` / `_oggi` / `_ieri` / `_2gg_fa` | Next planned duration with Smart Irrigation details; watering time today, yesterday and 2 days ago |
 | `sensor.precipitazioni_oggi`, `sensor.probabilita_pioggia_oggi`, `binary_sensor.iu_sta_piovendo` | Forecast and rain now |
-| `button.iu_<c>_test`, `button.iu_regenerate_dashboard`, `button.iu_write_config` | Test run, maintenance |
+| `button.iu_<c>_test`, `button.iu_regenerate_dashboard` | Test run, maintenance |
 | `select.iu_dashboard_theme`, `select.iu_dashboard_mode` | Dashboard colours: `system`, `salvia`, `laguna`, `terracotta`; `auto`, `light`, `dark` |
 
 ## Languages
@@ -171,7 +188,8 @@ To add a language, see `scripts/build_translations.py`.
 ## Actions
 
 - `hydroflow_garden.regenerate_dashboard`
-- `hydroflow_garden.write_iu_config`: rewrites the IU file and reloads IU.
+- `hydroflow_garden.get_iu_config`: returns the text of the IU file to paste (`yaml`) and the controllers
+  that already run it (`in_sync`).
 - `hydroflow_garden.rain_skip`: runs the rain check now. With `force: true` it suspends anyway, to test.
 
 ## Migrating from YAML helpers

@@ -16,6 +16,7 @@ from homeassistant.core import (
 )
 from homeassistant.exceptions import ServiceValidationError
 from homeassistant.helpers import config_validation as cv
+from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers.typing import ConfigType
 
 from . import i18n
@@ -99,8 +100,12 @@ def _register_services(hass: HomeAssistant) -> None:
         from .dashboard import async_generate_dashboard
         await async_generate_dashboard(_runtime(hass))
 
-    async def write_iu_config(call: ServiceCall) -> None:
-        await _runtime(hass).async_write_iu_config(force=True)
+    async def get_iu_config(call: ServiceCall):
+        """The text of the file included by ``irrigation_unlimited:``. The
+        integration never writes it: the user pastes it."""
+        rt = _runtime(hass)
+        return {"yaml": rt.iu_structure_text(),
+                "in_sync": [c.name for c in rt.controller_list if rt.iu_structure_ok(c)]}
 
     async def rain_skip(call: ServiceCall):
         rt = _runtime(hass)
@@ -110,7 +115,8 @@ def _register_services(hass: HomeAssistant) -> None:
         return {"skipped": skipped, "forecast": rt.forecast}
 
     hass.services.async_register(DOMAIN, "regenerate_dashboard", regenerate_dashboard)
-    hass.services.async_register(DOMAIN, "write_iu_config", write_iu_config)
+    hass.services.async_register(DOMAIN, "get_iu_config", get_iu_config,
+                                 supports_response=SupportsResponse.ONLY)
     hass.services.async_register(
         DOMAIN, "rain_skip", rain_skip,
         schema=vol.Schema({vol.Optional("force", default=False): cv.boolean}),
@@ -119,6 +125,10 @@ def _register_services(hass: HomeAssistant) -> None:
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
+    # Up to 0.4.0-beta.2 a button rewrote the IU file.
+    reg = er.async_get(hass)
+    if old := reg.async_get_entity_id("button", DOMAIN, "iu_write_config"):
+        reg.async_remove(old)
     values = ValueStore(hass, entry.entry_id)
     specs = {s.key: s for s in HUB_SPECS}
     extra = {}

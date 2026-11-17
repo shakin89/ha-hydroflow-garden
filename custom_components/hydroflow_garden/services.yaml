@@ -1,5 +1,5 @@
 regenerate_dashboard:
-write_iu_config:
+get_iu_config:
 rain_skip:
   fields:
     force:

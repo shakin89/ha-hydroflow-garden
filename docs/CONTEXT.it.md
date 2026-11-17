@@ -44,6 +44,34 @@ volta alla creazione del controller. Le entità di IU vengono cercate nel
 registro entità tramite unique_id. Mai scrivere `_s<M>` a mano. Un programma ha
 più sequenze, e le loro posizioni cambiano ogni volta che cambiano i giorni.
 
+## IU si configura a runtime, mai da file
+
+Un'integrazione non deve scrivere YAML nella cartella di configurazione.
+L'utente incolla una volta una struttura statica (`iu_config.build_structure`):
+ogni programma ha fino a 7 sequenze (slot: una per insieme distinto di zone, e
+ogni giorno sta in un solo insieme), ciascuna con tutte le zone e
+uno schedule disabilitato con il suo `schedule_id`. `iu_config.sync_calls` la
+trasforma in ciò che descrive `build_controller`, con le azioni di IU:
+`load_schedule` (orario, evento solare, giorni, mesi, enabled),
+`enable`/`disable` delle zone di sequenza e `adjust_time actual` sulle zone di
+sequenza per le durate. `tests/test_iu_config_parity.py` verifica che struttura
+più chiamate dia la configurazione effettiva, e le chiamate sono state provate
+su un IU reale.
+
+IU dimentica `load_schedule` a ogni riavvio e reload, quindi il runtime invia
+di nuovo tutto quando compare l'entità del controller e dopo
+`irrigation_unlimited.reload`. Negli altri casi invia solo le chiamate
+cambiate. Ogni controller della struttura ha un digest sotto `user:`, che IU
+espone come `user_hydroflow_structure` sull'entità del controller. Un digest
+diverso vuol dire che il file incollato è vecchio: quel controller non riceve
+chiamate e un avviso di riparazione mostra il nuovo testo. Il digest cambia
+solo con la topologia e con eco (`repeat`, `delay`).
+
+Le durate stanno sulle zone di sequenza. IU ignora un aggiustamento di zona
+dentro una sequenza che ne ha uno suo, quindi anche Smart Irrigation scrive lì
+il suo valore, per programma (`rt.si_override`), e gli aggiustamenti di zona
+vengono azzerati a ogni invio completo.
+
 ## Una sequenza per ogni insieme di zone
 
 Ogni zona di un programma può avere giorni della settimana diversi. Per ogni
@@ -105,7 +133,7 @@ quel caso IU sovrappone i cicli.
 ## L'interruttore del motore
 
 Quando `engine_enabled` è spento, l'integrazione espone solo le entità. Non
-scrive alcun file IU e non avvia timer né gestori di eventi. Così si può
+invia niente a IU e non avvia timer né gestori di eventi. Così si può
 installare accanto ai pacchetti YAML che sostituisce senza che agiscano
 entrambi insieme.
 
@@ -114,8 +142,9 @@ entrambi insieme.
 La dashboard viene generata da `dashboard_templates/*.j2` e salvata come
 dashboard storage. La collection delle dashboard di Lovelace è privata, quindi
 l'integrazione registra la dashboard da sola: un `LovelaceStorage` più un
-pannello. Per questo non compare in Impostazioni → Plance. Se esiste già una
-dashboard storage con lo stesso URL, viene sovrascritta sul posto. Una nuova
+pannello. Per questo non compare in Impostazioni → Plance. Scrive solo quella
+dashboard: se l'URL appartiene a un'altra, non salva niente e un avviso di
+riparazione chiede un altro URL. Una nuova
 generazione viene salvata solo quando cambia il suo digest, oppure su
 richiesta.
 Il grafico storico della vista Zone richiede apexcharts-card: viene generato

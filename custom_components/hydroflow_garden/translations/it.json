@@ -19,12 +19,11 @@
           "log_path": "File di log eventi",
           "log_max_mb": "Ruota il log oltre",
           "log_keep": "Copie ruotate",
-          "iu_config_path": "File di Irrigation Unlimited",
           "dashboard_url": "URL dashboard",
           "dashboard_title": "Titolo dashboard"
         },
         "data_description": {
-          "engine_enabled": "Spento: solo entità, niente viene scritto o eseguito (utile durante la migrazione). Acceso: scrive il file di Irrigation Unlimited ed esegue riempimento, preflight, Smart Irrigation, skip pioggia, log e notifiche.",
+          "engine_enabled": "Spento: solo entità, niente viene inviato a Irrigation Unlimited o eseguito (utile durante la migrazione). Acceso: invia orari, giorni e durate a Irrigation Unlimited ed esegue riempimento, preflight, Smart Irrigation, skip pioggia, log e notifiche.",
           "notify_entities": "Entità chiamate con notify.send_message (es. un bot Telegram). Vuoto = nessuna.",
           "notify_services": "Nomi completi dei servizi, uno per riga, es. notify.mobile_app_telefono.",
           "notify_persistent": "Mostra ogni messaggio anche come notifica persistente in Home Assistant.",
@@ -38,7 +37,6 @@
           "log_path": "Log testuale di avvii, fine corse, valvole e guasti. I percorsi relativi sono nella cartella config.",
           "log_max_mb": "Dimensione oltre la quale il log viene ruotato.",
           "log_keep": "Quante copie vecchie (.1, .2, ...) vengono tenute.",
-          "iu_config_path": "Il file incluso da configuration.yaml con `irrigation_unlimited: !include` (this file name). Viene sovrascritto da questa integrazione.",
           "dashboard_url": "Percorso della dashboard generata. Deve contenere un trattino, es. hydroflow-garden.",
           "dashboard_title": "Nome mostrato nella barra laterale. Vuoto = 'Irrigazione', tradotto."
         }
@@ -69,12 +67,11 @@
           "log_path": "File di log eventi",
           "log_max_mb": "Ruota il log oltre",
           "log_keep": "Copie ruotate",
-          "iu_config_path": "File di Irrigation Unlimited",
           "dashboard_url": "URL dashboard",
           "dashboard_title": "Titolo dashboard"
         },
         "data_description": {
-          "engine_enabled": "Spento: solo entità, niente viene scritto o eseguito (utile durante la migrazione). Acceso: scrive il file di Irrigation Unlimited ed esegue riempimento, preflight, Smart Irrigation, skip pioggia, log e notifiche.",
+          "engine_enabled": "Spento: solo entità, niente viene inviato a Irrigation Unlimited o eseguito (utile durante la migrazione). Acceso: invia orari, giorni e durate a Irrigation Unlimited ed esegue riempimento, preflight, Smart Irrigation, skip pioggia, log e notifiche.",
           "notify_entities": "Entità chiamate con notify.send_message (es. un bot Telegram). Vuoto = nessuna.",
           "notify_services": "Nomi completi dei servizi, uno per riga, es. notify.mobile_app_telefono.",
           "notify_persistent": "Mostra ogni messaggio anche come notifica persistente in Home Assistant.",
@@ -88,7 +85,6 @@
           "log_path": "Log testuale di avvii, fine corse, valvole e guasti. I percorsi relativi sono nella cartella config.",
           "log_max_mb": "Dimensione oltre la quale il log viene ruotato.",
           "log_keep": "Quante copie vecchie (.1, .2, ...) vengono tenute.",
-          "iu_config_path": "Il file incluso da configuration.yaml con `irrigation_unlimited: !include` (this file name). Viene sovrascritto da questa integrazione.",
           "dashboard_url": "Percorso della dashboard generata. Deve contenere un trattino, es. hydroflow-garden.",
           "dashboard_title": "Nome mostrato nella barra laterale. Vuoto = 'Irrigazione', tradotto."
         }
@@ -360,9 +356,6 @@
       },
       "regenerate_dashboard": {
         "name": "Rigenera dashboard"
-      },
-      "write_iu_config": {
-        "name": "Riscrivi config IU"
       }
     }
   },
@@ -420,6 +413,10 @@
       "title": "Card mancanti per la dashboard irrigazione",
       "description": "Installa dal Marketplace/HACS: {cards}. Senza, la dashboard generata non si vede."
     },
+    "iu_config_outdated": {
+      "title": "File di Irrigation Unlimited da aggiornare",
+      "description": "Irrigation Unlimited non usa la struttura attuale per: {controllers}. Finché non la usa, HydroFlow Garden non gli invia orari, giorni e durate di questi impianti.\n\nSostituisci il contenuto del file incluso da `irrigation_unlimited:` in configuration.yaml (es. `irrigation_unlimited.yaml`) con il testo qui sotto, poi esegui l'azione *Irrigation Unlimited: Reload*. Lo stesso testo lo restituisce l'azione `hydroflow_garden.get_iu_config`.\n\n```yaml\n{yaml}```"
+    },
     "dashboard_url_taken": {
       "title": "URL della dashboard già in uso",
       "description": "L'URL `{url}` appartiene a una dashboard non creata da HydroFlow Garden, quindi non viene sovrascritta. Scegli un altro URL nelle opzioni dell'integrazione, oppure elimina o rinomina quella dashboard."
@@ -430,9 +427,9 @@
       "name": "Rigenera dashboard",
       "description": "Riscrive la dashboard irrigazione dai template."
     },
-    "write_iu_config": {
-      "name": "Scrivi config IU",
-      "description": "Riscrive irrigation_unlimited.yaml e ricarica IU."
+    "get_iu_config": {
+      "name": "Config IU da incollare",
+      "description": "Restituisce il testo del file incluso da `irrigation_unlimited:`. L'integrazione non lo scrive: va incollato a mano."
     },
     "rain_skip": {
       "name": "Controllo pioggia",

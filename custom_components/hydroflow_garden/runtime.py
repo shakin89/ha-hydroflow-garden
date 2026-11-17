@@ -1,17 +1,18 @@
-"""Runtime state of one config entry: topology, values, IU writer, observers."""
+"""Runtime state of one config entry: topology, values, IU sync, observers."""
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from collections.abc import Callable
 from datetime import date, datetime, timedelta
-from pathlib import Path
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import STATE_ON
+from homeassistant.const import ATTR_DOMAIN, ATTR_SERVICE, EVENT_CALL_SERVICE, STATE_ON
 from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
 from homeassistant.helpers import entity_registry as er
+from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
@@ -26,7 +27,6 @@ from . import iu_config
 from .const import (
     CONF_DASHBOARD_TITLE,
     CONF_ENGINE_ENABLED,
-    CONF_IU_CONFIG_PATH,
     CONF_LOG_KEEP,
     CONF_LOG_MAX_MB,
     CONF_LOG_PATH,
@@ -38,7 +38,7 @@ from .const import (
     DOMAIN,
     HUB_DEFAULTS,
     IU_DOMAIN,
-    IU_WRITE_DEBOUNCE,
+    IU_SYNC_DEBOUNCE,
     REASON_NONE,
     SI_ADJUST_LEAD_DEFAULT,
     SI_ADJUST_LEAD_KEY,
@@ -47,7 +47,13 @@ from .const import (
 from .i18n import Texts
 from .iu_config import _num
 from .logfile import LogFile
-from .model import KIND_SELECT, Controller, ValueSpec, controller_specs, suspend_reason_key
+from .model import (
+    KIND_SELECT,
+    Controller,
+    ValueSpec,
+    controller_specs,
+    suspend_reason_key,
+)
 from .palettes import MODE_AUTO, MODES, THEME_SYSTEM, THEMES
 
 _LOGGER = logging.getLogger(__name__)
@@ -55,6 +61,7 @@ _LOGGER = logging.getLogger(__name__)
 SIGNAL_FORECAST = f"{DOMAIN}_forecast"
 SIGNAL_USAGE = f"{DOMAIN}_usage"
 SIGNAL_RAIN_NOW = f"{DOMAIN}_rain_now"
+SIGNAL_SI_OVERRIDE = f"{DOMAIN}_si_override"
 
 HUB_SPECS = [
     ValueSpec(SI_ADJUST_LEAD_KEY, "number", "si_adjust_lead",
@@ -99,10 +106,15 @@ class IrrigationRuntime:
         self.forecast: dict[str, Any] = {"mm": None, "prob": None}
         self.usage = ZoneUsage(hass, entry.entry_id, self)
         self._unsubs: list[Callable[[], None]] = []
-        self._writer = Debouncer(
-            hass, _LOGGER, cooldown=IU_WRITE_DEBOUNCE, immediate=False,
-            function=self.async_write_iu_config,
+        self._syncer = Debouncer(
+            hass, _LOGGER, cooldown=IU_SYNC_DEBOUNCE, immediate=False,
+            function=self.async_sync_iu,
         )
+        self._sync_lock = asyncio.Lock()
+        # ctrl id -> calls IU has received since it last (re)loaded its file
+        self._pushed: dict[str, iu_config.SyncCalls] = {}
+        # ctrl id -> {(program id, zone id): seconds per cycle} from Smart Irrigation
+        self.si_override: dict[str, dict[tuple[int, int], int]] = {}
         self.engine = None  # set by __init__ when the engine is enabled
         self.dashboard_registered: str | None = None
 
@@ -162,36 +174,81 @@ class IrrigationRuntime:
         self.values.set(suspend_reason_key(ctrl), reason)
 
     # --- IU configuration ---------------------------------------------------
-    @property
-    def iu_path(self) -> Path:
-        p = Path(self.options[CONF_IU_CONFIG_PATH])
-        return p if p.is_absolute() else Path(self.hass.config.path(str(p)))
-
+    # The integration never writes the IU file. The user pastes the static
+    # structure (iu_config.build_structure) once; schedules, zones and
+    # durations reach IU through its services. IU forgets load_schedule on a
+    # restart or a reload, so everything is pushed again after both.
     def build_iu(self) -> dict:
+        """The configuration IU must end up running."""
         return iu_config.build_config(self.get, self.controller_list)
 
-    async def async_write_iu_config(self, force: bool = False) -> bool:
-        """Write the IU file when it changed (or ``force``), then reload IU.
-        Does nothing while the engine is off, unless forced."""
-        if not (self.engine_enabled or force):
+    def iu_structure_text(self) -> str:
+        """The YAML the user pastes as the file included by ``irrigation_unlimited:``."""
+        return iu_config.dump(iu_config.build_structure(self.get, self.controller_list))
+
+    def iu_structure_ok(self, ctrl: Controller) -> bool | None:
+        """Whether IU runs the current structure of ``ctrl``; None while IU
+        has not created the controller entity yet."""
+        state = self.hass.states.get(self.master(ctrl))
+        if state is None:
+            return None
+        return state.attributes.get(iu_config.STRUCTURE_ATTR) == iu_config.structure_digest(self.get, ctrl)
+
+    def iu_resync(self) -> None:
+        """Forget what IU received and push everything again (debounced)."""
+        self._pushed.clear()
+        self.hass.async_create_task(self._syncer.async_call())
+
+    async def async_sync_iu(self) -> bool:
+        """Push to IU what changed since the last push. Controllers whose IU
+        file is outdated are left alone and reported in a repair issue.
+        Returns True when every controller is in sync."""
+        if not self.engine_enabled:
             return False
-        text = iu_config.dump(self.build_iu())
-        path = self.iu_path
+        async with self._sync_lock:
+            outdated: list[Controller] = []
+            for ctrl in self.controller_list:
+                ok = self.iu_structure_ok(ctrl)
+                if ok is None:
+                    continue  # IU not loaded yet: its entity appearing triggers a sync
+                if not ok:
+                    outdated.append(ctrl)
+                    self._pushed.pop(ctrl.id, None)
+                    continue
+                await self._async_push(ctrl)
+            self._update_outdated_issue(outdated)
+            return not outdated
 
-        def _sync() -> bool:
-            if path.exists() and path.read_text(encoding="utf-8") == text:
-                return False
-            tmp = path.with_suffix(path.suffix + ".tmp")
-            tmp.write_text(text, encoding="utf-8")
-            tmp.replace(path)
-            return True
+    async def _async_push(self, ctrl: Controller) -> None:
+        if not self.hass.services.has_service(IU_DOMAIN, "load_schedule"):
+            return
+        wanted = iu_config.sync_calls(self.get, ctrl, self.si_override.get(ctrl.id))
+        pushed = self._pushed.setdefault(ctrl.id, {})
+        master = self.master(ctrl)
+        for key, call in wanted.items():
+            if pushed.get(key) == call:
+                continue
+            service, data = call
+            payload = dict(data) if service == "load_schedule" else {"entity_id": master, **data}
+            try:
+                await self.hass.services.async_call(IU_DOMAIN, service, payload, blocking=True)
+            except Exception as err:  # noqa: BLE001 - keep pushing the rest
+                _LOGGER.error("%s.%s %s failed: %s", IU_DOMAIN, service, payload, err)
+                continue
+            pushed[key] = call
 
-        changed = await self.hass.async_add_executor_job(_sync)
-        if (changed or force) and self.hass.services.has_service(IU_DOMAIN, "reload"):
-            _LOGGER.info("IU configuration %s, reloading Irrigation Unlimited",
-                         "changed" if changed else "forced")
-            await self.hass.services.async_call(IU_DOMAIN, "reload", {}, blocking=True)
-        return changed
+    def _update_outdated_issue(self, outdated: list[Controller]) -> None:
+        if not outdated:
+            ir.async_delete_issue(self.hass, DOMAIN, "iu_config_outdated")
+            return
+        ir.async_create_issue(
+            self.hass, DOMAIN, "iu_config_outdated", is_fixable=False,
+            severity=ir.IssueSeverity.ERROR, translation_key="iu_config_outdated",
+            translation_placeholders={
+                "controllers": ", ".join(c.name for c in outdated),
+                "yaml": self.iu_structure_text(),
+            },
+        )
 
     # --- lifecycle ----------------------------------------------------------
     async def async_start(self) -> None:
@@ -199,7 +256,7 @@ class IrrigationRuntime:
         def _on_value(key: str, _value: Any) -> None:
             spec = self.specs.get(key)
             if spec is not None and spec.schedule and self.engine_enabled:
-                self.hass.async_create_task(self._writer.async_call())
+                self.hass.async_create_task(self._syncer.async_call())
 
         self._unsubs.append(self.values.listen(_on_value))
         await self.usage.async_start()
@@ -225,6 +282,12 @@ class IrrigationRuntime:
             ctrl = masters.get(event.data["entity_id"])
             if new is None or ctrl is None:
                 return
+            old = event.data["old_state"]
+            # IU created the controller (startup) or loaded another file.
+            if self.engine_enabled and (old is None or old.attributes.get(iu_config.STRUCTURE_ATTR)
+                                        != new.attributes.get(iu_config.STRUCTURE_ATTR)):
+                self._pushed.pop(ctrl.id, None)
+                self.hass.async_create_task(self._syncer.async_call())
             if new.attributes.get("suspended") is None and \
                     self.values.get(suspend_reason_key(ctrl)) != REASON_NONE:
                 self.set_reason(ctrl, REASON_NONE)
@@ -233,13 +296,21 @@ class IrrigationRuntime:
             self._unsubs.append(async_track_state_change_event(self.hass, list(masters), _master_changed))
 
         if self.engine_enabled:
-            await self.async_write_iu_config()
+            @callback
+            def _iu_reloaded(event: Event) -> None:
+                if event.data.get(ATTR_DOMAIN) == IU_DOMAIN and event.data.get(ATTR_SERVICE) == "reload":
+                    self.iu_resync()
+
+            self._unsubs.append(self.hass.bus.async_listen(EVENT_CALL_SERVICE, _iu_reloaded))
+            await self.async_sync_iu()
+        else:
+            ir.async_delete_issue(self.hass, DOMAIN, "iu_config_outdated")
 
     async def async_stop(self) -> None:
         for unsub in self._unsubs:
             unsub()
         self._unsubs.clear()
-        self._writer.async_shutdown()
+        self._syncer.async_shutdown()
         await self.usage.async_stop()
         await self.values.async_flush()
 

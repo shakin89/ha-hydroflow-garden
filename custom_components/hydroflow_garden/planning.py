@@ -32,7 +32,7 @@ def suspend_seconds(get: Getter, ctrl: Controller, prog: Program, start: datetim
 
 def si_zones_of_program(get: Getter, ctrl: Controller, prog: Program) -> list[Zone]:
     """Zones with a Smart Irrigation sensor that some sequence of the program
-    waters, each once (IU adjusts at zone level)."""
+    waters, each once."""
     built = build_controller(get, ctrl)
     prefix = f"P{prog.id} "
     ids: list[int] = []

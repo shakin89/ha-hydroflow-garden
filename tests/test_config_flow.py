@@ -12,7 +12,7 @@ HUB = {
     "engine_enabled": False, "notify_persistent": True, "rain_now_state": "on",
     "prob_threshold": 70, "mm_threshold": 3.0, "skip_time": "02:00:00", "skip_hours": 22,
     "log_path": "logs/irrigation.log", "log_max_mb": 50, "log_keep": 3,
-    "iu_config_path": "iu_flow_test.yaml", "dashboard_url": "irr-test",
+    "dashboard_url": "irr-test",
     "dashboard_title": "Irrigazione",
 }
 CTRL = {

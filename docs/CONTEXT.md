@@ -43,6 +43,33 @@ created. IU entities are looked up in the entity registry by unique_id. Never
 hardcode `_s<M>`. A program has several sequences, and their positions change
 whenever the days change.
 
+## IU is configured at runtime, never by file
+
+Integrations must not write YAML in the config directory. The user pastes a
+static structure once (`iu_config.build_structure`): every program owns up to 7
+sequences (slots: one per distinct set of zones, and each weekday is in one
+set only), each listing every zone and one disabled schedule
+with a `schedule_id`. `iu_config.sync_calls` turns it into what
+`build_controller` describes, with IU's actions: `load_schedule` (time, sun
+event, weekdays, months, enabled), `enable`/`disable` of sequence zones, and
+`adjust_time actual` on sequence zones for durations.
+`tests/test_iu_config_parity.py` checks that structure plus calls equals the
+effective configuration, and the calls were checked against a real IU.
+
+IU forgets `load_schedule` on a restart and on a reload, so the runtime
+pushes everything again when the controller entity appears and after
+`irrigation_unlimited.reload`. Otherwise it sends only the calls that changed.
+Each controller in the structure has a digest under `user:`, which IU exposes
+as `user_hydroflow_structure` on the controller entity. A different digest
+means the pasted file is outdated: that controller gets no calls and a repair
+issue shows the new text. Only topology and eco (`repeat`, `delay`) change the
+digest.
+
+Durations sit on the sequence zones. IU ignores a zone-level adjustment inside
+a sequence that has one of its own, so Smart Irrigation writes its value
+there too, per program (`rt.si_override`), and the zone-level adjustments are
+reset at every full push.
+
 ## One sequence per set of zones
 
 A program's zones can each have different weekdays. For every weekday the
@@ -100,7 +127,7 @@ overlaps the cycles.
 ## The engine switch
 
 When `engine_enabled` is off, the integration only exposes entities. It writes
-no IU file and runs no timers or event handlers. This allows installing it next
+nothing to IU and runs no timers or event handlers. This allows installing it next
 to the YAML packages it replaces without both acting at once.
 
 ## Dashboard
@@ -108,8 +135,9 @@ to the YAML packages it replaces without both acting at once.
 The dashboard is rendered from `dashboard_templates/*.j2` and saved as a
 storage dashboard. Lovelace's dashboards collection is private, so the
 integration registers the dashboard itself: a `LovelaceStorage` plus a panel.
-It is therefore not listed under Settings → Dashboards. When a storage
-dashboard with the same URL already exists, it is written in place. A new
+It is therefore not listed under Settings → Dashboards. Only that dashboard
+is ever written: when the URL belongs to another one, nothing is saved and a
+repair issue asks for another URL. A new
 render is saved only when its digest changes, or on demand.
 The history chart of the Zones view needs apexcharts-card: it is rendered only
 when that resource is registered (or when the resources cannot be read), so

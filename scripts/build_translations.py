@@ -28,11 +28,13 @@ LANGS = ("en", "it")
 HUB = {
     "engine_enabled": (
         "Engine active",
-        "Off: entities only, nothing is written or triggered (useful while migrating). On: writes the "
-        "Irrigation Unlimited file and runs fill, preflight, Smart Irrigation, rain skip, log and notifications.",
+        "Off: entities only, nothing is sent to Irrigation Unlimited or triggered (useful while migrating). On: "
+        "sends times, days and durations to Irrigation Unlimited and runs fill, preflight, Smart Irrigation, "
+        "rain skip, log and notifications.",
         "Engine attivo",
-        "Spento: solo entità, niente viene scritto o eseguito (utile durante la migrazione). Acceso: scrive il "
-        "file di Irrigation Unlimited ed esegue riempimento, preflight, Smart Irrigation, skip pioggia, log e notifiche.",
+        "Spento: solo entità, niente viene inviato a Irrigation Unlimited o eseguito (utile durante la migrazione). "
+        "Acceso: invia orari, giorni e durate a Irrigation Unlimited ed esegue riempimento, preflight, Smart "
+        "Irrigation, skip pioggia, log e notifiche.",
     ),
     "notify_entities": (
         "Notify entities",
@@ -108,14 +110,6 @@ HUB = {
                    "Ruota il log oltre", "Dimensione oltre la quale il log viene ruotato."),
     "log_keep": ("Rotated copies", "How many old copies (.1, .2, ...) are kept.",
                  "Copie ruotate", "Quante copie vecchie (.1, .2, ...) vengono tenute."),
-    "iu_config_path": (
-        "Irrigation Unlimited file",
-        "The file configuration.yaml includes with `irrigation_unlimited: !include` (this file name). It is "
-        "overwritten by this integration.",
-        "File di Irrigation Unlimited",
-        "Il file incluso da configuration.yaml con `irrigation_unlimited: !include` (this file name). Viene "
-        "sovrascritto da questa integrazione.",
-    ),
     "dashboard_url": (
         "Dashboard URL",
         "Path of the generated dashboard. Must contain a dash, e.g. hydroflow-garden.",
@@ -294,7 +288,6 @@ ENTITY = {
     "button": {
         "test": ("Start test", "Avvia test"),
         "regenerate_dashboard": ("Regenerate dashboard", "Rigenera dashboard"),
-        "write_iu_config": ("Rewrite IU config", "Riscrivi config IU"),
     },
 }
 
@@ -621,6 +614,21 @@ def build(lang: str) -> dict:
             "description": ("Installa dal Marketplace/HACS: {cards}. Senza, la dashboard generata non si vede."
                             if it else "Install from the Marketplace/HACS: {cards}. Without them the generated "
                             "dashboard does not render."),
+        }, "iu_config_outdated": {
+            "title": "File di Irrigation Unlimited da aggiornare" if it else "Irrigation Unlimited file outdated",
+            "description": (
+                "Irrigation Unlimited non usa la struttura attuale per: {controllers}. Finché non la usa, "
+                "HydroFlow Garden non gli invia orari, giorni e durate di questi impianti.\n\n"
+                "Sostituisci il contenuto del file incluso da `irrigation_unlimited:` in configuration.yaml "
+                "(es. `irrigation_unlimited.yaml`) con il testo qui sotto, poi esegui l'azione "
+                "*Irrigation Unlimited: Reload*. Lo stesso testo lo restituisce l'azione "
+                "`hydroflow_garden.get_iu_config`.\n\n```yaml\n{yaml}```" if it else
+                "Irrigation Unlimited does not run the current structure for: {controllers}. Until it does, "
+                "HydroFlow Garden sends no times, days or durations to these controllers.\n\n"
+                "Replace the content of the file included by `irrigation_unlimited:` in configuration.yaml "
+                "(e.g. `irrigation_unlimited.yaml`) with the text below, then run the "
+                "*Irrigation Unlimited: Reload* action. The `hydroflow_garden.get_iu_config` action returns "
+                "the same text.\n\n```yaml\n{yaml}```"),
         }, "dashboard_url_taken": {
             "title": "URL della dashboard già in uso" if it else "Dashboard URL already in use",
             "description": ("L'URL `{url}` appartiene a una dashboard non creata da HydroFlow Garden, quindi non "
@@ -635,10 +643,12 @@ def build(lang: str) -> dict:
                 "name": "Rigenera dashboard" if it else "Regenerate dashboard",
                 "description": "Riscrive la dashboard irrigazione dai template." if it
                 else "Rewrite the irrigation dashboard from the templates."},
-            "write_iu_config": {
-                "name": "Scrivi config IU" if it else "Write IU config",
-                "description": "Riscrive irrigation_unlimited.yaml e ricarica IU." if it
-                else "Rewrite irrigation_unlimited.yaml and reload IU."},
+            "get_iu_config": {
+                "name": "Config IU da incollare" if it else "IU config to paste",
+                "description": ("Restituisce il testo del file incluso da `irrigation_unlimited:`. "
+                                "L'integrazione non lo scrive: va incollato a mano." if it else
+                                "Return the text of the file included by `irrigation_unlimited:`. "
+                                "The integration does not write it: paste it yourself.")},
             "rain_skip": {
                 "name": "Controllo pioggia" if it else "Rain check",
                 "description": "Esegue ora il controllo previsione pioggia." if it

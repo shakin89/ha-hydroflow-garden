@@ -120,3 +120,93 @@ def test_dump_roundtrip() -> None:
     assert text.startswith("# AUTO-GENERATED")
     assert yaml.safe_load(text) == cfg
     assert "&id" not in text and "*id" not in text
+
+
+def _simulate_iu(structure: dict, calls: iu_config.SyncCalls) -> dict:
+    """What IU runs after the sync calls, per slot, the way IU applies them
+    (load_schedule by schedule_id, enable/disable and adjust_time on
+    1-based sequence zones)."""
+    seqs = {}
+    for s in structure.get("sequences", []):
+        sch = s["schedules"][0]
+        seqs[s["sequence_id"]] = {
+            "schedule": {"id": sch["schedule_id"], "time": sch["time"], "weekday": None,
+                         "month": None, "enabled": sch["enabled"]},
+            "repeat": s["repeat"], "delay": s["delay"],
+            "zones": [{"zone_id": z["zone_id"], "enabled": True, "duration": z["duration"]}
+                      for z in s["zones"]],
+        }
+    by_schedule = {v["schedule"]["id"]: v for v in seqs.values()}
+    enabled = True
+    for service, data in calls.values():
+        if service == "load_schedule":
+            sch = by_schedule[data["schedule_id"]]["schedule"]
+            sch.update({k: v for k, v in data.items() if k != "schedule_id"})
+        elif "sequence_id" not in data:
+            if service in ("enable", "disable"):
+                enabled = service == "enable"  # adjust_time reset: zone level, not in sequences
+        else:
+            (slot,) = data["sequence_id"]
+            for k in data["zones"]:
+                zone = seqs[slot]["zones"][k - 1]
+                if service == "adjust_time":
+                    zone["duration"] = data["actual"]
+                else:
+                    zone["enabled"] = service == "enable"
+    return {"enabled": enabled, "sequences": seqs}
+
+
+@pytest.mark.parametrize("seed", range(200))
+def test_structure_plus_sync_equals_effective(seed: int) -> None:
+    """Pasting build_structure and pushing sync_calls makes IU water exactly
+    what build_controller describes."""
+    _, values = _random_states(random.Random(seed))
+    structure = iu_config.build_structure(values.get, CONTROLLERS)
+    for pos, ctrl in enumerate(CONTROLLERS):
+        eff = iu_config.build_controller(values.get, ctrl)
+        iu = _simulate_iu(structure["controllers"][pos], iu_config.sync_calls(values.get, ctrl))
+        assert iu["enabled"] == eff["enabled"]
+        eff_seqs = {s["sequence_id"]: s for s in eff.get("sequences", [])}
+        assert set(eff_seqs) <= set(iu["sequences"])  # every slot used exists in the file
+        for slot, got in iu["sequences"].items():
+            want = eff_seqs.get(slot)
+            if want is None:
+                assert got["schedule"]["enabled"] is False, slot
+                continue
+            sch = want["schedules"][0]
+            assert got["schedule"]["enabled"] == want["enabled"]
+            assert got["schedule"]["time"] == sch["time"]
+            assert got["schedule"]["weekday"] == sch["weekday"]
+            assert got["schedule"]["month"] == (sch.get("month") or list(iu_config.MONTH_CODES))
+            assert (got["repeat"], got["delay"]) == (want["repeat"], want["delay"])
+            watered = [{"zone_id": z["zone_id"], "duration": z["duration"]}
+                       for z in got["zones"] if z["enabled"]]
+            assert watered == want["zones"]
+
+
+def test_structure_is_static() -> None:
+    """Only topology and eco shape the structure: times, days, durations,
+    months and enable switches do not change the digest."""
+    _, values = _random_states(random.Random(3))
+    ctrl = CONTROLLERS[0]
+    digest = iu_config.structure_digest(values.get, ctrl)
+    for key in list(values):
+        if "_eco" in key:
+            continue
+        changed = dict(values)
+        v = values[key]
+        changed[key] = (not v) if isinstance(v, bool) else ("13:13:00" if isinstance(v, str) else v + 1)
+        assert iu_config.structure_digest(changed.get, ctrl) == digest, key
+    eco_on = {**values, "iu_alpha_p1_eco": True, "iu_alpha_p1_eco_cycles": 3.0}
+    assert iu_config.structure_digest(eco_on.get, ctrl) != iu_config.structure_digest(
+        {**eco_on, "iu_alpha_p1_eco_cycles": 4.0}.get, ctrl)
+
+
+def test_structure_yaml_has_digest_and_unique_schedule_ids() -> None:
+    _, values = _random_states(random.Random(5))
+    cfg = yaml.safe_load(iu_config.dump(iu_config.build_structure(values.get, CONTROLLERS)))
+    ids = [s["schedules"][0]["schedule_id"] for c in cfg["controllers"] for s in c["sequences"]]
+    assert len(ids) == len(set(ids))
+    for c, ctrl in zip(cfg["controllers"], CONTROLLERS):
+        assert c["user"]["hydroflow_structure"] == iu_config.structure_digest(values.get, ctrl)
+        assert all(s["schedules"][0]["enabled"] is False for s in c["sequences"])

@@ -18,7 +18,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
                             async_add_entities: AddConfigEntryEntitiesCallback) -> None:
     rt = entry.runtime_data
     items = [(sid, TestButton(rt, ctrl)) for sid, ctrl in rt.controllers]
-    items += [(None, DashboardButton(rt)), (None, WriteIUButton(rt))]
+    items += [(None, DashboardButton(rt))]
     add_grouped(async_add_entities, items)
 
 
@@ -49,14 +49,3 @@ class DashboardButton(ManagerEntity, ButtonEntity):
     async def async_press(self) -> None:
         from .dashboard import async_generate_dashboard
         await async_generate_dashboard(self.rt)
-
-
-class WriteIUButton(ManagerEntity, ButtonEntity):
-    _attr_entity_category = EntityCategory.CONFIG
-
-    def __init__(self, rt) -> None:
-        super().__init__(rt, "button", "iu_write_config", "write_iu_config",
-                         "mdi:file-refresh", None)
-
-    async def async_press(self) -> None:
-        await self.rt.async_write_iu_config(force=True)

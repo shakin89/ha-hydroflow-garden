@@ -19,10 +19,9 @@ from homeassistant.helpers.event import async_track_state_change_event
 
 from .const import CONF_WEATHER_ENTITY, SUSPEND_REASONS
 from .entity import ManagerEntity, add_grouped
-from .iu_config import _num
+from .iu_config import _num, fmt_duration
 from .model import Controller, Zone, eid, suspend_reason_key, zone_sensor_object_id
-from .planning import parse_seconds
-from .runtime import SIGNAL_FORECAST, SIGNAL_USAGE
+from .runtime import SIGNAL_FORECAST, SIGNAL_SI_OVERRIDE, SIGNAL_USAGE
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
@@ -100,8 +99,8 @@ class UsageSensor(_ZoneSensor):
 
 class PlannedSensor(_ZoneSensor):
     """Seconds the zone will water next, with the Smart Irrigation details the
-    dashboard shows. State: IU's absolute adjustment when set, else the P1
-    duration of the zone."""
+    dashboard shows. State: for the next program, the Smart Irrigation
+    duration per cycle when it has been computed, else the programmed one."""
 
     _attr_native_unit_of_measurement = UnitOfTime.SECONDS
 
@@ -129,12 +128,16 @@ class PlannedSensor(_ZoneSensor):
             return 1
         return max(int(_num(self.rt.get(eid(c, pn, "eco_cycles")), 1)), 1)
 
+    def _si_seconds(self, pn: str) -> int | None:
+        return self.rt.si_override.get(self.ctrl.id, {}).get((int(pn[1:]), self.zone.id))
+
     @property
     def native_value(self) -> int:
-        adj = str(self._iu_attr("adjustment", ""))
-        if adj.startswith("="):
-            return parse_seconds(adj[1:])
-        return int(_num(self.rt.get(eid(self.ctrl.id, "p1", f"z{self.zone.id}_duration")), 0) * 60)
+        pn = self._next_prog()
+        si = self._si_seconds(pn)
+        if si is not None:
+            return si
+        return int(_num(self.rt.get(eid(self.ctrl.id, pn, f"z{self.zone.id}_duration")), 0) * 60)
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
@@ -143,7 +146,7 @@ class PlannedSensor(_ZoneSensor):
             "next_prog": pn,
             "base_minutes": _num(self.rt.get(eid(c, pn, f"z{self.zone.id}_duration")), 0),
             "next_cicli": self._cycles(pn),
-            "adjustment": self._iu_attr("adjustment", ""),
+            "adjustment": "" if (si := self._si_seconds(pn)) is None else f"={fmt_duration(si)}",
             "next_name": self._iu_attr("next_name", "n/a"),
             "next_start": self._iu_attr("next_start", "n/a"),
             "next_duration": self._iu_attr("next_duration", "n/a"),
@@ -186,6 +189,8 @@ class PlannedSensor(_ZoneSensor):
                 self.async_write_ha_state()
 
         self.async_on_remove(self.rt.values.listen(_value))
+        self.async_on_remove(async_dispatcher_connect(
+            self.hass, SIGNAL_SI_OVERRIDE, self.async_write_ha_state))
 
 
 class ForecastSensor(ManagerEntity, SensorEntity):

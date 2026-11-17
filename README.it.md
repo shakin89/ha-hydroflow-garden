@@ -23,10 +23,10 @@ HydroFlow Garden è quello strato mancante, realizzato come integrazione nativa.
   partenze diverse al giorno per controller.
 - **Tutto programmabile da UI.** Per ogni programma imposti l'orario (fisso, alba o tramonto con
   offset), i mesi attivi e i cicli eco; per ogni zona i suoi giorni della settimana e la sua durata.
-  HydroFlow Garden li traduce in una configurazione valida di Irrigation Unlimited e garantisce che le
-  zone dello stesso programma non si aprano mai insieme.
+  HydroFlow Garden li invia a Irrigation Unlimited tramite le sue azioni, senza scrivere file, e
+  garantisce che le zone dello stesso programma non si aprano mai insieme.
 - **Smart Irrigation integrato.** Prima di ogni programma le durate calcolate da Smart Irrigation vengono
-  scritte in IU. Dopo la corsa il bucket di una zona viene azzerato solo se la zona ha erogato almeno il
+  inviate a IU. Dopo la corsa il bucket di una zona viene azzerato solo se la zona ha erogato almeno il
   90% del previsto e il device delle valvole era online.
 - **Gestione della pioggia.** Ogni giorno legge la previsione e sospende i controller attivi se
   probabilità e millimetri previsti superano **entrambi** le tue soglie. Una corsa schedulata che parte
@@ -48,7 +48,7 @@ HydroFlow Garden è quello strato mancante, realizzato come integrazione nativa.
 
 | Obbligatorio | A cosa serve |
 |---|---|
-| [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited) | Comanda le valvole. La sua configurazione deve essere inclusa da file: `irrigation_unlimited: !include irrigation_unlimited.yaml`. **Quel file lo scrive e lo sovrascrive HydroFlow Garden.** |
+| [Irrigation Unlimited](https://github.com/rgc99/irrigation_unlimited) | Comanda le valvole. La sua configurazione deve essere inclusa da file: `irrigation_unlimited: !include irrigation_unlimited.yaml`. HydroFlow Garden ti dà il contenuto da incollare in quel file e non lo scrive mai. |
 | [button-card](https://github.com/custom-cards/button-card) | Dashboard generata (tutte le card sono button-card) |
 
 | Facoltativo | A cosa serve |
@@ -62,12 +62,13 @@ HydroFlow Garden è quello strato mancante, realizzato come integrazione nativa.
 1. Marketplace / HACS → ⋮ → **Repository personalizzati** → `https://github.com/shakin89/ha-hydroflow-garden`,
    categoria **Integrazione** → installa → riavvia Home Assistant.
 2. Verifica che `configuration.yaml` contenga `irrigation_unlimited: !include irrigation_unlimited.yaml`.
+   Il contenuto di quel file lo incolli al passo 4.
 3. Impostazioni → Dispositivi e servizi → **Aggiungi integrazione** → *HydroFlow Garden*.
 
 ## Come si usa
 
-1. **Impostazioni generali.** Il primo form imposta notifiche, meteo e soglie pioggia, file di log, file
-   di IU e dashboard. Per ora lascia spento **Engine attivo**. Tutti i campi sono spiegati qui sotto.
+1. **Impostazioni generali.** Il primo form imposta notifiche, meteo e soglie pioggia, file di log e
+   dashboard. Per ora lascia spento **Engine attivo**. Tutti i campi sono spiegati qui sotto.
 2. **Aggiungi un controller.** Dalla pagina dell'integrazione scegli **Aggiungi controller**: un
    controller è un impianto con la sua pompa e le sue valvole. Inserisci le zone (una per valvola) e i
    programmi (una partenza giornaliera ciascuno). Sotto ogni campo c'è una spiegazione.
@@ -76,19 +77,37 @@ HydroFlow Garden è quello strato mancante, realizzato come integrazione nativa.
    - i mesi attivi;
    - i cicli eco;
    - per ogni zona, i giorni e la durata.
-4. **Accendi l'engine.** Pagina dell'integrazione → **Configura** → *Engine attivo*. Il file di IU viene
-   scritto e IU si ricarica. Da quel momento ogni modifica in dashboard arriva a IU in circa 5 secondi.
+4. **Accendi l'engine.** Pagina dell'integrazione → **Configura** → *Engine attivo*. Un avviso di
+   riparazione (Impostazioni → **Riparazioni**) mostra la configurazione di Irrigation Unlimited.
+   Incollala come contenuto di `irrigation_unlimited.yaml`, poi esegui l'azione *Irrigation Unlimited:
+   Reload*. L'avviso sparisce quando IU la usa. Da quel momento ogni modifica in dashboard arriva a IU
+   in circa 5 secondi. L'azione `hydroflow_garden.get_iu_config` restituisce lo stesso testo.
 5. **Prova.** Il pulsante **Avvia test** di un controller (`button.iu_<c>_test`, nella pagina del suo
    dispositivo) fa girare tutte le zone per la durata di test. Per ora non è nella dashboard.
 
 Per cambiare zone o programmi in seguito usa **Riconfigura** sul controller. La dashboard si rigenera da
 sola.
 
+### Il file di Irrigation Unlimited
+
+HydroFlow Garden non scrive mai file. Il testo che incolli descrive solo la struttura: impianti, zone e,
+per ogni programma, fino a 7 sequenze (una per insieme di zone), tutte disabilitate. Orari, giorni, mesi, durate e quali zone
+partono vengono inviati a runtime con le azioni di IU, e inviati di nuovo dopo ogni riavvio e reload di
+IU. Incolla un nuovo testo solo quando lo chiede l'avviso di riparazione: dopo aver aggiunto, tolto o
+rinominato zone o programmi, o cambiato cicli o pausa eco. Fino ad allora quegli impianti non ricevono
+aggiornamenti.
+
+Le durate sono impostate sulle zone di ogni sequenza. HydroFlow Garden azzera gli aggiustamenti di zona
+fatti in IU a ogni riavvio e reload di IU, perché IU li ignora dentro una sequenza che ha i propri.
+
+Fino alla 0.4.0-beta.2 l'integrazione scriveva lei questo file. Dopo l'aggiornamento l'avviso di
+riparazione compare una volta: incolla il nuovo testo e ricarica IU.
+
 ### Impostazioni generali (Configura)
 
 | Campo | Significato |
 |---|---|
-| Engine attivo | Spento: solo entità, niente viene scritto o eseguito. Acceso: scrive il file di IU ed esegue tutte le automazioni. |
+| Engine attivo | Spento: solo entità, niente viene inviato a IU o eseguito. Acceso: invia orari, giorni e durate a IU ed esegue tutte le automazioni. |
 | Entità notify | Entità chiamate con `notify.send_message`, es. un bot Telegram. |
 | Servizi notify legacy | Nomi completi dei servizi, es. `notify.mobile_app_telefono`. |
 | Notifiche persistenti | Mostra ogni messaggio anche come notifica persistente. |
@@ -99,7 +118,6 @@ sola.
 | Ora controllo previsione | Quando gira il controllo giornaliero. Mettila prima del programma più mattutino. |
 | Durata sospensione | Ore di sospensione dei controller attivi dopo uno skip pioggia. |
 | File di log eventi, Ruota il log oltre, Copie ruotate | Log eventi testuale e sua rotazione per dimensione. |
-| File di Irrigation Unlimited | Il file incluso come `irrigation_unlimited:`. Viene sovrascritto. |
 | URL dashboard, Titolo dashboard | Dove sta la dashboard generata e il suo nome nella barra laterale. L'URL deve contenere un trattino. Una dashboard già presente su quell'URL e non creata dall'integrazione non viene mai sovrascritta: un avviso di riparazione chiede un altro URL. |
 
 ### Controller (Aggiungi controller / Riconfigura)
@@ -108,7 +126,7 @@ sola.
 |---|---|
 | Nome | Mostrato in dashboard e nelle notifiche. |
 | Id | Slug breve in ogni entity id (`switch.iu_<id>_…`). Non si cambia dopo; vuoto = dal nome. |
-| controller_id IU | `controller_id` scritto nel file di IU; vuoto = dal nome. |
+| controller_id IU | `controller_id` nella configurazione di IU; vuoto = dal nome. |
 | Pompa / valvola master | Switch che IU accende mentre una zona di questo controller irriga. |
 | Durata massima zona | Limite di sicurezza per una corsa di zona (`HH:MM`). |
 | Zone | Una riga per valvola (vedi sotto). |
@@ -152,7 +170,7 @@ Ogni valore è un'entità con id stabile: `iu_<controller>_…`.
 | `sensor.iu_<c>_suspend_reason` | Motivo della sospensione: `none`, `rain`, `device_offline` |
 | `sensor.iu_<nome controller>_z<Z>_<zona>_programmato` / `_oggi` / `_ieri` / `_2gg_fa` | Prossima durata prevista con i dettagli di Smart Irrigation; tempo irrigato oggi, ieri e 2 giorni fa |
 | `sensor.precipitazioni_oggi`, `sensor.probabilita_pioggia_oggi`, `binary_sensor.iu_sta_piovendo` | Previsione e pioggia in corso |
-| `button.iu_<c>_test`, `button.iu_regenerate_dashboard`, `button.iu_write_config` | Test, manutenzione |
+| `button.iu_<c>_test`, `button.iu_regenerate_dashboard` | Test, manutenzione |
 | `select.iu_dashboard_theme`, `select.iu_dashboard_mode` | Colori della dashboard: `system`, `salvia`, `laguna`, `terracotta`; `auto`, `light`, `dark` |
 
 ## Lingue
@@ -172,7 +190,8 @@ Per aggiungere una lingua vedi `scripts/build_translations.py`.
 ## Azioni
 
 - `hydroflow_garden.regenerate_dashboard`
-- `hydroflow_garden.write_iu_config`: riscrive il file di IU e ricarica IU.
+- `hydroflow_garden.get_iu_config`: restituisce il testo del file di IU da incollare (`yaml`) e gli
+  impianti che lo usano già (`in_sync`).
 - `hydroflow_garden.rain_skip`: esegue subito il controllo pioggia. Con `force: true` sospende comunque, per prova.
 
 ## Migrazione da helper YAML

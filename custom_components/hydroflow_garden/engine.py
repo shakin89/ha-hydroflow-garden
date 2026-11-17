@@ -25,6 +25,10 @@ from homeassistant.core import (
     HomeAssistant,
     callback,
 )
+from homeassistant.helpers.dispatcher import (
+    async_dispatcher_connect,
+    async_dispatcher_send,
+)
 from homeassistant.helpers.event import (
     async_call_later,
     async_track_point_in_time,
@@ -62,7 +66,7 @@ from .planning import (
     suspend_seconds,
     zones_to_reset,
 )
-from .runtime import async_get_today_forecast
+from .runtime import SIGNAL_SI_OVERRIDE, async_get_today_forecast
 
 if TYPE_CHECKING:
     from .runtime import IrrigationRuntime
@@ -165,8 +169,6 @@ class Engine:
         if any(z.smart_irrigation for c in self.rt.controller_list for z in c.zones):
             self._unsubs.append(async_track_time_change(
                 hass, self._si_hourly_cb, minute=10, second=0))
-
-        from homeassistant.helpers.dispatcher import async_dispatcher_connect
 
         from .runtime import SIGNAL_RAIN_NOW
         self._unsubs.append(async_dispatcher_connect(hass, SIGNAL_RAIN_NOW, self._rain_now_cb))
@@ -358,13 +360,14 @@ class Engine:
         await self._call(SI_DOMAIN, "update_weather", {})
         await self._call(SI_DOMAIN, "calculate", {})
         repeat = program_repeat(self.rt.get, ctrl, prog)
+        # On the sequence zones of the program, like every duration: IU
+        # ignores a zone-level adjustment in a sequence that has its own.
+        overrides = self.rt.si_override.setdefault(ctrl.id, {})
         for z in zones:
             st = self.hass.states.get(z.si_sensor)
-            secs = si_adjust_seconds(st.state if st else None, repeat)
-            await self._call(IU_DOMAIN, "adjust_time", {
-                "entity_id": self.rt.zone_entity(ctrl, z.id),
-                "actual": fmt_duration(secs),
-            })
+            overrides[(prog.id, z.id)] = si_adjust_seconds(st.state if st else None, repeat)
+        async_dispatcher_send(self.hass, SIGNAL_SI_OVERRIDE)
+        await self.rt.async_sync_iu()
 
     @callback
     def _si_hourly_cb(self, _now: datetime) -> None:

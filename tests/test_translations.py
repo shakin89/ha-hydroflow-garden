@@ -72,7 +72,6 @@ def test_language_tag() -> None:
 async def _setup(hass: HomeAssistant, language: str = "en") -> None:
     await hass.config.async_update(language=language)
     topo = copy.deepcopy(TOPOLOGY)
-    topo["options"]["iu_config_path"] = hass.config.path("iu_i18n_test.yaml")
     await async_setup_component(hass, DOMAIN, {DOMAIN: topo})
     await hass.async_block_till_done()
 

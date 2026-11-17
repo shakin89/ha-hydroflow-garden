@@ -35,8 +35,6 @@ def _capture(hass: HomeAssistant, domain: str, service: str) -> list[ServiceCall
 
 async def _setup(hass: HomeAssistant, topology=None) -> None:
     topo = copy.deepcopy(topology or TOPOLOGY)
-    topo["options"]["iu_config_path"] = hass.config.path("iu_test.yaml")
-    Path(topo["options"]["iu_config_path"]).unlink(missing_ok=True)
     await async_setup_component(hass, DOMAIN, {DOMAIN: topo})
     await hass.async_block_till_done()
     await hass.async_block_till_done()
@@ -47,6 +45,7 @@ async def test_import_creates_entities_and_seeds(hass: HomeAssistant) -> None:
     hass.states.async_set("input_number.iu_alpha_p1_z1_duration", "17.0")
     hass.states.async_set("input_datetime.iu_alpha_p1_time", "05:30:00")
     reload_calls = _capture(hass, "irrigation_unlimited", "reload")
+    Path(hass.config.path("irrigation_unlimited.yaml")).unlink(missing_ok=True)  # left by 0.4.0-beta.2 runs
     await _setup(hass)
 
     entries = hass.config_entries.async_entries(DOMAIN)
@@ -66,11 +65,9 @@ async def test_import_creates_entities_and_seeds(hass: HomeAssistant) -> None:
     assert hass.states.get("sensor.iu_controller_alpha_z1_lawn_programmato") is not None
     assert hass.states.get("button.iu_alpha_test") is not None
 
-    # engine on: IU file written and IU reloaded at setup
-    path = Path(hass.config.path("iu_test.yaml"))
-    cfg = yaml.safe_load(path.read_text())
-    assert [c["controller_id"] for c in cfg["controllers"]] == ["controller_alpha", "controller_beta"]
-    assert len(reload_calls) == 1
+    # engine on: the integration never writes the IU file nor reloads IU
+    assert not Path(hass.config.path("irrigation_unlimited.yaml")).exists()
+    assert reload_calls == []
 
 
 async def test_import_seed_values(hass: HomeAssistant) -> None:
@@ -86,25 +83,125 @@ async def test_import_seed_values(hass: HomeAssistant) -> None:
     assert hass.states.get("select.iu_alpha_p1_time_type").state == "sunrise"
 
 
-async def test_value_change_rewrites_iu(hass: HomeAssistant) -> None:
-    reload_calls = _capture(hass, "irrigation_unlimited", "reload")
-    await _setup(hass)
-    path = Path(hass.config.path("iu_test.yaml"))
-    await hass.services.async_call("switch", "turn_on",
-                                   {"entity_id": "switch.iu_alpha_p1_enabled"}, blocking=True)
+MASTER_A = "binary_sensor.irrigation_unlimited_c1_m"
+IU_SERVICES = ("load_schedule", "enable", "disable", "adjust_time", "reload")
+
+
+def _iu_calls(hass: HomeAssistant) -> dict[str, list[ServiceCall]]:
+    return {s: _capture(hass, "irrigation_unlimited", s) for s in IU_SERVICES}
+
+
+def _rt(hass: HomeAssistant):
+    return hass.config_entries.async_entries(DOMAIN)[0].runtime_data
+
+
+def _iu_loads(hass: HomeAssistant, digest: str | None) -> None:
+    """IU creates (or reloads) controller alpha with a file of that digest."""
+    from custom_components.hydroflow_garden.iu_config import STRUCTURE_ATTR
+    hass.states.async_set(MASTER_A, "off", {STRUCTURE_ATTR: digest} if digest else {})
+
+
+def _digest(hass: HomeAssistant) -> str:
+    from custom_components.hydroflow_garden.iu_config import structure_digest
+    rt = _rt(hass)
+    return structure_digest(rt.get, rt.controller_list[0])
+
+
+async def _settle(hass: HomeAssistant) -> None:
     async_fire_time_changed(hass, dt_util.utcnow() + timedelta(seconds=10))
     await hass.async_block_till_done()
-    cfg = yaml.safe_load(path.read_text())
-    assert all(s["enabled"] for s in cfg["controllers"][0]["sequences"] if s["name"].startswith("P1 "))
-    assert len(reload_calls) == 2
 
 
-async def test_engine_off_writes_nothing(hass: HomeAssistant) -> None:
+async def test_sync_pushes_only_changes(hass: HomeAssistant) -> None:
+    hass.states.async_set("input_boolean.iu_alpha_p1_z1_enabled", "on")
+    hass.states.async_set("input_boolean.iu_alpha_p1_z1_tue", "on")
+    calls = _iu_calls(hass)
+    await _setup(hass)
+    assert not any(calls.values())  # IU has not created the controller yet
+
+    _iu_loads(hass, _digest(hass))
+    await _settle(hass)
+    loads = list(calls["load_schedule"])
+    assert sorted(c.data["schedule_id"] for c in loads) == [f"hf_alpha_s{i}" for i in range(1, 5)]
+    assert any(c.data.get("weekday") == ["tue"] and c.data["time"] == "04:00" for c in loads)
+    assert {c.data["entity_id"] for c in calls["adjust_time"]} == {MASTER_A}
+    assert calls["reload"] == []
+
+    # a duration change sends that duration only
+    sent = {k: len(v) for k, v in calls.items()}
+    await hass.services.async_call("number", "set_value", {
+        "entity_id": "number.iu_alpha_p1_z1_duration", "value": 17}, blocking=True)
+    await _settle(hass)
+    assert {k: len(v) - sent[k] for k, v in calls.items() if k != "adjust_time"} == {
+        "load_schedule": 0, "enable": 0, "disable": 0, "reload": 0}
+    new = [c.data for c in calls["adjust_time"][sent["adjust_time"]:]]
+    assert new and all(d["zones"] == [1] and d["actual"] == "00:17:00" for d in new)
+    assert {sq for d in new for sq in d["sequence_id"]} <= {"1", "2"}  # slots of P1
+
+    # IU reloaded its file: it forgot load_schedule, everything goes again
+    await hass.services.async_call("irrigation_unlimited", "reload", {}, blocking=True)
+    await _settle(hass)
+    assert len(calls["load_schedule"]) == 2 * len(loads)
+
+
+async def test_outdated_iu_file_is_reported_not_written(hass: HomeAssistant) -> None:
+    from homeassistant.helpers import issue_registry as ir
+
+    calls = _iu_calls(hass)
+    await _setup(hass)
+    _iu_loads(hass, None)  # a file written by 0.4.0-beta.2 or by hand
+    await _settle(hass)
+    issue = ir.async_get(hass).async_get_issue(DOMAIN, "iu_config_outdated")
+    assert issue is not None and issue.translation_placeholders["controllers"] == "Controller Alpha"
+    pasted = yaml.safe_load(issue.translation_placeholders["yaml"])
+    assert pasted["controllers"][0]["user"]["hydroflow_structure"] == _digest(hass)
+    assert calls["load_schedule"] == []
+
+    resp = await hass.services.async_call(DOMAIN, "get_iu_config", {}, blocking=True, return_response=True)
+    assert yaml.safe_load(resp["yaml"]) == pasted and resp["in_sync"] == []
+
+    # the user pasted it and reloaded IU
+    _iu_loads(hass, _digest(hass))
+    await _settle(hass)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, "iu_config_outdated") is None
+    assert calls["load_schedule"]
+
+
+async def test_engine_off_sends_nothing(hass: HomeAssistant) -> None:
+    from homeassistant.helpers import issue_registry as ir
+
     topo = copy.deepcopy(TOPOLOGY)
     topo["options"]["engine_enabled"] = False
+    calls = _iu_calls(hass)
+    hass.states.async_set(MASTER_A, "off")
     await _setup(hass, topo)
-    assert not Path(hass.config.path("iu_test.yaml")).exists()
-    assert hass.config_entries.async_entries(DOMAIN)[0].runtime_data.engine is None
+    await _settle(hass)
+    assert not any(calls.values())
+    assert ir.async_get(hass).async_get_issue(DOMAIN, "iu_config_outdated") is None
+    assert _rt(hass).engine is None
+
+
+async def test_si_adjust_goes_to_the_program_slots(hass: HomeAssistant) -> None:
+    hass.states.async_set("input_boolean.iu_alpha_p1_z1_enabled", "on")
+    hass.states.async_set("input_boolean.iu_alpha_p1_z1_tue", "on")
+    hass.states.async_set("sensor.smart_irrigation_lawn", "900")
+    calls = _iu_calls(hass)
+    _capture(hass, "smart_irrigation", "update_weather")
+    _capture(hass, "smart_irrigation", "calculate")
+    await _setup(hass)
+    _iu_loads(hass, _digest(hass))
+    await _settle(hass)
+    rt = _rt(hass)
+    ctrl = rt.controller_list[0]
+    sent = len(calls["adjust_time"])
+    await rt.engine._si_adjust(ctrl, ctrl.programs[0], dt_util.now())
+    await hass.async_block_till_done()
+    new = [c.data for c in calls["adjust_time"][sent:]]
+    assert new and all(d["entity_id"] == MASTER_A and d["zones"] == [1] and d["actual"] == "00:15:00"
+                       for d in new)
+    assert {sq for d in new for sq in d["sequence_id"]} <= {"1", "2"}  # slots of P1 only
+    planned = hass.states.get("sensor.iu_controller_alpha_z1_lawn_programmato")
+    assert planned.state == "900" and planned.attributes["adjustment"] == "=00:15:00"
 
 
 async def test_rain_cancel_and_si_reset(hass: HomeAssistant) -> None:

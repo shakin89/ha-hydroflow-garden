@@ -870,8 +870,10 @@ hf_zone_card:
         type: custom:button-card
         template: hf_zone_run
         entity: "[[[ return entity.entity_id ]]]"
+        variables:
+          planned_entity: "[[[ return variables.planned_entity ]]]"
 
-# Play / stop of one IU zone (manual run for its planned adjustment).
+# Play / stop of one IU zone (manual run for its planned duration).
 hf_zone_run:
   template: hf_part
   show_icon: true
@@ -882,10 +884,9 @@ hf_zone_run:
     service_data: >
       [[[
         if (entity?.state === 'on') return { entity_id: entity.entity_id };
-        const adj = entity?.attributes?.adjustment || '';
-        const parts = (adj.startsWith('=') ? adj.slice(1) : adj).split(':');
-        if (parts.length < 2) return { entity_id: entity.entity_id };
-        return { entity_id: entity.entity_id, time: { hours: parseInt(parts[0] || '0'), minutes: parseInt(parts[1] || '0'), seconds: parseInt(parts[2] || '0') } };
+        const secs = Math.round(Number(states[variables.planned_entity]?.state) || 0);
+        if (secs <= 0) return { entity_id: entity.entity_id };
+        return { entity_id: entity.entity_id, time: { hours: Math.floor(secs / 3600), minutes: Math.floor(secs % 3600 / 60), seconds: secs % 60 } };
       ]]]
   styles:
     card:
@@ -1233,6 +1234,8 @@ hf_zone_detail:
         type: custom:button-card
         template: hf_zone_run
         entity: "[[[ return entity.entity_id ]]]"
+        variables:
+          planned_entity: "[[[ return variables.planned_entity ]]]"
 
 # ---------------------------------------------------------------------------
 # Settings
