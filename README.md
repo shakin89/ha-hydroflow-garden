@@ -76,12 +76,14 @@ HydroFlow Garden is that missing layer, built as a native integration.
    - the active months;
    - eco cycles;
    - for each zone, the weekdays and the duration.
-4. **Turn the engine on.** Integration page → **Configure** → *Engine active*. A repair issue
-   (Settings → **Repairs**) shows the Irrigation Unlimited configuration. Paste it as the content of
-   `irrigation_unlimited.yaml`, then run the *Irrigation Unlimited: Reload* action. The issue goes away
-   when IU runs it. From then on every change in the dashboard reaches IU within about 5 seconds.
-   The action `hydroflow_garden.get_iu_config` returns the same text.
-5. **Test.** The **Start test** button of a controller (`button.iu_<c>_test`, on its device page) runs
+4. **Paste the Irrigation Unlimited file.** A repair issue (Settings → **Repairs**) shows the Irrigation
+   Unlimited configuration whenever the file IU runs does not match your controllers, with the engine on
+   or off. Paste it as the content of `irrigation_unlimited.yaml`, then run the *Irrigation Unlimited:
+   Reload* action. The issue goes away when IU runs it. The action `hydroflow_garden.get_iu_config`
+   returns the same text.
+5. **Turn the engine on.** Integration page → **Configure** → *Engine active*. From then on every change
+   in the dashboard reaches IU within about 5 seconds.
+6. **Test.** The **Start test** button of a controller (`button.iu_<c>_test`, on its device page) runs
    every zone for the test duration. It is not in the dashboard for now.
 
 To change zones or programs later, use **Reconfigure** on the controller. The dashboard is regenerated
@@ -93,7 +95,8 @@ HydroFlow Garden never writes files. The text you paste only describes the struc
 zones, and for each program up to 7 sequences (one per set of zones), all disabled. Times, weekdays, months, durations and
 which zones run are sent at runtime through IU's actions, and sent again after every restart and IU
 reload. Paste a new text only when the repair issue asks for it: after adding, removing or renaming
-zones or programs, or changing eco cycles or soak. Until then those controllers get no updates.
+zones or programs, adding or removing a controller, or changing eco cycles or soak. Until then those
+controllers get no updates.
 
 Durations are set on the zones of each sequence. HydroFlow Garden clears zone-level adjustments made in
 IU at every restart and IU reload, because IU ignores them inside a sequence that has its own.

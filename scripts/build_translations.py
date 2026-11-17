@@ -623,13 +623,13 @@ def build(lang: str) -> dict:
         }, "iu_config_outdated": {
             "title": "File di Irrigation Unlimited da aggiornare" if it else "Irrigation Unlimited file outdated",
             "description": (
-                "Irrigation Unlimited non usa la struttura attuale per: {controllers}. Finché non la usa, "
+                "Il file di Irrigation Unlimited non corrisponde alla configurazione attuale per: {controllers}. Finché non corrisponde, "
                 "HydroFlow Garden non gli invia orari, giorni e durate di questi impianti.\n\n"
                 "Sostituisci il contenuto del file incluso da `irrigation_unlimited:` in configuration.yaml "
                 "(es. `irrigation_unlimited.yaml`) con il testo qui sotto, poi esegui l'azione "
                 "*Irrigation Unlimited: Reload*. Lo stesso testo lo restituisce l'azione "
                 "`hydroflow_garden.get_iu_config`.\n\n```yaml\n{yaml}```" if it else
-                "Irrigation Unlimited does not run the current structure for: {controllers}. Until it does, "
+                "The Irrigation Unlimited file does not match the current configuration for: {controllers}. Until it does, "
                 "HydroFlow Garden sends no times, days or durations to these controllers.\n\n"
                 "Replace the content of the file included by `irrigation_unlimited:` in configuration.yaml "
                 "(e.g. `irrigation_unlimited.yaml`) with the text below, then run the "

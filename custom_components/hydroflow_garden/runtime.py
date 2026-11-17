@@ -9,8 +9,20 @@ from datetime import date, datetime, timedelta
 from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import ATTR_DOMAIN, ATTR_SERVICE, EVENT_CALL_SERVICE, STATE_ON
-from homeassistant.core import Event, EventStateChangedData, HomeAssistant, callback
+from homeassistant.const import (
+    ATTR_DOMAIN,
+    ATTR_SERVICE,
+    EVENT_CALL_SERVICE,
+    STATE_ON,
+    STATE_UNAVAILABLE,
+)
+from homeassistant.core import (
+    Event,
+    EventStateChangedData,
+    HomeAssistant,
+    State,
+    callback,
+)
 from homeassistant.helpers import entity_registry as er
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.debounce import Debouncer
@@ -186,13 +198,31 @@ class IrrigationRuntime:
         """The YAML the user pastes as the file included by ``irrigation_unlimited:``."""
         return iu_config.dump(iu_config.build_structure(self.get, self.controller_list))
 
-    def iu_structure_ok(self, ctrl: Controller) -> bool | None:
-        """Whether IU runs the current structure of ``ctrl``; None while IU
-        has not created the controller entity yet."""
-        state = self.hass.states.get(self.master(ctrl))
-        if state is None:
+    def _iu_master_state(self, pos: int) -> State | None:
+        """State of the IU controller at ``pos``; None when IU does not run one."""
+        state = self.hass.states.get(self.iu_entity(pos, "m"))
+        if state is None or state.state == STATE_UNAVAILABLE:
             return None
-        return state.attributes.get(iu_config.STRUCTURE_ATTR) == iu_config.structure_digest(self.get, ctrl)
+        return state
+
+    def iu_structure_ok(self, ctrl: Controller) -> bool:
+        """Whether IU runs the current structure of ``ctrl``."""
+        state = self._iu_master_state(self.position(ctrl))
+        return state is not None and \
+            state.attributes.get(iu_config.STRUCTURE_ATTR) == iu_config.structure_digest(self.get, ctrl)
+
+    def _iu_extra_names(self) -> list[str]:
+        """Names of the controllers IU runs beyond ours (left by an older file)."""
+        names = []
+        pos = len(self.controllers)
+        while (state := self._iu_master_state(pos)) is not None:
+            names.append(state.name)
+            pos += 1
+        return names
+
+    def _iu_loaded(self) -> bool:
+        """IU has created at least one controller from its file."""
+        return any(self._iu_master_state(pos) is not None for pos in range(len(self.controllers) + 1))
 
     def iu_resync(self) -> None:
         """Forget what IU received and push everything again (debounced)."""
@@ -200,24 +230,25 @@ class IrrigationRuntime:
         self.hass.async_create_task(self._syncer.async_call())
 
     async def async_sync_iu(self) -> bool:
-        """Push to IU what changed since the last push. Controllers whose IU
-        file is outdated are left alone and reported in a repair issue.
-        Returns True when every controller is in sync."""
-        if not self.engine_enabled:
-            return False
+        """Report in a repair issue an IU file that differs from the current
+        structure, engine on or off: a controller missing, with another
+        structure, or one IU runs beyond ours. With the engine on, push to the
+        controllers in sync what changed since the last push.
+        Returns True when IU runs exactly our controllers."""
         async with self._sync_lock:
-            outdated: list[Controller] = []
+            if not self._iu_loaded():
+                return False  # IU not loaded yet: its entity appearing triggers a sync
+            outdated = [c for c in self.controller_list if not self.iu_structure_ok(c)]
+            extra = self._iu_extra_names()
+            self._update_outdated_issue([c.name for c in outdated] + extra)
+            if not self.engine_enabled:
+                return False
             for ctrl in self.controller_list:
-                ok = self.iu_structure_ok(ctrl)
-                if ok is None:
-                    continue  # IU not loaded yet: its entity appearing triggers a sync
-                if not ok:
-                    outdated.append(ctrl)
+                if ctrl in outdated:
                     self._pushed.pop(ctrl.id, None)
                     continue
                 await self._async_push(ctrl)
-            self._update_outdated_issue(outdated)
-            return not outdated
+            return not outdated and not extra
 
     async def _async_push(self, ctrl: Controller) -> None:
         if not self.hass.services.has_service(IU_DOMAIN, "load_schedule"):
@@ -237,7 +268,7 @@ class IrrigationRuntime:
                 continue
             pushed[key] = call
 
-    def _update_outdated_issue(self, outdated: list[Controller]) -> None:
+    def _update_outdated_issue(self, outdated: list[str]) -> None:
         if not outdated:
             ir.async_delete_issue(self.hass, DOMAIN, "iu_config_outdated")
             return
@@ -245,7 +276,7 @@ class IrrigationRuntime:
             self.hass, DOMAIN, "iu_config_outdated", is_fixable=False,
             severity=ir.IssueSeverity.ERROR, translation_key="iu_config_outdated",
             translation_placeholders={
-                "controllers": ", ".join(c.name for c in outdated),
+                "controllers": ", ".join(outdated),
                 "yaml": self.iu_structure_text(),
             },
         )
@@ -275,25 +306,29 @@ class IrrigationRuntime:
         # A suspension that ended takes its reason with it, so that a later one
         # made by hand from the IU UI is not labelled with a stale reason.
         masters = {self.master(c): c for c in self.controller_list}
+        # One position past ours too: IU still running a controller we no
+        # longer have is an outdated file.
+        watched = [*masters, self.iu_entity(len(self.controllers), "m")]
+
+        def _present(state: State | None) -> bool:
+            return state is not None and state.state != STATE_UNAVAILABLE
 
         @callback
         def _master_changed(event: Event[EventStateChangedData]) -> None:
-            new = event.data["new_state"]
+            new, old = event.data["new_state"], event.data["old_state"]
             ctrl = masters.get(event.data["entity_id"])
-            if new is None or ctrl is None:
-                return
-            old = event.data["old_state"]
-            # IU created the controller (startup) or loaded another file.
-            if self.engine_enabled and (old is None or old.attributes.get(iu_config.STRUCTURE_ATTR)
-                                        != new.attributes.get(iu_config.STRUCTURE_ATTR)):
-                self._pushed.pop(ctrl.id, None)
+            # IU created or removed the controller, or loaded another file.
+            if _present(old) != _present(new) or (
+                    _present(new) and old.attributes.get(iu_config.STRUCTURE_ATTR)
+                    != new.attributes.get(iu_config.STRUCTURE_ATTR)):
+                if ctrl is not None:
+                    self._pushed.pop(ctrl.id, None)
                 self.hass.async_create_task(self._syncer.async_call())
-            if new.attributes.get("suspended") is None and \
+            if ctrl is not None and _present(new) and new.attributes.get("suspended") is None and \
                     self.values.get(suspend_reason_key(ctrl)) != REASON_NONE:
                 self.set_reason(ctrl, REASON_NONE)
 
-        if masters:
-            self._unsubs.append(async_track_state_change_event(self.hass, list(masters), _master_changed))
+        self._unsubs.append(async_track_state_change_event(self.hass, watched, _master_changed))
 
         if self.engine_enabled:
             @callback
@@ -302,9 +337,7 @@ class IrrigationRuntime:
                     self.iu_resync()
 
             self._unsubs.append(self.hass.bus.async_listen(EVENT_CALL_SERVICE, _iu_reloaded))
-            await self.async_sync_iu()
-        else:
-            ir.async_delete_issue(self.hass, DOMAIN, "iu_config_outdated")
+        await self.async_sync_iu()
 
     async def async_stop(self) -> None:
         for unsub in self._unsubs:

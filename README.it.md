@@ -77,12 +77,14 @@ HydroFlow Garden è quello strato mancante, realizzato come integrazione nativa.
    - i mesi attivi;
    - i cicli eco;
    - per ogni zona, i giorni e la durata.
-4. **Accendi l'engine.** Pagina dell'integrazione → **Configura** → *Engine attivo*. Un avviso di
-   riparazione (Impostazioni → **Riparazioni**) mostra la configurazione di Irrigation Unlimited.
-   Incollala come contenuto di `irrigation_unlimited.yaml`, poi esegui l'azione *Irrigation Unlimited:
-   Reload*. L'avviso sparisce quando IU la usa. Da quel momento ogni modifica in dashboard arriva a IU
-   in circa 5 secondi. L'azione `hydroflow_garden.get_iu_config` restituisce lo stesso testo.
-5. **Prova.** Il pulsante **Avvia test** di un controller (`button.iu_<c>_test`, nella pagina del suo
+4. **Incolla il file di Irrigation Unlimited.** Un avviso di riparazione (Impostazioni → **Riparazioni**)
+   mostra la configurazione di Irrigation Unlimited ogni volta che il file usato da IU non corrisponde
+   ai tuoi impianti, con l'engine acceso o spento. Incollala come contenuto di
+   `irrigation_unlimited.yaml`, poi esegui l'azione *Irrigation Unlimited: Reload*. L'avviso sparisce
+   quando IU la usa. L'azione `hydroflow_garden.get_iu_config` restituisce lo stesso testo.
+5. **Accendi l'engine.** Pagina dell'integrazione → **Configura** → *Engine attivo*. Da quel momento ogni
+   modifica in dashboard arriva a IU in circa 5 secondi.
+6. **Prova.** Il pulsante **Avvia test** di un controller (`button.iu_<c>_test`, nella pagina del suo
    dispositivo) fa girare tutte le zone per la durata di test. Per ora non è nella dashboard.
 
 Per cambiare zone o programmi in seguito usa **Riconfigura** sul controller. La dashboard si rigenera da
@@ -94,8 +96,8 @@ HydroFlow Garden non scrive mai file. Il testo che incolli descrive solo la stru
 per ogni programma, fino a 7 sequenze (una per insieme di zone), tutte disabilitate. Orari, giorni, mesi, durate e quali zone
 partono vengono inviati a runtime con le azioni di IU, e inviati di nuovo dopo ogni riavvio e reload di
 IU. Incolla un nuovo testo solo quando lo chiede l'avviso di riparazione: dopo aver aggiunto, tolto o
-rinominato zone o programmi, o cambiato cicli o pausa eco. Fino ad allora quegli impianti non ricevono
-aggiornamenti.
+rinominato zone o programmi, aggiunto o tolto un impianto, o cambiato cicli o pausa eco. Fino ad allora
+quegli impianti non ricevono aggiornamenti.
 
 Le durate sono impostate sulle zone di ogni sequenza. HydroFlow Garden azzera gli aggiustamenti di zona
 fatti in IU a ogni riavvio e reload di IU, perché IU li ignora dentro una sequenza che ha i propri.

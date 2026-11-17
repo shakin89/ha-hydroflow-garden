@@ -95,16 +95,32 @@ def _rt(hass: HomeAssistant):
     return hass.config_entries.async_entries(DOMAIN)[0].runtime_data
 
 
-def _iu_loads(hass: HomeAssistant, digest: str | None) -> None:
-    """IU creates (or reloads) controller alpha with a file of that digest."""
+MASTER_B = "binary_sensor.irrigation_unlimited_c2_m"
+MASTER_EXTRA = "binary_sensor.irrigation_unlimited_c3_m"
+
+
+def _iu_loads(hass: HomeAssistant, digest: str | None, digest_b: str | None = "current") -> None:
+    """IU creates (or reloads) its controllers from a file: alpha with
+    ``digest``, beta with ``digest_b`` ("current" = in sync, None = absent)."""
     from custom_components.hydroflow_garden.iu_config import STRUCTURE_ATTR
     hass.states.async_set(MASTER_A, "off", {STRUCTURE_ATTR: digest} if digest else {})
+    if digest_b == "current":
+        digest_b = _digest(hass, 1)
+    if digest_b is None:
+        hass.states.async_remove(MASTER_B)
+    else:
+        hass.states.async_set(MASTER_B, "off", {STRUCTURE_ATTR: digest_b})
 
 
-def _digest(hass: HomeAssistant) -> str:
+def _digest(hass: HomeAssistant, index: int = 0) -> str:
     from custom_components.hydroflow_garden.iu_config import structure_digest
     rt = _rt(hass)
-    return structure_digest(rt.get, rt.controller_list[0])
+    return structure_digest(rt.get, rt.controller_list[index])
+
+
+def _outdated_issue(hass: HomeAssistant):
+    from homeassistant.helpers import issue_registry as ir
+    return ir.async_get(hass).async_get_issue(DOMAIN, "iu_config_outdated")
 
 
 async def _settle(hass: HomeAssistant) -> None:
@@ -119,7 +135,7 @@ async def test_sync_pushes_only_changes(hass: HomeAssistant) -> None:
     await _setup(hass)
     assert not any(calls.values())  # IU has not created the controller yet
 
-    _iu_loads(hass, _digest(hass))
+    _iu_loads(hass, _digest(hass), digest_b=None)  # alpha only: beta stays outdated
     await _settle(hass)
     loads = list(calls["load_schedule"])
     assert sorted(c.data["schedule_id"] for c in loads) == [f"hf_alpha_s{i}" for i in range(1, 5)]
@@ -155,10 +171,10 @@ async def test_outdated_iu_file_is_reported_not_written(hass: HomeAssistant) -> 
     assert issue is not None and issue.translation_placeholders["controllers"] == "Controller Alpha"
     pasted = yaml.safe_load(issue.translation_placeholders["yaml"])
     assert pasted["controllers"][0]["user"]["hydroflow_structure"] == _digest(hass)
-    assert calls["load_schedule"] == []
+    assert not [c for c in calls["load_schedule"] if c.data["schedule_id"].startswith("hf_alpha")]
 
     resp = await hass.services.async_call(DOMAIN, "get_iu_config", {}, blocking=True, return_response=True)
-    assert yaml.safe_load(resp["yaml"]) == pasted and resp["in_sync"] == []
+    assert yaml.safe_load(resp["yaml"]) == pasted and resp["in_sync"] == ["Controller Beta"]
 
     # the user pasted it and reloaded IU
     _iu_loads(hass, _digest(hass))
@@ -167,9 +183,7 @@ async def test_outdated_iu_file_is_reported_not_written(hass: HomeAssistant) -> 
     assert calls["load_schedule"]
 
 
-async def test_engine_off_sends_nothing(hass: HomeAssistant) -> None:
-    from homeassistant.helpers import issue_registry as ir
-
+async def test_engine_off_sends_nothing_but_reports_the_file(hass: HomeAssistant) -> None:
     topo = copy.deepcopy(TOPOLOGY)
     topo["options"]["engine_enabled"] = False
     calls = _iu_calls(hass)
@@ -177,8 +191,40 @@ async def test_engine_off_sends_nothing(hass: HomeAssistant) -> None:
     await _setup(hass, topo)
     await _settle(hass)
     assert not any(calls.values())
-    assert ir.async_get(hass).async_get_issue(DOMAIN, "iu_config_outdated") is None
     assert _rt(hass).engine is None
+    # the YAML to paste is offered before the engine is turned on
+    issue = _outdated_issue(hass)
+    assert issue is not None
+    assert issue.translation_placeholders["controllers"] == "Controller Alpha, Controller Beta"
+
+    _iu_loads(hass, _digest(hass))
+    await _settle(hass)
+    assert _outdated_issue(hass) is None
+    assert not any(calls.values())
+
+
+async def test_controller_missing_in_iu_is_reported(hass: HomeAssistant) -> None:
+    calls = _iu_calls(hass)
+    await _setup(hass)
+    _iu_loads(hass, _digest(hass), digest_b=None)  # file pasted before beta was added
+    await _settle(hass)
+    issue = _outdated_issue(hass)
+    assert issue is not None and issue.translation_placeholders["controllers"] == "Controller Beta"
+    assert calls["load_schedule"]  # alpha is in sync and still gets its schedules
+
+
+async def test_extra_controller_in_iu_is_reported(hass: HomeAssistant) -> None:
+    await _setup(hass)
+    _iu_loads(hass, _digest(hass))
+    hass.states.async_set(MASTER_EXTRA, "off", {"friendly_name": "Old Cistern"})
+    await _settle(hass)
+    issue = _outdated_issue(hass)
+    assert issue is not None and issue.translation_placeholders["controllers"] == "Old Cistern"
+
+    # the user pasted the current file: IU dropped the old controller
+    hass.states.async_remove(MASTER_EXTRA)
+    await _settle(hass)
+    assert _outdated_issue(hass) is None
 
 
 async def test_si_adjust_goes_to_the_program_slots(hass: HomeAssistant) -> None:

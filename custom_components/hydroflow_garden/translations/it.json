@@ -415,7 +415,7 @@
     },
     "iu_config_outdated": {
       "title": "File di Irrigation Unlimited da aggiornare",
-      "description": "Irrigation Unlimited non usa la struttura attuale per: {controllers}. Finché non la usa, HydroFlow Garden non gli invia orari, giorni e durate di questi impianti.\n\nSostituisci il contenuto del file incluso da `irrigation_unlimited:` in configuration.yaml (es. `irrigation_unlimited.yaml`) con il testo qui sotto, poi esegui l'azione *Irrigation Unlimited: Reload*. Lo stesso testo lo restituisce l'azione `hydroflow_garden.get_iu_config`.\n\n```yaml\n{yaml}```"
+      "description": "Il file di Irrigation Unlimited non corrisponde alla configurazione attuale per: {controllers}. Finché non corrisponde, HydroFlow Garden non gli invia orari, giorni e durate di questi impianti.\n\nSostituisci il contenuto del file incluso da `irrigation_unlimited:` in configuration.yaml (es. `irrigation_unlimited.yaml`) con il testo qui sotto, poi esegui l'azione *Irrigation Unlimited: Reload*. Lo stesso testo lo restituisce l'azione `hydroflow_garden.get_iu_config`.\n\n```yaml\n{yaml}```"
     },
     "dashboard_url_taken": {
       "title": "URL della dashboard già in uso",
