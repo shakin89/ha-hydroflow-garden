@@ -35,7 +35,8 @@ HydroFlow Garden è quello strato mancante, realizzato come integrazione nativa.
   prima di una corsa, HydroFlow Garden lo attende, poi sospende o annulla la corsa. Nessun bucket viene
   azzerato per acqua mai erogata.
 - **Riempimento cisterna.** Accende una pompa o una valvola di carico N minuti prima di ogni programma,
-  per M minuti.
+  per M minuti. Anche un riempimento acceso a mano (*Pompa di riempimento* nella vista Impostazioni) si
+  ferma dopo M minuti, pure con l'engine spento.
 - **Notifiche e log eventi.** I messaggi di avvio, fine, annullamento, pioggia e guasti arrivano a entità
   notify, app mobile o notifiche persistenti. Ogni valvola e ogni corsa finiscono anche in un log
   testuale con rotazione.

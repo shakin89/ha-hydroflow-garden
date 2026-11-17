@@ -485,7 +485,8 @@ TEXTS = {
                       "Le notifiche di pioggia e di guasto arrivano sempre, anche con le notifiche spente."),
         "fill_heading": ("Tank", "Cisterna"),
         "fill_now": ("Fill pump", "Pompa di riempimento"),
-        "fill_now_hint": ("turn on to fill now", "accendi per riempire adesso"),
+        "fill_now_hint": ("turn on to fill now; it stops after the fill duration",
+                          "accendi per riempire adesso; si spegne dopo la durata"),
         "fill_lead": ("Fill lead", "Anticipo"),
         "fill_lead_hint": ("how long before the start the pump turns on", "quanto prima della partenza si accende la pompa"),
         "fill_duration": ("Fill duration", "Durata"),
@@ -519,6 +520,12 @@ TEXTS = {
         "notifications_hint": ("faults are always notified", "i guasti si notificano sempre"),
         "notify_targets": ("Notification targets", "Destinatari notifiche"),
         "notify_targets_none": ("none: set them in Configure", "nessuno: impostali in Configura"),
+        "engine_off": ("Engine off: nothing waters", "Engine spento: non irriga niente"),
+        "engine_off_hint": (
+            "Programs and switches here are not sent to Irrigation Unlimited. "
+            "Open the integration, choose Configure and turn on Engine active.",
+            "Programmi e interruttori di questa pagina non arrivano a Irrigation Unlimited. "
+            "Apri l'integrazione, scegli Configura e attiva Engine attivo."),
         "notify_persistent": ("persistent notification", "notifica persistente"),
         "logging": ("Event log", "Log eventi"),
         "logging_hint": ("plain text file of runs and faults", "file di testo con partenze e guasti"),

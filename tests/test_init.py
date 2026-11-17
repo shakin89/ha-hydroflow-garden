@@ -335,6 +335,59 @@ async def test_dashboard_render() -> None:
     assert "fill_lead" not in beta and "preflight" not in beta
 
 
+async def test_dashboard_warns_when_engine_off() -> None:
+    from custom_components.hydroflow_garden.dashboard import render_dashboard
+    from custom_components.hydroflow_garden.model import Controller
+
+    ctrls = [Controller.from_dict(c) for c in TOPOLOGY["controllers"]]
+    texts = _texts("en")
+
+    def notices(cfg) -> dict[str, list]:
+        return {v["path"]: [c for sec in v["sections"] for c in sec.get("cards", [])
+                            if c.get("template") == "hf_notice"] for v in cfg["views"]}
+
+    assert not any(notices(render_dashboard(ctrls, "T", texts)).values())
+    off = notices(render_dashboard(ctrls, "T", texts, engine_enabled=False))
+    assert {p for p, n in off.items() if n} == {
+        f"irrigazione-{c}{s}" for c in ("alpha", "beta") for s in ("", "-programmi")}
+    card = off["irrigazione-alpha"][0]
+    assert card["variables"]["path"] == "/config/integrations/integration/hydroflow_garden"
+    assert card["variables"]["title"] == texts["engine_off"]
+
+
+async def test_manual_fill_ends_after_duration_engine_off(hass: HomeAssistant) -> None:
+    topo = copy.deepcopy(TOPOLOGY)
+    topo["options"]["engine_enabled"] = False
+    turn_off = _capture(hass, "homeassistant", "turn_off")
+    hass.states.async_set("switch.fill_a", "off")
+    await _setup(hass, topo)
+    assert _rt(hass).engine is None
+
+    hass.states.async_set("switch.fill_a", "on")  # "Fill now" toggle
+    await hass.async_block_till_done()
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=89))
+    await hass.async_block_till_done()
+    assert turn_off == []
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=91))
+    await hass.async_block_till_done()
+    assert [c.data["entity_id"] for c in turn_off] == [["switch.fill_a"]]
+
+
+async def test_fill_end_survives_a_reload(hass: HomeAssistant) -> None:
+    turn_off = _capture(hass, "homeassistant", "turn_off")
+    hass.states.async_set("switch.fill_a", "on")
+    await _setup(hass)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=60))
+    await hass.async_block_till_done()
+    assert await hass.config_entries.async_reload(entry.entry_id)
+    await hass.async_block_till_done()
+    assert turn_off == []  # a reload does not stop the fill
+    async_fire_time_changed(hass, dt_util.utcnow() + timedelta(minutes=91))
+    await hass.async_block_till_done()
+    assert [c.data["entity_id"] for c in turn_off] == [["switch.fill_a"]]
+
+
 async def test_dashboard_background_follows_appearance() -> None:
     from custom_components.hydroflow_garden.dashboard import render_dashboard
     from custom_components.hydroflow_garden.model import Controller

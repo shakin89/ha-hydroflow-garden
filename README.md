@@ -34,7 +34,8 @@ HydroFlow Garden is that missing layer, built as a native integration.
 - **Device-offline protection (preflight).** If the valve controller (for example ESPHome) is offline
   before a run, HydroFlow Garden waits for it, then suspends the run or cancels it. No bucket is reset
   for water that was never delivered.
-- **Cistern fill.** Turns a fill pump or valve on N minutes before each program, for M minutes.
+- **Cistern fill.** Turns a fill pump or valve on N minutes before each program, for M minutes. A fill
+  turned on by hand (*Fill pump* in the Settings view) also stops after M minutes, even with the engine off.
 - **Notifications and an event log.** Start, finish, cancel, rain and fault messages go to notify
   entities, mobile apps or persistent notifications. Every valve and run is also written to a plain text
   log with rotation.

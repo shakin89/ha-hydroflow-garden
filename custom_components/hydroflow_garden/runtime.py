@@ -28,6 +28,7 @@ from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.debounce import Debouncer
 from homeassistant.helpers.dispatcher import async_dispatcher_send
 from homeassistant.helpers.event import (
+    async_track_point_in_utc_time,
     async_track_state_change_event,
     async_track_time_change,
     async_track_time_interval,
@@ -64,6 +65,7 @@ from .model import (
     Controller,
     ValueSpec,
     controller_specs,
+    eid,
     suspend_reason_key,
 )
 from .palettes import MODE_AUTO, MODES, THEME_SYSTEM, THEMES
@@ -281,8 +283,54 @@ class IrrigationRuntime:
             },
         )
 
+    # --- fill ---------------------------------------------------------------
+    def fill_minutes(self, ctrl: Controller) -> int:
+        return int(_num(self.get(eid(ctrl.id, "fill_duration_minutes")), ctrl.fill_duration_minutes))
+
+    def _watch_fill(self, ctrl: Controller) -> None:
+        """A fill ends after the fill duration however it started: by the
+        engine before a program or by hand from the dashboard, engine on or
+        off. The end is anchored on the switch's last change, so a reload or
+        a restart does not lose it. A duration of 0 means no automatic end."""
+        switches = list(ctrl.fill_switches)
+        timer: list[Callable[[], None]] = []
+
+        def _cancel() -> None:
+            while timer:
+                timer.pop()()
+
+        @callback
+        def _off(_now: datetime | None = None) -> None:
+            timer.clear()
+            _LOGGER.info("%s: fill duration over, turning off %s", ctrl.name, switches)
+            self.hass.async_create_task(self.hass.services.async_call(
+                "homeassistant", "turn_off", {"entity_id": switches}, blocking=True))
+
+        @callback
+        def _plan(*_args: Any) -> None:
+            _cancel()
+            on = [st for st in (self.hass.states.get(e) for e in switches)
+                  if st is not None and st.state == STATE_ON]
+            minutes = self.fill_minutes(ctrl)
+            if not on or minutes <= 0:
+                return
+            end = min(st.last_changed for st in on) + timedelta(minutes=minutes)
+            if end <= dt_util.utcnow():
+                _off()
+                return
+            timer.append(async_track_point_in_utc_time(self.hass, _off, end))
+
+        self._unsubs.append(async_track_state_change_event(self.hass, switches, _plan))
+        self._unsubs.append(self.values.listen(_plan, eid(ctrl.id, "fill_duration_minutes")))
+        self._unsubs.append(_cancel)
+        _plan()
+
     # --- lifecycle ----------------------------------------------------------
     async def async_start(self) -> None:
+        for ctrl in self.controller_list:
+            if ctrl.has_fill:
+                self._watch_fill(ctrl)
+
         @callback
         def _on_value(key: str, _value: Any) -> None:
             spec = self.specs.get(key)

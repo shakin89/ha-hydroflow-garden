@@ -102,7 +102,6 @@ class Engine:
         self._done: set[tuple[str, int, str, str]] = set()
         # IU sequence entity -> (controller, start zones, started at)
         self._si_pending: dict[str, tuple[Controller, list[dict], datetime]] = {}
-        self._fill_off: dict[str, Callable[[], None]] = {}
         self._tasks: set[asyncio.Task] = set()
 
     # --- helpers -----------------------------------------------------------
@@ -186,11 +185,6 @@ class Engine:
         for _, cancel in self._timers.values():
             cancel()
         self._timers.clear()
-        # Never leave a fill pump running behind a reload.
-        for ctrl in self.rt.controller_list:
-            if ctrl.id in self._fill_off:
-                self._fill_off.pop(ctrl.id)()
-                await self._call("homeassistant", "turn_off", {"entity_id": list(ctrl.fill_switches)})
         for task in list(self._tasks):
             task.cancel()
 
@@ -290,19 +284,10 @@ class Engine:
                 "notify.fill_offline", ctrl=ctrl.name, prog=prog.id, device=ctrl.availability_entity,
             ), gated=False)
             return
-        minutes = self._minutes(eid(ctrl.id, "fill_duration_minutes"), ctrl.fill_duration_minutes)
-        if minutes <= 0:
+        if self.rt.fill_minutes(ctrl) <= 0:
             return
-        switches = list(ctrl.fill_switches)
-        if not await self._call("homeassistant", "turn_on", {"entity_id": switches}):
-            return
-
-        @callback
-        def _off(_now: datetime) -> None:
-            self._fill_off.pop(ctrl.id, None)
-            self._spawn(self._call("homeassistant", "turn_off", {"entity_id": switches}))
-
-        self._fill_off[ctrl.id] = async_call_later(self.hass, minutes * 60, _off)
+        # The runtime turns it off after the fill duration (rt._watch_fill).
+        await self._call("homeassistant", "turn_on", {"entity_id": list(ctrl.fill_switches)})
 
     # --- preflight ----------------------------------------------------------
     async def _preflight(self, ctrl: Controller, prog: Program, start: datetime) -> None:

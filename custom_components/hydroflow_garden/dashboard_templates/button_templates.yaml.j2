@@ -330,6 +330,36 @@ hf_link_row:
           <ha-icon icon="mdi:chevron-right" style="--mdc-icon-size:20px;color:var(--hf-text2);flex-shrink:0"></ha-icon></div>`;
       ]]]
 
+# Full-width warning that opens a page (the engine off notice).
+hf_notice:
+  template: hf_base
+  variables:
+    title: ""
+    sub: ""
+    icon: mdi:alert-outline
+    path: ""
+  tap_action:
+    action: navigate
+    navigation_path: "[[[ return variables.path ]]]"
+  styles:
+    card:
+      - background: var(--hf-warn-soft)
+      - border: 1px solid var(--hf-warn)
+      - cursor: pointer
+    grid:
+      - grid-template-areas: '"t"'
+      - grid-template-columns: minmax(0, 1fr)
+  custom_fields:
+    t: |
+      [[[
+        return `<div class="hf-row">
+          <span class="hf-tile" style="background:var(--hf-warn);color:var(--hf-card);width:40px;height:40px;border-radius:12px;flex-shrink:0">
+            <ha-icon icon="${variables.icon}" style="--mdc-icon-size:22px"></ha-icon></span>
+          <div class="hf-col" style="flex:1;min-width:0"><span class="hf-title" style="color:var(--hf-warn)">${variables.title}</span>
+            <span class="hf-sub" style="overflow-wrap:anywhere">${variables.sub}</span></div>
+          <ha-icon icon="mdi:chevron-right" style="--mdc-icon-size:22px;color:var(--hf-warn);flex-shrink:0"></ha-icon></div>`;
+      ]]]
+
 # − / + of a number. dir: -1 | 1; step: 0 = the entity's own step. Hold repeats.
 hf_step_btn:
   template: hf_part

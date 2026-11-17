@@ -4,6 +4,7 @@ Rendered by hydroflow_garden/dashboard.py; the output is the view's sections. #}
 {%- set c = ctrl.id %}
 {%- set si_zones = ctrl.zones_v | selectattr('si') | list %}
 {{ m.nav(ctrl, 'today') }}
+{{ m.engine_notice() }}
 
 - type: grid
   column_span: 2

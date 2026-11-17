@@ -215,17 +215,18 @@ def _env(texts: dict[str, Any]) -> jinja2.Environment:
 def render_dashboard(
     controllers: list[Controller], title: str, texts: dict[str, Any], has_apexcharts: bool = True,
     url: str = "hydroflow-garden", theme: str | None = None, mode: str | None = None,
-    notify_targets: list[str] | None = None,
+    notify_targets: list[str] | None = None, engine_enabled: bool = True,
 ) -> dict:
     """Full Lovelace config (pure, blocking: run in an executor).
 
     ``theme`` / ``mode``: current values of the appearance selects, only used
     for the page colour (the cards read the selects live). ``notify_targets``:
     where notifications go, shown in the settings (options change -> reload ->
-    new render)."""
+    new render). ``engine_enabled`` False adds a warning to the Today and
+    Programs views (same reload path)."""
     env = _env(texts)
     env.globals.update(has_apexcharts=has_apexcharts, url=url, domain=DOMAIN,
-                       notify_targets=list(notify_targets or []))
+                       notify_targets=list(notify_targets or []), engine_enabled=engine_enabled)
     background = view_background(theme, mode)
     many = len(controllers) > 1
     views = []
@@ -350,7 +351,7 @@ async def async_generate_dashboard(rt, force: bool = True) -> bool:
     config = await hass.async_add_executor_job(
         render_dashboard, rt.controller_list, rt.dashboard_title, rt.texts.data["dashboard"], has_apex,
         rt.options[CONF_DASHBOARD_URL], rt.values.get(DASHBOARD_THEME_KEY), rt.values.get(DASHBOARD_MODE_KEY),
-        _notify_targets(rt))
+        _notify_targets(rt), rt.engine_enabled)
     digest = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
     store: Store[dict] = Store(hass, 1, f"{DOMAIN}.{rt.entry.entry_id}.dashboard")
     saved = (await store.async_load()) or {}

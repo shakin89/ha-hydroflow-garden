@@ -30,6 +30,26 @@
         columns: full
 {%- endmacro %}
 
+{# Warning shown while the engine is off: the page edits values that reach
+nobody. Opens the integration page, where Configure turns it on. #}
+{%- macro engine_notice() -%}
+{%- if not engine_enabled %}
+
+- type: grid
+  column_span: 3
+  cards:
+    - type: custom:button-card
+      template: hf_notice
+      variables:
+        title: {{ t.engine_off | q }}
+        sub: {{ t.engine_off_hint | q }}
+        icon: mdi:engine-off-outline
+        path: /config/integrations/integration/{{ domain }}
+      grid_options:
+        columns: full
+{%- endif %}
+{%- endmacro %}
+
 {# Section heading card. #}
 {%- macro heading(title, sub="") -%}
 - type: custom:button-card

@@ -4,6 +4,7 @@ the program is off. #}
 {%- import '_macros.j2' as m with context %}
 {%- set c = ctrl.id %}
 {{ m.nav(ctrl, 'programs') }}
+{{ m.engine_notice() }}
 {%- for p in ctrl.programs %}
 {%- set pn = "p" ~ p.id %}
 {%- set px = "iu_" ~ c ~ "_" ~ pn %}
