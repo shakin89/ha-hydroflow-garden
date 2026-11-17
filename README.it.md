@@ -100,7 +100,7 @@ sola.
 | Durata sospensione | Ore di sospensione dei controller attivi dopo uno skip pioggia. |
 | File di log eventi, Ruota il log oltre, Copie ruotate | Log eventi testuale e sua rotazione per dimensione. |
 | File di Irrigation Unlimited | Il file incluso come `irrigation_unlimited:`. Viene sovrascritto. |
-| URL dashboard, Titolo dashboard | Dove sta la dashboard generata e il suo nome nella barra laterale. L'URL deve contenere un trattino. |
+| URL dashboard, Titolo dashboard | Dove sta la dashboard generata e il suo nome nella barra laterale. L'URL deve contenere un trattino. Una dashboard già presente su quell'URL e non creata dall'integrazione non viene mai sovrascritta: un avviso di riparazione chiede un altro URL. |
 
 ### Controller (Aggiungi controller / Riconfigura)
 

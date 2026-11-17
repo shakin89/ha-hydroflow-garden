@@ -99,7 +99,7 @@ automatically.
 | Suspension length | Hours the active controllers stay suspended after a rain skip. |
 | Event log file, Rotate log above, Rotated copies | Plain text event log and its size-based rotation. |
 | Irrigation Unlimited file | The file included as `irrigation_unlimited:`. It is overwritten. |
-| Dashboard URL, Dashboard title | Where the generated dashboard lives and its sidebar name. The URL must contain a dash. |
+| Dashboard URL, Dashboard title | Where the generated dashboard lives and its sidebar name. The URL must contain a dash. A dashboard already on that URL and not created by the integration is never overwritten: a repair issue asks for another URL. |
 
 ### Controller (Add controller / Reconfigure)
 

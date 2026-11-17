@@ -301,6 +301,10 @@ ENTITY = {
 EXCEPTIONS = {
     "not_loaded": ("HydroFlow Garden is not loaded", "HydroFlow Garden non è caricato"),
     "engine_off": ("The engine is off", "L'engine è spento"),
+    "dashboard_url_taken": (
+        "Dashboard URL {url} belongs to another dashboard: not overwritten",
+        "L'URL della dashboard {url} appartiene a un'altra dashboard: non sovrascritta",
+    ),
 }
 
 # Rendered by the integration (texts/<lang>.json): leaves are (EN, IT).
@@ -617,6 +621,14 @@ def build(lang: str) -> dict:
             "description": ("Installa dal Marketplace/HACS: {cards}. Senza, la dashboard generata non si vede."
                             if it else "Install from the Marketplace/HACS: {cards}. Without them the generated "
                             "dashboard does not render."),
+        }, "dashboard_url_taken": {
+            "title": "URL della dashboard già in uso" if it else "Dashboard URL already in use",
+            "description": ("L'URL `{url}` appartiene a una dashboard non creata da HydroFlow Garden, quindi non "
+                            "viene sovrascritta. Scegli un altro URL nelle opzioni dell'integrazione, oppure "
+                            "elimina o rinomina quella dashboard." if it else
+                            "The URL `{url}` belongs to a dashboard that HydroFlow Garden did not create, so it "
+                            "is not overwritten. Pick another URL in the integration options, or delete or "
+                            "rename that dashboard."),
         }},
         "services": {
             "regenerate_dashboard": {

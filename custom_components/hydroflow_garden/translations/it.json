@@ -372,6 +372,9 @@
     },
     "engine_off": {
       "message": "L'engine è spento"
+    },
+    "dashboard_url_taken": {
+      "message": "L'URL della dashboard {url} appartiene a un'altra dashboard: non sovrascritta"
     }
   },
   "selector": {
@@ -416,6 +419,10 @@
     "missing_cards": {
       "title": "Card mancanti per la dashboard irrigazione",
       "description": "Installa dal Marketplace/HACS: {cards}. Senza, la dashboard generata non si vede."
+    },
+    "dashboard_url_taken": {
+      "title": "URL della dashboard già in uso",
+      "description": "L'URL `{url}` appartiene a una dashboard non creata da HydroFlow Garden, quindi non viene sovrascritta. Scegli un altro URL nelle opzioni dell'integrazione, oppure elimina o rinomina quella dashboard."
     }
   },
   "services": {

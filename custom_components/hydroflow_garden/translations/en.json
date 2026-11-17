@@ -372,6 +372,9 @@
     },
     "engine_off": {
       "message": "The engine is off"
+    },
+    "dashboard_url_taken": {
+      "message": "Dashboard URL {url} belongs to another dashboard: not overwritten"
     }
   },
   "selector": {
@@ -416,6 +419,10 @@
     "missing_cards": {
       "title": "Cards missing for the irrigation dashboard",
       "description": "Install from the Marketplace/HACS: {cards}. Without them the generated dashboard does not render."
+    },
+    "dashboard_url_taken": {
+      "title": "Dashboard URL already in use",
+      "description": "The URL `{url}` belongs to a dashboard that HydroFlow Garden did not create, so it is not overwritten. Pick another URL in the integration options, or delete or rename that dashboard."
     }
   },
   "services": {

@@ -13,9 +13,10 @@ survive until the next such change.
 
 Lovelace keeps its dashboards collection private, so the dashboard is
 registered the way Lovelace registers a storage dashboard: a LovelaceStorage
-object in ``hass.data[LOVELACE_DATA].dashboards`` plus a frontend panel. If a
-storage dashboard with the configured URL already exists (e.g. created by
-hand), it is written in place instead.
+object in ``hass.data[LOVELACE_DATA].dashboards`` plus a frontend panel. Only
+the dashboard registered by this integration (id ``hydroflow_garden_<url>``) is
+ever written: when the configured URL belongs to another dashboard, nothing is
+saved and a repair issue asks to pick another URL.
 """
 
 from __future__ import annotations
@@ -31,6 +32,7 @@ import jinja2
 import yaml
 from homeassistant.components import frontend
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import HomeAssistantError
 from homeassistant.helpers import issue_registry as ir
 from homeassistant.helpers.storage import Store
 
@@ -248,7 +250,17 @@ def _lovelace(hass: HomeAssistant):
     return hass.data.get(LOVELACE_DATA)
 
 
+def _dashboard_id(url: str) -> str:
+    return f"{DOMAIN}_{slugify(url)}"
+
+
+class DashboardUrlTaken(Exception):
+    """The configured URL belongs to a dashboard this integration did not create."""
+
+
 async def _async_get_or_register(rt) -> Any:
+    """The dashboard of this integration, None when Lovelace is not loaded.
+    Raises DashboardUrlTaken when the URL is used by another dashboard."""
     from homeassistant.components.lovelace.const import MODE_STORAGE
     from homeassistant.components.lovelace.dashboard import LovelaceStorage
 
@@ -260,12 +272,13 @@ async def _async_get_or_register(rt) -> Any:
     url = rt.options[CONF_DASHBOARD_URL]
     existing = data.dashboards.get(url)
     if existing is not None:
-        if existing.mode != MODE_STORAGE:
-            _LOGGER.warning("Dashboard %s is in YAML mode: not overwritten", url)
-            return None
+        own = (existing.mode == MODE_STORAGE
+               and (getattr(existing, "config", None) or {}).get("id") == _dashboard_id(url))
+        if not own:
+            raise DashboardUrlTaken(url)
         return existing
     item = {
-        "id": f"{DOMAIN}_{slugify(url)}",
+        "id": _dashboard_id(url),
         "url_path": url,
         "title": rt.dashboard_title,
         "icon": "mdi:sprinkler-variant",
@@ -308,7 +321,10 @@ def _check_resources(rt, urls: list[str] | None) -> None:
 
 
 async def async_generate_dashboard(rt, force: bool = True) -> bool:
-    """Render and save; with ``force`` False only when the render changed."""
+    """Render and save; with ``force`` False only when the render changed.
+
+    When the URL belongs to another dashboard nothing is written: a repair
+    issue is raised, and with ``force`` (button / service) an error too."""
     hass = rt.hass
     urls = _resource_urls(rt)
     # Unknown resources: keep the chart rather than silently drop it.
@@ -319,7 +335,23 @@ async def async_generate_dashboard(rt, force: bool = True) -> bool:
     digest = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
     store: Store[dict] = Store(hass, 1, f"{DOMAIN}.{rt.entry.entry_id}.dashboard")
     saved = (await store.async_load()) or {}
-    dash = await _async_get_or_register(rt)
+    url = rt.options[CONF_DASHBOARD_URL]
+    try:
+        dash = await _async_get_or_register(rt)
+    except DashboardUrlTaken:
+        _LOGGER.warning("Dashboard %s exists and was not created by %s: not overwritten", url, DOMAIN)
+        ir.async_create_issue(
+            hass, DOMAIN, "dashboard_url_taken", is_fixable=False,
+            severity=ir.IssueSeverity.ERROR, translation_key="dashboard_url_taken",
+            translation_placeholders={"url": url},
+        )
+        if force:
+            raise HomeAssistantError(
+                translation_domain=DOMAIN, translation_key="dashboard_url_taken",
+                translation_placeholders={"url": url},
+            ) from None
+        return False
+    ir.async_delete_issue(hass, DOMAIN, "dashboard_url_taken")
     if dash is None:
         return False
     _check_resources(rt, urls)

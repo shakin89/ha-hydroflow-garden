@@ -309,3 +309,37 @@ async def test_dashboard_render_without_apexcharts() -> None:
     assert "custom:apexcharts-card" in with_chart and "History, last days" in with_chart
     assert "custom:apexcharts-card" not in without and "History, last days" not in without
 
+
+
+async def test_dashboard_never_overwrites_a_foreign_dashboard(hass: HomeAssistant) -> None:
+    from unittest.mock import AsyncMock
+
+    import pytest
+    from homeassistant.components.lovelace.const import LOVELACE_DATA
+    from homeassistant.components.lovelace.dashboard import LovelaceStorage
+    from homeassistant.exceptions import HomeAssistantError
+    from homeassistant.helpers import issue_registry as ir
+
+    assert await async_setup_component(hass, "lovelace", {})
+    await _setup(hass)
+    dashboards = hass.data[LOVELACE_DATA].dashboards
+    url, own = next((u, d) for u, d in dashboards.items() if (d.config or {}).get("id", "").startswith(f"{DOMAIN}_"))
+
+    # its own dashboard is rewritten in place
+    own.async_save = AsyncMock()
+    await hass.services.async_call(DOMAIN, "regenerate_dashboard", {}, blocking=True)
+    own.async_save.assert_awaited_once()
+
+    # a dashboard created by hand on the same URL (id = url, as the UI does) is left alone
+    foreign = LovelaceStorage(hass, {"id": url, "url_path": url, "mode": "storage", "title": "Mine"})
+    foreign.async_save = AsyncMock()
+    dashboards[url] = foreign
+    with pytest.raises(HomeAssistantError):
+        await hass.services.async_call(DOMAIN, "regenerate_dashboard", {}, blocking=True)
+    foreign.async_save.assert_not_awaited()
+    assert ir.async_get(hass).async_get_issue(DOMAIN, "dashboard_url_taken") is not None
+
+    # back to its own dashboard: the issue goes away
+    dashboards[url] = own
+    await hass.services.async_call(DOMAIN, "regenerate_dashboard", {}, blocking=True)
+    assert ir.async_get(hass).async_get_issue(DOMAIN, "dashboard_url_taken") is None
