@@ -149,6 +149,9 @@ Every card is a custom button-card; native cards are only nested inside one
 button-cards too, so numberbox-card and auto-entities are no longer needed.
 Each controller gets four views: the first keeps the old path
 `irrigazione-<id>`, the others add `-programmi`, `-zone`, `-impostazioni`.
+The other three are subviews, reached from the in-page header: a hidden view
+still shows its tab while open, a subview never does and gets a back arrow to
+the controller instead.
 
 ### Themes
 

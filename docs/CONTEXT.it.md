@@ -157,6 +157,9 @@ una di esse (il grafico apexcharts). Anche stepper, interruttori e selettori
 segmentati sono button-card, quindi numberbox-card e auto-entities non servono
 più. Ogni impianto ha quattro viste: la prima mantiene il vecchio percorso
 `irrigazione-<id>`, le altre aggiungono `-programmi`, `-zone`, `-impostazioni`.
+Le altre tre sono subview, raggiunte dall'intestazione nella pagina: una vista
+nascosta mostra comunque la sua scheda mentre è aperta, una subview mai, e al
+suo posto ha una freccia per tornare al controller.
 
 ### Temi
 

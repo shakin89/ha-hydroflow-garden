@@ -271,7 +271,9 @@ async def test_dashboard_render() -> None:
     assert [v["path"] for v in cfg["views"]] == [
         f"irrigazione-{c}{s}" for c in ("alpha", "beta") for s in ("", "-programmi", "-zone", "-impostazioni")]
     # only the Today view of each controller is in the tab bar
-    assert [v["path"] for v in cfg["views"] if v.get("visible", True)] == ["irrigazione-alpha", "irrigazione-beta"]
+    assert [v["path"] for v in cfg["views"] if not v.get("subview")] == ["irrigazione-alpha", "irrigazione-beta"]
+    sub = next(v for v in cfg["views"] if v.get("subview"))
+    assert sub["back_path"] == "/hydroflow-garden/irrigazione-alpha" and "visible" not in sub
     for name in ("hf_base", "hf_hero", "hf_zone_days", "hf_stepper", "hf_appearance"):
         assert name in cfg["button_card_templates"]
     text = yaml.safe_dump(cfg)

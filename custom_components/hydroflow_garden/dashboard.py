@@ -236,8 +236,11 @@ def render_dashboard(
             if key == "today":
                 view["icon"] = "mdi:sprinkler-variant"
             else:
-                # Reached through the in-page header, kept out of the tab bar.
-                view["visible"] = False
+                # Reached through the in-page header. A subview never gets a
+                # tab (a hidden view still shows one while open): HA shows a
+                # back arrow to the controller instead.
+                view["subview"] = True
+                view["back_path"] = f"/{url}/{cv.paths['today']}"
             if background:
                 view["background"] = background
             views.append(view)
