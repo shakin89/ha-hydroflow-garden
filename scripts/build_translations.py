@@ -175,15 +175,18 @@ CONTROLLER = {
     ),
     "fill_lead_minutes": (
         "Fill lead",
-        "Default minutes before the program start when filling begins (adjustable later from the dashboard).",
+        "Optional, only with fill switches. Default minutes before the program start when filling begins "
+        "(adjustable later from the dashboard).",
         "Anticipo riempimento",
-        "Minuti predefiniti prima dell'avvio del programma in cui parte il riempimento (modificabile poi in dashboard).",
+        "Facoltativo, solo con gli switch di riempimento. Minuti predefiniti prima dell'avvio del programma in "
+        "cui parte il riempimento (modificabile poi in dashboard).",
     ),
     "fill_duration_minutes": (
         "Fill duration",
-        "Default minutes the fill switches stay on.",
+        "Optional, only with fill switches. Default minutes the fill switches stay on.",
         "Durata riempimento",
-        "Minuti predefiniti per cui gli switch di riempimento restano accesi.",
+        "Facoltativo, solo con gli switch di riempimento. Minuti predefiniti per cui gli switch di riempimento "
+        "restano accesi.",
     ),
     "availability_entity": (
         "Valve device connectivity",

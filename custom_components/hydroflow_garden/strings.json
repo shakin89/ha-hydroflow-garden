@@ -124,8 +124,8 @@
             "zones": "One row per valve: id (fixed, part of the entity ids), name, valve switch and optionally the Smart Irrigation sensor that gives its duration.",
             "programs": "One row per daily start (up to 9): id, name, default time. Each program has its own time, months, eco and per-zone weekdays and durations.",
             "fill_switches": "Optional: switches turned on before each program to fill a tank. Empty = no fill.",
-            "fill_lead_minutes": "Default minutes before the program start when filling begins (adjustable later from the dashboard).",
-            "fill_duration_minutes": "Default minutes the fill switches stay on.",
+            "fill_lead_minutes": "Optional, only with fill switches. Default minutes before the program start when filling begins (adjustable later from the dashboard).",
+            "fill_duration_minutes": "Optional, only with fill switches. Default minutes the fill switches stay on.",
             "availability_entity": "Optional binary_sensor that is 'on' when the valve controller (e.g. ESPHome status) is online. Enables the preflight: wait, suspend or cancel a run with the device offline, and no Smart Irrigation bucket reset for water never delivered.",
             "preflight_timeout_minutes": "Default minutes before the start at which the device is checked and waited for."
           }
@@ -154,8 +154,8 @@
             "zones": "One row per valve: id (fixed, part of the entity ids), name, valve switch and optionally the Smart Irrigation sensor that gives its duration.",
             "programs": "One row per daily start (up to 9): id, name, default time. Each program has its own time, months, eco and per-zone weekdays and durations.",
             "fill_switches": "Optional: switches turned on before each program to fill a tank. Empty = no fill.",
-            "fill_lead_minutes": "Default minutes before the program start when filling begins (adjustable later from the dashboard).",
-            "fill_duration_minutes": "Default minutes the fill switches stay on.",
+            "fill_lead_minutes": "Optional, only with fill switches. Default minutes before the program start when filling begins (adjustable later from the dashboard).",
+            "fill_duration_minutes": "Optional, only with fill switches. Default minutes the fill switches stay on.",
             "availability_entity": "Optional binary_sensor that is 'on' when the valve controller (e.g. ESPHome status) is online. Enables the preflight: wait, suspend or cancel a run with the device offline, and no Smart Irrigation bucket reset for water never delivered.",
             "preflight_timeout_minutes": "Default minutes before the start at which the device is checked and waited for."
           }

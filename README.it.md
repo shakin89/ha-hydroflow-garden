@@ -132,7 +132,7 @@ riparazione compare una volta: incolla il nuovo testo e ricarica IU.
 | Zone | Una riga per valvola (vedi sotto). |
 | Programmi | Una riga per partenza giornaliera, fino a 9 (vedi sotto). |
 | Switch riempimento cisterna | Switch facoltativi accesi prima di ogni programma per riempire una cisterna. |
-| Anticipo / Durata riempimento | Valori predefiniti di quando parte il riempimento e quanto dura (modificabili poi in dashboard). |
+| Anticipo / Durata riempimento | Facoltativi, solo con gli switch di riempimento. Valori predefiniti di quando parte il riempimento e quanto dura (modificabili poi in dashboard). |
 | Connettività device valvole | `binary_sensor` facoltativo, `on` quando il controller delle valvole è online. Abilita il preflight. |
 | Attesa preflight | Minuti predefiniti prima dell'avvio in cui il device viene controllato e atteso. |
 

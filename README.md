@@ -130,7 +130,7 @@ once: paste the new text and reload IU.
 | Zones | One row per valve (see below). |
 | Programs | One row per daily start, up to 9 (see below). |
 | Cistern fill switches | Optional switches turned on before each program to fill a tank. |
-| Fill lead / Fill duration | Defaults for when the fill starts and how long it lasts (adjustable later from the dashboard). |
+| Fill lead / Fill duration | Optional, only with fill switches. Defaults for when the fill starts and how long it lasts (adjustable later from the dashboard). |
 | Valve device connectivity | Optional `binary_sensor` that is `on` while the valve controller is online. Enables preflight. |
 | Preflight wait | Default minutes before the start at which the device is checked and waited for. |
 

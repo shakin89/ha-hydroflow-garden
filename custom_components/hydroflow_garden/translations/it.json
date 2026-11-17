@@ -124,8 +124,8 @@
             "zones": "Una riga per valvola: id (fisso, entra negli entity id), nome, switch della valvola e, se c'è, il sensore Smart Irrigation che ne calcola la durata.",
             "programs": "Una riga per ogni partenza giornaliera (fino a 9): id, nome, orario predefinito. Ogni programma ha orario, mesi, eco e giorni/durate per zona propri.",
             "fill_switches": "Facoltativo: switch accesi prima di ogni programma per riempire una cisterna. Vuoto = nessun riempimento.",
-            "fill_lead_minutes": "Minuti predefiniti prima dell'avvio del programma in cui parte il riempimento (modificabile poi in dashboard).",
-            "fill_duration_minutes": "Minuti predefiniti per cui gli switch di riempimento restano accesi.",
+            "fill_lead_minutes": "Facoltativo, solo con gli switch di riempimento. Minuti predefiniti prima dell'avvio del programma in cui parte il riempimento (modificabile poi in dashboard).",
+            "fill_duration_minutes": "Facoltativo, solo con gli switch di riempimento. Minuti predefiniti per cui gli switch di riempimento restano accesi.",
             "availability_entity": "Binary_sensor facoltativo, 'on' quando il controller delle valvole (es. status ESPHome) è online. Abilita il preflight: attende, sospende o annulla una corsa a device offline e non azzera i bucket Smart Irrigation per acqua mai erogata.",
             "preflight_timeout_minutes": "Minuti predefiniti prima dell'avvio in cui il device viene controllato e atteso."
           }
@@ -154,8 +154,8 @@
             "zones": "Una riga per valvola: id (fisso, entra negli entity id), nome, switch della valvola e, se c'è, il sensore Smart Irrigation che ne calcola la durata.",
             "programs": "Una riga per ogni partenza giornaliera (fino a 9): id, nome, orario predefinito. Ogni programma ha orario, mesi, eco e giorni/durate per zona propri.",
             "fill_switches": "Facoltativo: switch accesi prima di ogni programma per riempire una cisterna. Vuoto = nessun riempimento.",
-            "fill_lead_minutes": "Minuti predefiniti prima dell'avvio del programma in cui parte il riempimento (modificabile poi in dashboard).",
-            "fill_duration_minutes": "Minuti predefiniti per cui gli switch di riempimento restano accesi.",
+            "fill_lead_minutes": "Facoltativo, solo con gli switch di riempimento. Minuti predefiniti prima dell'avvio del programma in cui parte il riempimento (modificabile poi in dashboard).",
+            "fill_duration_minutes": "Facoltativo, solo con gli switch di riempimento. Minuti predefiniti per cui gli switch di riempimento restano accesi.",
             "availability_entity": "Binary_sensor facoltativo, 'on' quando il controller delle valvole (es. status ESPHome) è online. Abilita il preflight: attende, sospende o annulla una corsa a device offline e non azzera i bucket Smart Irrigation per acqua mai erogata.",
             "preflight_timeout_minutes": "Minuti predefiniti prima dell'avvio in cui il device viene controllato e atteso."
           }

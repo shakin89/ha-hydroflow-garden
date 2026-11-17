@@ -59,3 +59,21 @@ async def test_flow(hass: HomeAssistant) -> None:
     assert result["type"] is FlowResultType.ABORT
     await hass.async_block_till_done()
     assert hass.states.get("switch.iu_orto_p1_z3_mon") is not None
+
+
+async def test_controller_without_fill(hass: HomeAssistant) -> None:
+    """Fill switches, lead and duration can all be left empty (#4)."""
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    result = await hass.config_entries.flow.async_configure(result["flow_id"], HUB)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    await hass.async_block_till_done()
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_CONTROLLER), context={"source": SOURCE_USER})
+    no_fill = {k: v for k, v in CTRL.items() if not k.startswith("fill_")}
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], no_fill)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    sub = next(iter(entry.subentries.values()))
+    assert sub.data["fill_switches"] == []
+    assert (sub.data["fill_lead_minutes"], sub.data["fill_duration_minutes"]) == (120, 90)
+    assert hass.states.get("number.iu_orto_fill_lead_minutes") is None

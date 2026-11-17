@@ -176,8 +176,11 @@ def controller_schema(v: dict, creating: bool) -> vol.Schema:
                                      translation_key="programs")),
         _opt("fill_switches", v): sel.EntitySelector(
             sel.EntitySelectorConfig(domain="switch", multiple=True)),
-        vol.Required("fill_lead_minutes", default=v.get("fill_lead_minutes", 120)): _num(0, 240, 5, "min"),
-        vol.Required("fill_duration_minutes", default=v.get("fill_duration_minutes", 90)): _num(0, 240, 5, "min"),
+        # Only used with fill switches: optional, defaults applied on save.
+        vol.Optional("fill_lead_minutes", description={"suggested_value": v.get("fill_lead_minutes", 120)}):
+            _num(0, 240, 5, "min"),
+        vol.Optional("fill_duration_minutes", description={"suggested_value": v.get("fill_duration_minutes", 90)}):
+            _num(0, 240, 5, "min"),
         _opt("availability_entity", v): sel.EntitySelector(
             sel.EntitySelectorConfig(domain="binary_sensor")),
         vol.Required("preflight_timeout_minutes", default=v.get("preflight_timeout_minutes", 15)): _num(1, 60, 1, "min"),
@@ -209,8 +212,9 @@ def _validate_controller(data: dict) -> tuple[dict, dict[str, str]]:
         "programs": sorted(programs, key=lambda p: p["id"]),
         "fill_switches": list(data.get("fill_switches") or []),
         "availability_entity": data.get("availability_entity") or "",
-        "fill_lead_minutes": int(data.get("fill_lead_minutes", 120)),
-        "fill_duration_minutes": int(data.get("fill_duration_minutes", 90)),
+        "fill_lead_minutes": int(data.get("fill_lead_minutes") if data.get("fill_lead_minutes") is not None else 120),
+        "fill_duration_minutes": int(data.get("fill_duration_minutes")
+                                     if data.get("fill_duration_minutes") is not None else 90),
         "preflight_timeout_minutes": int(data.get("preflight_timeout_minutes", 15)),
     }
     return out, errors
