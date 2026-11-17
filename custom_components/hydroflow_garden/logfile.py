@@ -22,7 +22,7 @@ def format_line(
     event: str,
     controller: str,
     zone: str = "ALL",
-    duration: object = 0,
+    duration: object | None = 0,
     sequence: str = "",
     entity: str = "",
     run_type: str = "",
@@ -31,7 +31,8 @@ def format_line(
     seq = f" seq={sequence}" if sequence and sequence != "none" else ""
     ent = f" entity={entity}" if entity else ""
     typ = f" type={run_type}" if run_type else ""
-    return f"{ts} [{event}] ctrl={controller}{seq} zone={zone}{ent} duration={duration}s{typ}"
+    dur = "" if duration is None else f" duration={duration}s"  # None: no duration (markers)
+    return f"{ts} [{event}] ctrl={controller}{seq} zone={zone}{ent}{dur}{typ}"
 
 
 class LogFile:

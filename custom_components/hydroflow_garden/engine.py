@@ -197,8 +197,7 @@ class Engine:
     async def _ha_started(self, _event: Event) -> None:
         self._replan()
         for ctrl in self.rt.controller_list:
-            await self._log(ctrl, format_line("HA RESTART", ctrl.name, zone="none",
-                                              duration="===== Home Assistant Restart ====="))
+            await self._log(ctrl, format_line("HA RESTART", ctrl.name, zone="none", duration=None))
 
     # --- planning of timed actions -----------------------------------------
     @callback

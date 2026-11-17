@@ -440,3 +440,12 @@ async def test_dashboard_never_overwrites_a_foreign_dashboard(hass: HomeAssistan
     dashboards[url] = own
     await hass.services.async_call(DOMAIN, "regenerate_dashboard", {}, blocking=True)
     assert ir.async_get(hass).async_get_issue(DOMAIN, "dashboard_url_taken") is None
+
+
+def test_format_line_with_and_without_duration() -> None:
+    from custom_components.hydroflow_garden.logfile import format_line
+
+    line = format_line("valve_on", "Garden", zone="Z1 Lawn", entity="switch.v1", duration=600)
+    assert line.endswith("[valve_on] ctrl=Garden zone=Z1 Lawn entity=switch.v1 duration=600s")
+    marker = format_line("HA RESTART", "Garden", zone="none", duration=None)
+    assert marker.endswith("[HA RESTART] ctrl=Garden zone=none")
