@@ -1,4 +1,8 @@
 {
+  "flow": {
+    "program_morning": "Morning",
+    "program_evening": "Evening"
+  },
   "notify": {
     "title": "Irrigation",
     "iu_outdated_title": "HydroFlow Garden: Irrigation Unlimited file to update",

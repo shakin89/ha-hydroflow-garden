@@ -306,6 +306,11 @@ EXCEPTIONS = {
 # Rendered by the integration (texts/<lang>.json): leaves are (EN, IT).
 # Notifications take str.format placeholders.
 TEXTS = {
+    # Default programs of a new controller in the config flow
+    "flow": {
+        "program_morning": ("Morning", "Mattina"),
+        "program_evening": ("Evening", "Sera"),
+    },
     "notify": {
         "title": ("Irrigation", "Irrigazione"),
         "iu_outdated_title": ("HydroFlow Garden: Irrigation Unlimited file to update",

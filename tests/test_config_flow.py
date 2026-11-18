@@ -77,3 +77,21 @@ async def test_controller_without_fill(hass: HomeAssistant) -> None:
     assert sub.data["fill_switches"] == []
     assert (sub.data["fill_lead_minutes"], sub.data["fill_duration_minutes"]) == (120, 90)
     assert hass.states.get("number.iu_orto_fill_lead_minutes") is None
+
+
+async def test_default_programs_follow_the_language(hass: HomeAssistant) -> None:
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    await hass.config_entries.flow.async_configure(result["flow_id"], HUB)
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    await hass.async_block_till_done()
+
+    def default_names(result) -> list[str]:
+        field = next(k for k in result["data_schema"].schema if k == "programs")
+        return [p["name"] for p in field.default()]
+
+    for lang, names in (("en", ["Morning", "Evening"]), ("it", ["Mattina", "Sera"])):
+        hass.config.language = lang
+        result = await hass.config_entries.subentries.async_init(
+            (entry.entry_id, SUBENTRY_CONTROLLER), context={"source": SOURCE_USER})
+        assert default_names(result) == names, lang
+        hass.config_entries.subentries.async_abort(result["flow_id"])

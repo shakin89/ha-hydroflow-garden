@@ -13,7 +13,7 @@ from homeassistant.config_entries import (
     OptionsFlow,
     SubentryFlowResult,
 )
-from homeassistant.core import callback
+from homeassistant.core import HomeAssistant, callback
 from homeassistant.helpers import selector as sel
 
 from .const import (
@@ -37,6 +37,7 @@ from .const import (
     HUB_DEFAULTS,
     SUBENTRY_CONTROLLER,
 )
+from . import i18n
 from .model import slugify
 
 TITLE = "HydroFlow Garden: Smart and Unlimited"
@@ -156,7 +157,17 @@ PROGRAM_FIELDS = {
 }
 
 
-def controller_schema(v: dict, creating: bool) -> vol.Schema:
+async def _default_programs(hass: HomeAssistant) -> list[dict]:
+    """Programs proposed for a new controller, named in the language of HA."""
+    lang = i18n.language(hass.config.language)
+    texts = i18n.Texts(lang, await hass.async_add_executor_job(i18n.load, lang))
+    return [
+        {"id": 1, "name": texts("flow.program_morning"), "default_time": "06:00"},
+        {"id": 2, "name": texts("flow.program_evening"), "default_time": "20:00"},
+    ]
+
+
+def controller_schema(v: dict, creating: bool, default_programs: list[dict] | None = None) -> vol.Schema:
     fields: dict = {vol.Required("name", default=v.get("name", "")): sel.TextSelector()}
     if creating:
         fields[_opt("id", v)] = sel.TextSelector()
@@ -168,10 +179,7 @@ def controller_schema(v: dict, creating: bool) -> vol.Schema:
         vol.Required("zones", default=v.get("zones", [])): sel.ObjectSelector(
             sel.ObjectSelectorConfig(fields=ZONE_FIELDS, multiple=True, label_field="name",
                                      translation_key="zones")),
-        vol.Required("programs", default=v.get("programs", [
-            {"id": 1, "name": "Mattina", "default_time": "06:00"},
-            {"id": 2, "name": "Sera", "default_time": "20:00"},
-        ])): sel.ObjectSelector(
+        vol.Required("programs", default=v.get("programs", default_programs or [])): sel.ObjectSelector(
             sel.ObjectSelectorConfig(fields=PROGRAM_FIELDS, multiple=True, label_field="name",
                                      translation_key="programs")),
         _opt("fill_switches", v): sel.EntitySelector(
@@ -240,7 +248,8 @@ class ControllerSubentryFlow(ConfigSubentryFlow):
                 data["order"] = 1 + max(
                     [int(s.data.get("order", 0)) for s in entry.subentries.values()], default=-1)
                 return self.async_create_entry(title=data["name"], data=data, unique_id=data["id"])
-        schema = controller_schema(user_input or {}, creating=True)
+        schema = controller_schema(user_input or {}, creating=True,
+                                   default_programs=await _default_programs(self.hass))
         return self.async_show_form(step_id="user", data_schema=schema, errors=errors)
 
     async def async_step_reconfigure(self, user_input: dict | None = None) -> SubentryFlowResult:
