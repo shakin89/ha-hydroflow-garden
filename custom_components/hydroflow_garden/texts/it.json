@@ -1,6 +1,8 @@
 {
   "notify": {
     "title": "Irrigazione",
+    "iu_outdated_title": "HydroFlow Garden: file di Irrigation Unlimited da aggiornare",
+    "iu_outdated": "Il file di Irrigation Unlimited non corrisponde alla configurazione di: {controllers}. Finché non lo aggiorni, questi controller non ricevono orari, giorni né durate.\n\nApri [Impostazioni > Riparazioni](/config/repairs): la segnalazione *File di Irrigation Unlimited da aggiornare* contiene lo YAML da incollare e i passaggi.",
     "fill_offline": "{ctrl} - riempimento P{prog} NON partito: device {device} offline.",
     "preflight_suspended": "{ctrl} - P{prog} {name} SOSPESO: device {device} ancora offline dopo {minutes} min di attesa. Corsa non avviata, bucket SI preservati.",
     "rain_skip": "Skip irrigazione: {prob}% prob / {mm} mm previsti oggi (soglie {prob_t}% / {mm_t} mm). Sospesi per {hours} h: {names}.",

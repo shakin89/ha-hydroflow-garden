@@ -308,6 +308,17 @@ EXCEPTIONS = {
 TEXTS = {
     "notify": {
         "title": ("Irrigation", "Irrigazione"),
+        "iu_outdated_title": ("HydroFlow Garden: Irrigation Unlimited file to update",
+                              "HydroFlow Garden: file di Irrigation Unlimited da aggiornare"),
+        "iu_outdated": (
+            "The Irrigation Unlimited file does not match the configuration of: {controllers}. "
+            "Until you update it, these controllers receive no times, days or durations.\n\n"
+            "Open [Settings > Repairs](/config/repairs): the *Irrigation Unlimited file outdated* "
+            "issue has the YAML to paste and the steps.",
+            "Il file di Irrigation Unlimited non corrisponde alla configurazione di: {controllers}. "
+            "Finché non lo aggiorni, questi controller non ricevono orari, giorni né durate.\n\n"
+            "Apri [Impostazioni > Riparazioni](/config/repairs): la segnalazione *File di Irrigation "
+            "Unlimited da aggiornare* contiene lo YAML da incollare e i passaggi."),
         "fill_offline": ("{ctrl} - P{prog} fill NOT started: device {device} offline.",
                          "{ctrl} - riempimento P{prog} NON partito: device {device} offline."),
         "preflight_suspended": (

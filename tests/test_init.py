@@ -161,6 +161,7 @@ async def test_sync_pushes_only_changes(hass: HomeAssistant) -> None:
 
 
 async def test_outdated_iu_file_is_reported_not_written(hass: HomeAssistant) -> None:
+    from homeassistant.components import persistent_notification
     from homeassistant.helpers import issue_registry as ir
 
     calls = _iu_calls(hass)
@@ -172,6 +173,16 @@ async def test_outdated_iu_file_is_reported_not_written(hass: HomeAssistant) -> 
     pasted = yaml.safe_load(issue.translation_placeholders["yaml"])
     assert pasted["controllers"][0]["user"]["hydroflow_structure"] == _digest(hass)
     assert not [c for c in calls["load_schedule"] if c.data["schedule_id"].startswith("hf_alpha")]
+    notes = persistent_notification._async_get_or_create_notifications(hass)
+    note = notes[f"{DOMAIN}_iu_config_outdated"]
+    assert "Controller Alpha" in note["message"] and "/config/repairs" in note["message"]
+
+    # a dismissed notification does not come back while nothing changes
+    persistent_notification.async_dismiss(hass, f"{DOMAIN}_iu_config_outdated")
+    await hass.services.async_call("number", "set_value", {
+        "entity_id": "number.iu_alpha_p1_z1_duration", "value": 17}, blocking=True)
+    await _settle(hass)
+    assert f"{DOMAIN}_iu_config_outdated" not in notes
 
     resp = await hass.services.async_call(DOMAIN, "get_iu_config", {}, blocking=True, return_response=True)
     assert yaml.safe_load(resp["yaml"]) == pasted and resp["in_sync"] == ["Controller Beta"]
@@ -180,6 +191,7 @@ async def test_outdated_iu_file_is_reported_not_written(hass: HomeAssistant) -> 
     _iu_loads(hass, _digest(hass))
     await _settle(hass)
     assert ir.async_get(hass).async_get_issue(DOMAIN, "iu_config_outdated") is None
+    assert f"{DOMAIN}_iu_config_outdated" not in notes
     assert calls["load_schedule"]
 
 

@@ -8,6 +8,7 @@ from collections.abc import Callable
 from datetime import date, datetime, timedelta
 from typing import Any
 
+from homeassistant.components import persistent_notification
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import (
     ATTR_DOMAIN,
@@ -76,6 +77,7 @@ SIGNAL_FORECAST = f"{DOMAIN}_forecast"
 SIGNAL_USAGE = f"{DOMAIN}_usage"
 SIGNAL_RAIN_NOW = f"{DOMAIN}_rain_now"
 SIGNAL_SI_OVERRIDE = f"{DOMAIN}_si_override"
+IU_OUTDATED_NOTIFICATION = f"{DOMAIN}_iu_config_outdated"
 
 HUB_SPECS = [
     ValueSpec(SI_ADJUST_LEAD_KEY, "number", "si_adjust_lead",
@@ -127,6 +129,7 @@ class IrrigationRuntime:
         self._sync_lock = asyncio.Lock()
         # ctrl id -> calls IU has received since it last (re)loaded its file
         self._pushed: dict[str, iu_config.SyncCalls] = {}
+        self._outdated_notified: tuple[str, ...] = ()
         # ctrl id -> {(program id, zone id): seconds per cycle} from Smart Irrigation
         self.si_override: dict[str, dict[tuple[int, int], int]] = {}
         self.engine = None  # set by __init__ when the engine is enabled
@@ -271,6 +274,20 @@ class IrrigationRuntime:
             pushed[key] = call
 
     def _update_outdated_issue(self, outdated: list[str]) -> None:
+        """The repair issue holds the YAML; a persistent notification makes
+        it visible, raised again only when the outdated controllers change,
+        so one the user dismissed does not come back on every sync."""
+        if tuple(outdated) != self._outdated_notified:
+            self._outdated_notified = tuple(outdated)
+            if outdated:
+                persistent_notification.async_create(
+                    self.hass,
+                    self.texts("notify.iu_outdated", controllers=", ".join(outdated)),
+                    title=self.texts("notify.iu_outdated_title"),
+                    notification_id=IU_OUTDATED_NOTIFICATION,
+                )
+            else:
+                persistent_notification.async_dismiss(self.hass, IU_OUTDATED_NOTIFICATION)
         if not outdated:
             ir.async_delete_issue(self.hass, DOMAIN, "iu_config_outdated")
             return
