@@ -287,6 +287,13 @@ def sync_calls(get: Getter, ctrl: Controller,
             slot = slot_id(ctrl, p, idx)
             sid = schedule_id(ctrl, slot)
             seq = eff.get(slot)
+            # IU restores the enabled, suspended and adjustment state of a
+            # sequence from its last entity state, which can be left by an
+            # older file or by hand. The schedule alone decides whether a slot
+            # runs, so the sequence itself is always enabled and clean.
+            calls[("sequence", slot)] = ("enable", {"sequence_id": [slot]})
+            calls[("sequence_resume", slot)] = ("suspend", {"sequence_id": [slot], "reset": None})
+            calls[("sequence_adjust", slot)] = ("adjust_time", {"sequence_id": [slot], "reset": None})
             if seq is None:
                 calls[("schedule", slot)] = ("load_schedule", {"schedule_id": sid, "enabled": False})
                 continue

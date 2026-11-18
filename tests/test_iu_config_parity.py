@@ -124,14 +124,18 @@ def test_dump_roundtrip() -> None:
 
 def _simulate_iu(structure: dict, calls: iu_config.SyncCalls) -> dict:
     """What IU runs after the sync calls, per slot, the way IU applies them
-    (load_schedule by schedule_id, enable/disable and adjust_time on
-    1-based sequence zones)."""
+    (load_schedule by schedule_id, enable/disable, suspend and adjust_time on
+    the sequence, or on 1-based sequence zones with ``zones``).
+
+    Every sequence starts disabled, suspended and adjusted: IU restores that
+    state from the last entity state, left by an older file or by hand."""
     seqs = {}
     for s in structure.get("sequences", []):
         sch = s["schedules"][0]
         seqs[s["sequence_id"]] = {
             "schedule": {"id": sch["schedule_id"], "time": sch["time"], "weekday": None,
                          "month": None, "enabled": sch["enabled"]},
+            "enabled": False, "suspended": "2099-01-01T00:00:00", "adjustment": "%50",
             "repeat": s["repeat"], "delay": s["delay"],
             "zones": [{"zone_id": z["zone_id"], "enabled": True, "duration": z["duration"]}
                       for z in s["zones"]],
@@ -145,6 +149,14 @@ def _simulate_iu(structure: dict, calls: iu_config.SyncCalls) -> dict:
         elif "sequence_id" not in data:
             if service in ("enable", "disable"):
                 enabled = service == "enable"  # adjust_time reset: zone level, not in sequences
+        elif "zones" not in data:
+            (slot,) = data["sequence_id"]
+            if service == "suspend":
+                seqs[slot]["suspended"] = None if "reset" in data else data
+            elif service == "adjust_time":
+                seqs[slot]["adjustment"] = "" if "reset" in data else data
+            else:
+                seqs[slot]["enabled"] = service == "enable"
         else:
             (slot,) = data["sequence_id"]
             for k in data["zones"]:
@@ -169,6 +181,8 @@ def test_structure_plus_sync_equals_effective(seed: int) -> None:
         eff_seqs = {s["sequence_id"]: s for s in eff.get("sequences", [])}
         assert set(eff_seqs) <= set(iu["sequences"])  # every slot used exists in the file
         for slot, got in iu["sequences"].items():
+            # the schedule alone decides whether a slot runs
+            assert (got["enabled"], got["suspended"], got["adjustment"]) == (True, None, ""), slot
             want = eff_seqs.get(slot)
             if want is None:
                 assert got["schedule"]["enabled"] is False, slot
