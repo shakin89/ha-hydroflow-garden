@@ -102,7 +102,7 @@ controllers get no updates.
 Durations are set on the zones of each sequence. HydroFlow Garden clears zone-level adjustments made in
 IU at every restart and IU reload, because IU ignores them inside a sequence that has its own.
 
-Up to 0.4.0-beta.2 the integration wrote this file itself. After the update the repair issue appears
+Up to 0.3.0 (and 0.4.0-beta.2) the integration wrote this file itself. After the update the repair issue appears
 once: paste the new text and reload IU.
 
 ### Global settings (Configure)

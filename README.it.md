@@ -103,7 +103,7 @@ quegli impianti non ricevono aggiornamenti.
 Le durate sono impostate sulle zone di ogni sequenza. HydroFlow Garden azzera gli aggiustamenti di zona
 fatti in IU a ogni riavvio e reload di IU, perché IU li ignora dentro una sequenza che ha i propri.
 
-Fino alla 0.4.0-beta.2 l'integrazione scriveva lei questo file. Dopo l'aggiornamento l'avviso di
+Fino alla 0.3.0 (e alla 0.4.0-beta.2) l'integrazione scriveva lei questo file. Dopo l'aggiornamento l'avviso di
 riparazione compare una volta: incolla il nuovo testo e ricarica IU.
 
 ### Impostazioni generali (Configura)
