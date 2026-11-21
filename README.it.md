@@ -197,6 +197,95 @@ Per aggiungere una lingua vedi `scripts/build_translations.py`.
   impianti che lo usano già (`in_sync`).
 - `hydroflow_garden.rain_skip`: esegue subito il controllo pioggia. Con `force: true` sospende comunque, per prova.
 
+## Dispositivi supportati
+
+HydroFlow Garden non parla con l'hardware. Pilota qualsiasi entità `switch` o `valve` (ESPHome, Zigbee,
+relè Wi-Fi, …) tramite Irrigation Unlimited: va bene ogni centralina valvole che Home Assistant sa
+comandare. Input opzionali: un'entità `weather`, un `binary_sensor` per la connettività della centralina
+e i sensori di Smart Irrigation.
+
+## Casi d'uso
+
+- Un giardino con pompa, cisterna e più zone di valvole, irrigato all'alba con durate che seguono il meteo.
+- Un secondo controller per serra o orto, con pompa, programmi e orari propri.
+- Saltare l'irrigazione nei giorni di pioggia e non sprecare acqua se la centralina valvole è offline.
+- Riempire una cisterna prima del programma del mattino senza scrivere automazioni.
+
+## Aggiornamento dei dati
+
+L'integrazione non interroga nessun dispositivo (`iot_class: calculated`). I valori vivono
+nell'integrazione e cambiano quando modifichi un'entità o la dashboard.
+
+- Con l'engine attivo, una modifica a orari, giorni, mesi, cicli eco o durate arriva a Irrigation
+  Unlimited entro circa 5 secondi, e di nuovo a ogni riavvio e a ogni ricarica di IU.
+- La previsione si legge dall'entità meteo ogni 30 minuti. Lo skip pioggia gira una volta al giorno
+  all'ora del controllo previsioni.
+- Il controllo del dispositivo offline avviene prima di ogni programma, all'attesa preflight impostata.
+- Le durate di Smart Irrigation vengono copiate prima di ogni programma. Dopo l'esecuzione il bucket
+  si azzera solo se la zona ha erogato almeno il 90% del previsto.
+
+## Esempi
+
+Ricevere un messaggio quando un controller viene sospeso per pioggia:
+
+```yaml
+automation:
+  - alias: "Giardino sospeso"
+    triggers:
+      - trigger: state
+        entity_id: sensor.iu_garden_suspend_reason
+        to: rain
+    actions:
+      - action: notify.mobile_app_my_phone
+        data:
+          message: "Irrigazione sospesa: pioggia prevista."
+```
+
+Provare lo skip pioggia senza aspettare domani:
+
+```yaml
+action: hydroflow_garden.rain_skip
+data:
+  force: true
+```
+
+## Limiti noti
+
+- Irrigation Unlimited va configurato da un file incluso in `configuration.yaml`. HydroFlow Garden non lo
+  scrive mai: dopo aver aggiunto, tolto o rinominato zone, programmi o controller incolli tu il nuovo
+  testo (lo mostra una issue nei Ripristini).
+- Fino a 9 programmi e 99 zone per controller. Gli id sono fissi: cambiare l'id di una zona o di un
+  programma ne crea una nuova, con valori e storico propri.
+- Può esistere una sola voce di HydroFlow Garden.
+- La dashboard generata richiede `button-card`; `apexcharts-card` è opzionale.
+- Lo skip pioggia richiede un'entità `weather` con previsioni giornaliere che includano `precipitation`
+  e `precipitation_probability`.
+- Notifiche, nomi delle entità e dashboard esistono solo in italiano e inglese (inglese per le altre lingue).
+
+## Risoluzione dei problemi
+
+| Sintomo | Causa e rimedio |
+|---|---|
+| Niente arriva a Irrigation Unlimited | **Engine attivo** è spento. Attivalo in **Configura**. |
+| Issue *File di Irrigation Unlimited da aggiornare* | Il file che IU esegue non corrisponde ai tuoi controller. Incolla il testo mostrato nella issue (o quello di `hydroflow_garden.get_iu_config`) nel file incluso ed esegui *Irrigation Unlimited: Reload*. Finché non lo fai, ai controller elencati non arrivano orari, giorni né durate. |
+| Issue *Card mancanti per la dashboard irrigazione* | Installa da HACS le card indicate. Senza `button-card` la dashboard non si vede. |
+| Issue *URL della dashboard già in uso* | Una dashboard già presente ha quell'URL e non viene mai sovrascritta. Scegli un altro URL in **Configura**, oppure rinomina o elimina quella dashboard. |
+| L'azione fallisce con *L'engine è spento* o *HydroFlow Garden non è caricato* | Attiva l'engine o controlla che l'integrazione sia caricata. |
+| Un'irrigazione è stata annullata | Leggi il file di log eventi (vedi **Impostazioni generali**). L'entità `sensor.iu_<c>_suspend_reason` mostra `rain` o `device_offline`. |
+| Le zone non irrigano nei giorni attesi | Controlla gli interruttori `switch.iu_<c>_p<N>_z<Z>_<giorno>` e i mesi del programma. |
+
+Per segnalare un problema, attiva il log di debug per `custom_components.hydroflow_garden` e apri una
+issue su <https://github.com/shakin89/ha-hydroflow-garden/issues>. Aiuta il download della diagnostica
+dalla pagina dell'integrazione; i destinatari delle notifiche sono oscurati.
+
+## Rimozione
+
+1. Impostazioni → Dispositivi e servizi → HydroFlow Garden → ⋮ → **Elimina**.
+2. I valori salvati dall'integrazione vengono eliminati e la dashboard generata sparisce dalla barra laterale.
+3. Togli il blocco di HydroFlow Garden dal file incluso da `irrigation_unlimited:` e ricarica
+   Irrigation Unlimited. L'integrazione non ha mai scritto quel file, quindi non lo tocca.
+4. Facoltativo: rimuovi il repository da HACS.
+
 ## Migrazione da helper YAML
 
 Al primo avvio ogni valore prende lo stato dell'helper `input_*` con lo stesso object_id, se esiste.

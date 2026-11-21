@@ -196,6 +196,97 @@ To add a language, see `scripts/build_translations.py`.
   that already run it (`in_sync`).
 - `hydroflow_garden.rain_skip`: runs the rain check now. With `force: true` it suspends anyway, to test.
 
+## Supported devices
+
+HydroFlow Garden does not talk to hardware. It drives any `switch` or `valve` entity (ESPHome, Zigbee,
+Wi-Fi relays, …) through Irrigation Unlimited, so every valve controller Home Assistant can switch works.
+Optional inputs are a `weather` entity, a `binary_sensor` for the connectivity of the valve device, and
+Smart Irrigation sensors.
+
+## Use cases
+
+- A garden with a pump, a rain tank and several valve zones, watered at sunrise with durations that
+  follow the weather.
+- A second controller for a greenhouse or a vegetable patch with its own pump, programs and start times.
+- Skipping irrigation on rainy days and not wasting water when a valve controller is offline.
+- Filling a cistern before the morning program without writing automations.
+
+## Data updates
+
+The integration does not poll any device (`iot_class: calculated`). Values live in the integration and
+change when you edit an entity or the dashboard.
+
+- With the engine on, a change to times, days, months, eco cycles or durations is sent to Irrigation
+  Unlimited within about 5 seconds, and again after every restart and every IU reload.
+- The forecast is read from the weather entity every 30 minutes. The rain skip runs once a day at the
+  forecast check time.
+- The device-offline check runs before each program, at the preflight wait you set.
+- Smart Irrigation durations are copied before each program. After the run, the bucket is reset only if
+  the zone delivered at least 90% of the plan.
+
+## Examples
+
+Get a message when a controller is suspended for rain:
+
+```yaml
+automation:
+  - alias: "Garden suspended"
+    triggers:
+      - trigger: state
+        entity_id: sensor.iu_garden_suspend_reason
+        to: rain
+    actions:
+      - action: notify.mobile_app_my_phone
+        data:
+          message: "Irrigation suspended: rain forecast."
+```
+
+Test the rain skip without waiting for tomorrow:
+
+```yaml
+action: hydroflow_garden.rain_skip
+data:
+  force: true
+```
+
+## Known limitations
+
+- Irrigation Unlimited must be configured from a file included in `configuration.yaml`. HydroFlow Garden
+  never writes it: after adding, removing or renaming zones, programs or controllers you paste the new
+  text yourself (a repair issue shows it).
+- Up to 9 programs per controller and 99 zones per controller. The ids are fixed: changing a zone or
+  program id creates a new one, with its own values and history.
+- Only one HydroFlow Garden entry can exist.
+- The generated dashboard needs `button-card`; `apexcharts-card` is optional.
+- Rain skip needs a `weather` entity with daily forecasts that include `precipitation` and
+  `precipitation_probability`.
+- Notifications, entity names and the dashboard exist in English and Italian only (English otherwise).
+
+## Troubleshooting
+
+| Symptom | Cause and fix |
+|---|---|
+| Nothing reaches Irrigation Unlimited | **Engine active** is off. Turn it on in **Configure**. |
+| A repair issue *Irrigation Unlimited file outdated* | The file IU runs does not match your controllers. Paste the text shown in the issue (or from `hydroflow_garden.get_iu_config`) into the included file and run *Irrigation Unlimited: Reload*. Until then no times, days or durations are sent to the listed controllers. |
+| A repair issue *Cards missing for the irrigation dashboard* | Install the listed cards from HACS. Without `button-card` the dashboard does not render. |
+| A repair issue *Dashboard URL already in use* | A dashboard you made already has that URL and is never overwritten. Choose another URL in **Configure**, or rename or delete that dashboard. |
+| The action fails with *The engine is off* or *HydroFlow Garden is not loaded* | Turn the engine on, or check that the integration is loaded. |
+| A run was cancelled | Read the event log file (see **Global settings**). The `sensor.iu_<c>_suspend_reason` entity shows `rain` or `device_offline`. |
+| Zones do not water on the expected days | Check the zone switches `switch.iu_<c>_p<N>_z<Z>_<weekday>` and the program months. |
+
+To report a problem, enable debug logging for `custom_components.hydroflow_garden` and open an issue at
+<https://github.com/shakin89/ha-hydroflow-garden/issues>. The diagnostics download on the integration
+page helps; notification targets are redacted.
+
+## Removal
+
+1. Settings → Devices & services → HydroFlow Garden → ⋮ → **Delete**.
+2. The stored values of the integration are deleted and the generated dashboard is removed from the
+   sidebar.
+3. Remove the HydroFlow Garden block from the file included by `irrigation_unlimited:` and reload
+   Irrigation Unlimited. The integration never wrote that file, so it does not touch it.
+4. Optional: remove the repository from HACS.
+
 ## Migrating from YAML helpers
 
 At first start each value takes the state of the `input_*` helper with the same object_id, if one
