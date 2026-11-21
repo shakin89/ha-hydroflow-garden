@@ -113,6 +113,10 @@ class ValueStore:
     def get(self, key: str, default: Any = None) -> Any:
         return self._data.get(key, default)
 
+    def as_dict(self) -> dict[str, Any]:
+        """A copy of every stored value."""
+        return dict(self._data)
+
     @callback
     def set(self, key: str, value: Any) -> None:
         if self._data.get(key) == value:
