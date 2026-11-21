@@ -30,7 +30,7 @@ class ValueSwitch(ValueEntity, SwitchEntity):
 
     @property
     def is_on(self) -> bool:
-        return bool(self.value)
+        return bool(self.stored_value)
 
     async def async_turn_on(self, **kwargs: Any) -> None:
         self.set_value(True)

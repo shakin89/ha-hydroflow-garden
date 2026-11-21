@@ -26,7 +26,7 @@ class ValueSelect(ValueEntity, SelectEntity):
 
     @property
     def current_option(self) -> str | None:
-        return self.value if self.value in self._attr_options else None
+        return self.stored_value if self.stored_value in self._attr_options else None
 
     async def async_select_option(self, option: str) -> None:
         self.set_value(option)

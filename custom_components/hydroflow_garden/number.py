@@ -31,7 +31,7 @@ class ValueNumber(ValueEntity, NumberEntity):
     @property
     def native_value(self) -> float | None:
         try:
-            return float(self.value)
+            return float(self.stored_value)
         except (TypeError, ValueError):
             return None
 

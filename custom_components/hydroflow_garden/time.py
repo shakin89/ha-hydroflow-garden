@@ -28,7 +28,7 @@ class ValueTime(ValueEntity, TimeEntity):
 
     @property
     def native_value(self) -> time | None:
-        return dt_util.parse_time(str(self.value))
+        return dt_util.parse_time(str(self.stored_value))
 
     async def async_set_value(self, value: time) -> None:
         self.set_value(value.strftime("%H:%M:%S"))

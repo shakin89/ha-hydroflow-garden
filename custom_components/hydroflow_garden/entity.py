@@ -68,7 +68,7 @@ class ValueEntity(ManagerEntity):
         self.spec = spec
 
     @property
-    def value(self) -> Any:
+    def stored_value(self) -> Any:
         return self.rt.values.get(self.spec.key, self.spec.default)
 
     def set_value(self, value: Any) -> None:
