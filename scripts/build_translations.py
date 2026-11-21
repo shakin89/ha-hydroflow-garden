@@ -612,6 +612,8 @@ def build(lang: str) -> dict:
         "no_zones": "Aggiungi almeno una zona" if it else "Add at least one zone",
         "no_programs": "Aggiungi almeno un programma" if it else "Add at least one program",
         "duplicate_id": "Id duplicato" if it else "Duplicate id",
+        "id_overflow": "Id esauriti (massimo 99 per le zone, 9 per i programmi)" if it
+        else "No free id left (maximum 99 for zones, 9 for programs)",
         "already_configured": "Esiste già un controller con questo id" if it else "A controller with this id exists",
     }
     return {

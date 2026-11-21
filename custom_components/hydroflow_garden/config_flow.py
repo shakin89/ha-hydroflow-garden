@@ -144,14 +144,15 @@ class HubOptionsFlow(OptionsFlow):
 
 
 ZONE_FIELDS = {
-    "id": {"required": True, "selector": {"number": {"min": 1, "max": 99, "mode": "box"}}},
+    # id left empty: assigned on save (highest existing id + 1).
+    "id": {"required": False, "selector": {"number": {"min": 1, "max": 99, "mode": "box"}}},
     "name": {"required": True, "selector": {"text": {}}},
     "entity_id": {"required": True, "selector": {"entity": {"domain": ["switch", "valve"]}}},
     "si_sensor": {"required": False, "selector": {"entity": {"domain": "sensor",
                                                               "integration": "smart_irrigation"}}},
 }
 PROGRAM_FIELDS = {
-    "id": {"required": True, "selector": {"number": {"min": 1, "max": 9, "mode": "box"}}},
+    "id": {"required": False, "selector": {"number": {"min": 1, "max": 9, "mode": "box"}}},
     "name": {"required": True, "selector": {"text": {}}},
     "default_time": {"required": False, "selector": {"time": {}}},
 }
@@ -196,21 +197,55 @@ def controller_schema(v: dict, creating: bool, default_programs: list[dict] | No
     return vol.Schema(fields)
 
 
+def _assign_ids(rows: list[dict], limit: int) -> list[int] | None:
+    """Ids for rows in order: given ones kept, empty ones get highest id + 1.
+
+    Ids are never renumbered or reused (they are part of the value keys).
+    Returns None when an assigned id would exceed `limit`.
+    """
+    given = [int(r["id"]) for r in rows if r.get("id") not in (None, "")]
+    nxt = max(given, default=0)
+    ids: list[int] = []
+    for r in rows:
+        if r.get("id") in (None, ""):
+            nxt += 1
+            if nxt > limit:
+                return None
+            ids.append(nxt)
+        else:
+            ids.append(int(r["id"]))
+    return ids
+
+
 def _validate_controller(data: dict) -> tuple[dict, dict[str, str]]:
     errors: dict[str, str] = {}
     zones, programs = [], []
-    for z in data.get("zones") or []:
-        zones.append({"id": int(z["id"]), "name": str(z["name"]).strip(),
+    raw_zones = list(data.get("zones") or [])
+    raw_programs = list(data.get("programs") or [])
+    zone_ids = _assign_ids(raw_zones, 99)
+    program_ids = _assign_ids(raw_programs, 9)
+    if zone_ids is None:
+        errors["zones"] = "id_overflow"
+        zone_ids = [int(z["id"]) if z.get("id") not in (None, "") else 0 for z in raw_zones]
+    if program_ids is None:
+        errors["programs"] = "id_overflow"
+        program_ids = [int(p["id"]) if p.get("id") not in (None, "") else 0 for p in raw_programs]
+    for zid, z in zip(zone_ids, raw_zones):
+        zones.append({"id": zid, "name": str(z["name"]).strip(),
                       "entity_id": z["entity_id"], "si_sensor": z.get("si_sensor") or ""})
-    for p in data.get("programs") or []:
+    for pid, p in zip(program_ids, raw_programs):
         t = str(p.get("default_time") or "06:00")[:5]
-        programs.append({"id": int(p["id"]), "name": str(p["name"]).strip(), "default_time": t})
+        programs.append({"id": pid, "name": str(p["name"]).strip(), "default_time": t})
     if not zones:
         errors["zones"] = "no_zones"
+    elif "zones" in errors:
+        pass
     elif len({z["id"] for z in zones}) != len(zones):
         errors["zones"] = "duplicate_id"
     if not programs:
         errors["programs"] = "no_programs"
+    elif "programs" in errors:
+        pass
     elif len({p["id"] for p in programs}) != len(programs):
         errors["programs"] = "duplicate_id"
     out = {

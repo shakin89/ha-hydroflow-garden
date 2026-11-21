@@ -165,6 +165,7 @@
         "no_zones": "Aggiungi almeno una zona",
         "no_programs": "Aggiungi almeno un programma",
         "duplicate_id": "Id duplicato",
+        "id_overflow": "Id esauriti (massimo 99 per le zone, 9 per i programmi)",
         "already_configured": "Esiste già un controller con questo id"
       },
       "abort": {

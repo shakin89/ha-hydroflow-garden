@@ -95,3 +95,24 @@ async def test_default_programs_follow_the_language(hass: HomeAssistant) -> None
             (entry.entry_id, SUBENTRY_CONTROLLER), context={"source": SOURCE_USER})
         assert default_names(result) == names, lang
         hass.config_entries.subentries.async_abort(result["flow_id"])
+
+
+def test_validate_assigns_missing_ids() -> None:
+    from custom_components.hydroflow_garden.config_flow import _validate_controller
+    z = lambda **k: {"name": "z", "entity_id": "switch.v", **k}  # noqa: E731
+    data = {**CTRL, "name": "Orto",
+            "zones": [z(id=5), z(), z(id=""), z(id=2), z()],
+            "programs": [{"name": "a"}, {"name": "b", "id": 4}, {"name": "c"}]}
+    out, errors = _validate_controller(data)
+    assert errors == {}
+    assert [x["id"] for x in out["zones"]] == [2, 5, 6, 7, 8]
+    assert [p["id"] for p in out["programs"]] == [4, 5, 6]
+
+
+def test_validate_id_overflow_and_duplicates() -> None:
+    from custom_components.hydroflow_garden.config_flow import _validate_controller
+    z = lambda **k: {"name": "z", "entity_id": "switch.v", **k}  # noqa: E731
+    _, errors = _validate_controller({**CTRL, "zones": [z(id=99), z()]})
+    assert errors == {"zones": "id_overflow"}
+    _, errors = _validate_controller({**CTRL, "zones": [z(id=3), z(id=3), z()]})
+    assert errors == {"zones": "duplicate_id"}
