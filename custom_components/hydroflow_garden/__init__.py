@@ -23,6 +23,7 @@ from . import i18n
 from .const import DOMAIN, REASON_NONE
 from .model import suspend_reason_key
 from .runtime import HUB_SPECS, IrrigationRuntime, controllers_of
+from .services import HydroflowGardenService, HydroflowGardenServiceArgument
 from .values import ValueStore
 
 _LOGGER = logging.getLogger(__name__)
@@ -111,15 +112,17 @@ def _register_services(hass: HomeAssistant) -> None:
         rt = _runtime(hass)
         if rt.engine is None:
             raise ServiceValidationError(translation_domain=DOMAIN, translation_key="engine_off")
-        skipped = await rt.engine.async_rain_skip(force=call.data.get("force", False))
+        skipped = await rt.engine.async_rain_skip(force=call.data[HydroflowGardenServiceArgument.FORCE])
         return {"skipped": skipped, "forecast": rt.forecast}
 
-    hass.services.async_register(DOMAIN, "regenerate_dashboard", regenerate_dashboard)
-    hass.services.async_register(DOMAIN, "get_iu_config", get_iu_config,
+    hass.services.async_register(
+        DOMAIN, HydroflowGardenService.REGENERATE_DASHBOARD, regenerate_dashboard)
+    hass.services.async_register(DOMAIN, HydroflowGardenService.GET_IU_CONFIG, get_iu_config,
                                  supports_response=SupportsResponse.ONLY)
     hass.services.async_register(
-        DOMAIN, "rain_skip", rain_skip,
-        schema=vol.Schema({vol.Optional("force", default=False): cv.boolean}),
+        DOMAIN, HydroflowGardenService.RAIN_SKIP, rain_skip,
+        schema=vol.Schema({
+            vol.Optional(HydroflowGardenServiceArgument.FORCE, default=False): cv.boolean}),
         supports_response=SupportsResponse.OPTIONAL,
     )
 
