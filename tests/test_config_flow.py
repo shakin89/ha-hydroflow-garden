@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
-from homeassistant.config_entries import SOURCE_RECONFIGURE, SOURCE_USER
+from homeassistant.config_entries import SOURCE_IMPORT, SOURCE_RECONFIGURE, SOURCE_USER
 from homeassistant.core import HomeAssistant
 from homeassistant.data_entry_flow import FlowResultType
 
 from custom_components.hydroflow_garden.const import DOMAIN, SUBENTRY_CONTROLLER
+
+from .conftest import TOPOLOGY
 
 HUB = {
     "engine_enabled": False, "notify_persistent": True, "rain_now_state": "on",
@@ -116,3 +118,97 @@ def test_validate_id_overflow_and_duplicates() -> None:
     assert errors == {"zones": "id_overflow"}
     _, errors = _validate_controller({**CTRL, "zones": [z(id=3), z(id=3), z()]})
     assert errors == {"zones": "duplicate_id"}
+
+
+async def _hub_entry(hass: HomeAssistant):
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    await hass.config_entries.flow.async_configure(result["flow_id"], HUB)
+    await hass.async_block_till_done()
+    return hass.config_entries.async_entries(DOMAIN)[0]
+
+
+async def test_second_user_flow_is_rejected(hass: HomeAssistant) -> None:
+    await _hub_entry(hass)
+    result = await hass.config_entries.flow.async_init(DOMAIN, context={"source": SOURCE_USER})
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] in ("single_instance_allowed", "already_configured")
+
+
+async def test_import_creates_entry_and_second_import_aborts(hass: HomeAssistant) -> None:
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_IMPORT}, data=TOPOLOGY)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+    entry = hass.config_entries.async_entries(DOMAIN)[0]
+    assert {s.data["id"] for s in entry.subentries.values()} == {"alpha", "beta"}
+    result = await hass.config_entries.flow.async_init(
+        DOMAIN, context={"source": SOURCE_IMPORT}, data=TOPOLOGY)
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] in ("single_instance_allowed", "already_configured")
+
+
+async def test_options_flow(hass: HomeAssistant) -> None:
+    entry = await _hub_entry(hass)
+    result = await hass.config_entries.options.async_init(entry.entry_id)
+    assert result["type"] is FlowResultType.FORM
+    assert result["step_id"] == "init"
+    result = await hass.config_entries.options.async_configure(
+        result["flow_id"], {**HUB, "prob_threshold": 55})
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    assert entry.options["prob_threshold"] == 55
+    await hass.async_block_till_done()
+
+
+async def test_controller_flow_errors_then_recovery(hass: HomeAssistant) -> None:
+    entry = await _hub_entry(hass)
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_CONTROLLER), context={"source": SOURCE_USER})
+    for bad, expected in (
+        ({**CTRL, "zones": []}, {"zones": "no_zones"}),
+        ({**CTRL, "programs": []}, {"programs": "no_programs"}),
+        ({**CTRL, "programs": [{"id": 1, "name": "a"}, {"id": 1, "name": "b"}]},
+         {"programs": "duplicate_id"}),
+        ({**CTRL, "programs": [{"id": 9, "name": "a"}, {"name": "b"}]},
+         {"programs": "id_overflow"}),
+    ):
+        result = await hass.config_entries.subentries.async_configure(result["flow_id"], bad)
+        assert result["type"] is FlowResultType.FORM
+        assert result["errors"] == expected
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], CTRL)
+    assert result["type"] is FlowResultType.CREATE_ENTRY
+    await hass.async_block_till_done()
+
+
+async def test_duplicate_controller_is_rejected(hass: HomeAssistant) -> None:
+    entry = await _hub_entry(hass)
+    for expect_ok in (True, False):
+        result = await hass.config_entries.subentries.async_init(
+            (entry.entry_id, SUBENTRY_CONTROLLER), context={"source": SOURCE_USER})
+        result = await hass.config_entries.subentries.async_configure(result["flow_id"], CTRL)
+        if expect_ok:
+            assert result["type"] is FlowResultType.CREATE_ENTRY
+            await hass.async_block_till_done()
+        else:
+            assert result["type"] is FlowResultType.FORM
+            assert result["errors"] == {"name": "already_configured"}
+            hass.config_entries.subentries.async_abort(result["flow_id"])
+
+
+async def test_reconfigure_error_recovery(hass: HomeAssistant) -> None:
+    entry = await _hub_entry(hass)
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_CONTROLLER), context={"source": SOURCE_USER})
+    await hass.config_entries.subentries.async_configure(result["flow_id"], CTRL)
+    await hass.async_block_till_done()
+    sub = next(iter(entry.subentries.values()))
+    result = await hass.config_entries.subentries.async_init(
+        (entry.entry_id, SUBENTRY_CONTROLLER),
+        context={"source": SOURCE_RECONFIGURE, "subentry_id": sub.subentry_id})
+    result = await hass.config_entries.subentries.async_configure(
+        result["flow_id"], {**CTRL, "zones": []})
+    assert result["type"] is FlowResultType.FORM
+    assert result["errors"] == {"zones": "no_zones"}
+    result = await hass.config_entries.subentries.async_configure(result["flow_id"], CTRL)
+    assert result["type"] is FlowResultType.ABORT
+    assert result["reason"] == "reconfigure_successful"
+    await hass.async_block_till_done()
