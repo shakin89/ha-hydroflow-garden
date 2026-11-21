@@ -14,6 +14,9 @@ from .entity import ValueEntity, add_grouped, specs_by_kind
 from .model import KIND_SWITCH
 
 
+PARALLEL_UPDATES = 0
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
                             async_add_entities: AddConfigEntryEntitiesCallback) -> None:
     rt = entry.runtime_data

@@ -14,6 +14,9 @@ from .iu_config import _num, fmt_duration
 from .model import eid
 
 
+PARALLEL_UPDATES = 1
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
                             async_add_entities: AddConfigEntryEntitiesCallback) -> None:
     rt = entry.runtime_data

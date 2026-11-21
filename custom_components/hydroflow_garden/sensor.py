@@ -24,6 +24,9 @@ from .model import Controller, Zone, eid, suspend_reason_key, zone_sensor_object
 from .runtime import SIGNAL_FORECAST, SIGNAL_SI_OVERRIDE, SIGNAL_USAGE
 
 
+PARALLEL_UPDATES = 0
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
                             async_add_entities: AddConfigEntryEntitiesCallback) -> None:
     rt = entry.runtime_data

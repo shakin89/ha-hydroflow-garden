@@ -16,6 +16,9 @@ from .entity import ManagerEntity
 from .runtime import SIGNAL_RAIN_NOW
 
 
+PARALLEL_UPDATES = 0
+
+
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry,
                             async_add_entities: AddConfigEntryEntitiesCallback) -> None:
     async_add_entities([RainNow(entry.runtime_data)])
@@ -30,7 +33,7 @@ class RainNow(ManagerEntity, BinarySensorEntity):
 
     @property
     def available(self) -> bool:
-        return bool(self.rt.options.get(CONF_RAIN_NOW_ENTITY))
+        return super().available and bool(self.rt.options.get(CONF_RAIN_NOW_ENTITY))
 
     @property
     def is_on(self) -> bool:
