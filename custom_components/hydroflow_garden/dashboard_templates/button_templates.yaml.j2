@@ -32,6 +32,13 @@ button_card_template of the nested card run in the nested card itself. #}
 #container > div:not(#name):not(#label):not(#state):not(#img-cell) { white-space: normal; overflow: visible; text-align: left; }
 {%- endset %}
 
+{#- HTML escape for button-card JS templates. button-card renders what a template returns as
+HTML, so every interpolated value that is not a fixed literal goes through esc(); {{ esc_js }}
+is the first line of each [[[ ]]] block that builds HTML. -#}
+{%- set esc_js -%}
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'}[c]));
+{%- endset %}
+
 # ---------------------------------------------------------------------------
 # Base
 # ---------------------------------------------------------------------------
@@ -130,9 +137,10 @@ hf_heading:
   custom_fields:
     h: |
       [[[
-        const sub = variables.sub ? `<span class="hf-sub">${variables.sub}</span>` : '';
+        {{ esc_js }}
+        const sub = variables.sub ? `<span class="hf-sub">${esc(variables.sub)}</span>` : '';
         return `<div class="hf-row" style="justify-content:space-between;flex-wrap:wrap">
-          <span style="font-size:20px;font-weight:600">${variables.title}</span>${sub}</div>`;
+          <span style="font-size:20px;font-weight:600">${esc(variables.title)}</span>${sub}</div>`;
       ]]]
 
 # Generic card: icon tile + title + subtitle in the "head" field. Callers add
@@ -151,6 +159,7 @@ hf_card:
   custom_fields:
     head: |
       [[[
+        {{ esc_js }}
         const tones = {
           neutral: ['var(--hf-inset)', 'var(--hf-text2)'], primary: ['var(--hf-primary-soft)', 'var(--hf-primary)'],
           water: ['var(--hf-water-soft)', 'var(--hf-water)'], warn: ['var(--hf-warn-soft)', 'var(--hf-warn)'],
@@ -158,9 +167,9 @@ hf_card:
         };
         const [bg, fg] = tones[variables.tone] || tones.neutral;
         const icon = variables.icon
-          ? `<span class="hf-tile" style="background:${bg};color:${fg};width:40px;height:40px;border-radius:12px"><ha-icon icon="${variables.icon}" style="--mdc-icon-size:22px"></ha-icon></span>` : '';
-        const sub = variables.sub ? `<span class="hf-sub">${variables.sub}</span>` : '';
-        return `<div class="hf-row">${icon}<div class="hf-col"><span class="hf-title">${variables.title}</span>${sub}</div></div>`;
+          ? `<span class="hf-tile" style="background:${bg};color:${fg};width:40px;height:40px;border-radius:12px"><ha-icon icon="${esc(variables.icon)}" style="--mdc-icon-size:22px"></ha-icon></span>` : '';
+        const sub = variables.sub ? `<span class="hf-sub">${esc(variables.sub)}</span>` : '';
+        return `<div class="hf-row">${icon}<div class="hf-col"><span class="hf-title">${esc(variables.title)}</span>${sub}</div></div>`;
       ]]]
 
 # Wrapper for native cards (apexcharts, entities...): HA colour variables are
@@ -292,11 +301,12 @@ hf_toggle:
   custom_fields:
     t: |
       [[[
+        {{ esc_js }}
         const on = entity?.state === 'on';
-        const icon = variables.icon ? `<ha-icon icon="${variables.icon}" style="--mdc-icon-size:20px;color:var(--hf-text2)"></ha-icon>` : '';
-        const hint = variables.hint ? `<span class="hf-cap">${variables.hint}</span>` : '';
+        const icon = variables.icon ? `<ha-icon icon="${esc(variables.icon)}" style="--mdc-icon-size:20px;color:var(--hf-text2)"></ha-icon>` : '';
+        const hint = variables.hint ? `<span class="hf-cap">${esc(variables.hint)}</span>` : '';
         return `<div class="hf-row">${icon}
-          <div class="hf-col" style="flex:1"><span style="font-size:14px;font-weight:500;text-align:left">${variables.label}</span>${hint}</div>
+          <div class="hf-col" style="flex:1"><span style="font-size:14px;font-weight:500;text-align:left">${esc(variables.label)}</span>${hint}</div>
           <span role="switch" aria-checked="${on}" style="width:48px;height:30px;border-radius:15px;padding:3px;box-sizing:border-box;display:flex;flex-shrink:0;
             justify-content:${on ? 'flex-end' : 'flex-start'};background:${on ? 'var(--hf-primary)' : 'var(--hf-inset)'};
             border:1px solid ${on ? 'var(--hf-primary)' : 'var(--hf-border)'}">
@@ -323,10 +333,11 @@ hf_link_row:
   custom_fields:
     t: |
       [[[
-        const icon = variables.icon ? `<ha-icon icon="${variables.icon}" style="--mdc-icon-size:20px;color:var(--hf-text2)"></ha-icon>` : '';
-        const hint = variables.hint ? `<span class="hf-cap" style="overflow-wrap:anywhere">${variables.hint}</span>` : '';
+        {{ esc_js }}
+        const icon = variables.icon ? `<ha-icon icon="${esc(variables.icon)}" style="--mdc-icon-size:20px;color:var(--hf-text2)"></ha-icon>` : '';
+        const hint = variables.hint ? `<span class="hf-cap" style="overflow-wrap:anywhere">${esc(variables.hint)}</span>` : '';
         return `<div class="hf-row">${icon}
-          <div class="hf-col" style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500;text-align:left">${variables.label}</span>${hint}</div>
+          <div class="hf-col" style="flex:1;min-width:0"><span style="font-size:14px;font-weight:500;text-align:left">${esc(variables.label)}</span>${hint}</div>
           <ha-icon icon="mdi:chevron-right" style="--mdc-icon-size:20px;color:var(--hf-text2);flex-shrink:0"></ha-icon></div>`;
       ]]]
 
@@ -352,11 +363,12 @@ hf_notice:
   custom_fields:
     t: |
       [[[
+        {{ esc_js }}
         return `<div class="hf-row">
           <span class="hf-tile" style="background:var(--hf-warn);color:var(--hf-card);width:40px;height:40px;border-radius:12px;flex-shrink:0">
-            <ha-icon icon="${variables.icon}" style="--mdc-icon-size:22px"></ha-icon></span>
-          <div class="hf-col" style="flex:1;min-width:0"><span class="hf-title" style="color:var(--hf-warn)">${variables.title}</span>
-            <span class="hf-sub" style="overflow-wrap:anywhere">${variables.sub}</span></div>
+            <ha-icon icon="${esc(variables.icon)}" style="--mdc-icon-size:22px"></ha-icon></span>
+          <div class="hf-col" style="flex:1;min-width:0"><span class="hf-title" style="color:var(--hf-warn)">${esc(variables.title)}</span>
+            <span class="hf-sub" style="overflow-wrap:anywhere">${esc(variables.sub)}</span></div>
           <ha-icon icon="mdi:chevron-right" style="--mdc-icon-size:22px;color:var(--hf-warn);flex-shrink:0"></ha-icon></div>`;
       ]]]
 
@@ -434,9 +446,10 @@ hf_stepper:
   custom_fields:
     txt: |
       [[[
+        {{ esc_js }}
         if (!variables.label) return '';
-        const hint = variables.hint ? `<span class="hf-cap">${variables.hint}</span>` : '';
-        return `<div class="hf-col" style="padding-right:10px"><span style="font-size:14px;font-weight:500;text-align:left">${variables.label}</span>${hint}</div>`;
+        const hint = variables.hint ? `<span class="hf-cap">${esc(variables.hint)}</span>` : '';
+        return `<div class="hf-col" style="padding-right:10px"><span style="font-size:14px;font-weight:500;text-align:left">${esc(variables.label)}</span>${hint}</div>`;
       ]]]
     val: |
       [[[
@@ -519,6 +532,7 @@ hf_nav:
   custom_fields:
     who: |
       [[[
+        {{ esc_js }}
         const a = entity?.attributes || {};
         const av = variables.availability_entity;
         let color = 'var(--hf-text2)', text = {{ t.idle | q }};
@@ -527,7 +541,7 @@ hf_nav:
         else if (entity?.state === 'on') { color = 'var(--hf-water)'; text = {{ t.watering | q }}; }
         return `<div class="hf-row"><span class="hf-tile" style="width:36px;height:36px;border-radius:11px;background:var(--hf-primary);color:var(--hf-on-primary)">
             <ha-icon icon="mdi:sprinkler-variant" style="--mdc-icon-size:20px"></ha-icon></span>
-          <div class="hf-col"><span style="font-size:16px;font-weight:600;text-align:left">${variables.name}</span>
+          <div class="hf-col"><span style="font-size:16px;font-weight:600;text-align:left">${esc(variables.name)}</span>
           <span class="hf-cap" style="display:flex;align-items:center;gap:6px"><i style="width:8px;height:8px;border-radius:4px;background:${color}"></i>${text}</span></div></div>`;
       ]]]
 
@@ -599,6 +613,7 @@ hf_hero:
   custom_fields:
     main: |
       [[[
+        {{ esc_js }}
         const a = entity?.attributes || {};
         const loc = {{ t.locale | q }};
         const av = variables.availability_entity;
@@ -607,7 +622,7 @@ hf_hero:
         let tone = 'var(--hf-primary)', state = {{ t.idle | q }}, big = '—', sub = {{ t.nothing_scheduled | q }};
         const seqs = (a.sequence_status || []).filter(s => s.start);
         const next = seqs.length ? seqs.reduce((x, y) => new Date(x.start) <= new Date(y.start) ? x : y) : null;
-        const prog = (s) => String(s?.name || '').replace(/\s*#\d+$/, '');
+        const prog = (s) => esc(String(s?.name || '').replace(/\s*#\d+$/, ''));
         if (next) {
           const st = new Date(next.start);
           const mins = Math.round((st - new Date()) / 60000);
@@ -632,18 +647,19 @@ hf_hero:
           const z = (variables.zones || []).find(z => String(z.id) === cz);
           tone = 'var(--hf-water)'; state = {{ t.watering | q }};
           big = String(a.time_remaining || '').replace(/^0:/, '') || '…';
-          sub = (z ? `Z${z.id} ${z.name}` : {{ t.running | q }}) + (a.current_name ? ' · ' + prog({name: a.current_name}) : '') + ' · ' + {{ t.remaining | q }};
+          sub = (z ? `Z${esc(z.id)} ${esc(z.name)}` : {{ t.running | q }}) + (a.current_name ? ' · ' + prog({name: a.current_name}) : '') + ' · ' + {{ t.remaining | q }};
         }
         const label = entity?.state === 'on' && !a.suspended ? {{ t.remaining_cap | q }} : {{ t.next_start | q }};
         return `<div class="hf-col" style="gap:10px">
           <span style="display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;color:var(--hf-text2)">
-            <i style="width:10px;height:10px;border-radius:5px;background:${tone}"></i>${variables.name} · <span style="color:${tone}">${state}</span></span>
+            <i style="width:10px;height:10px;border-radius:5px;background:${tone}"></i>${esc(variables.name)} · <span style="color:${tone}">${state}</span></span>
           <div class="hf-col"><span class="hf-cap">${label}</span>
-            <span style="font-size:60px;font-weight:700;line-height:1.05;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;text-align:left">${big}</span>
+            <span style="font-size:60px;font-weight:700;line-height:1.05;letter-spacing:-0.02em;font-variant-numeric:tabular-nums;text-align:left">${esc(big)}</span>
             <span class="hf-sub" style="font-size:15px">${sub}</span></div></div>`;
       ]]]
     steps: |
       [[[
+        {{ esc_js }}
         const a = entity?.attributes || {};
         const loc = {{ t.locale | q }};
         const hm = (d) => d.toLocaleTimeString(loc, {hour: '2-digit', minute: '2-digit'});
@@ -653,7 +669,7 @@ hf_hero:
         if (entity?.state === 'on' && !a.suspended) {
           const pct = Math.max(0, Math.min(100, Number(a.percent_complete) || 0));
           return box({{ t.current_run | q }}, `<div class="hf-bar"><i style="width:${pct}%;background:var(--hf-water)"></i></div>
-            <div class="hf-cap" style="margin-top:8px">${pct}% · ${String(a.current_name || '').replace(/\s*#\d+$/, '')}</div>`);
+            <div class="hf-cap" style="margin-top:8px">${pct}% · ${esc(String(a.current_name || '').replace(/\s*#\d+$/, ''))}</div>`);
         }
         const seqs = (a.sequence_status || []).filter(s => s.start);
         if (!seqs.length) return box({{ t.before_start | q }}, `<div class="hf-cap">${ {{ t.nothing_scheduled | q }} }</div>`);
@@ -677,7 +693,7 @@ hf_hero:
           return `<div style="display:grid;grid-template-columns:48px 14px minmax(0,1fr);gap:10px;align-items:start;min-height:44px">
             <span style="font-size:14px;font-weight:600;font-variant-numeric:tabular-nums;color:${s.last ? 'var(--hf-primary)' : 'var(--hf-text)'}">${hm(s.t)}</span>
             <i style="width:12px;height:12px;margin-top:3px;border-radius:6px;box-sizing:border-box;border:2px solid ${s.c};background:${done ? s.c : 'transparent'}"></i>
-            <span class="hf-col"><span style="font-size:14px;font-weight:500;text-align:left">${s.label}</span><span class="hf-cap">${s.hint}</span></span></div>`;
+            <span class="hf-col"><span style="font-size:14px;font-weight:500;text-align:left">${esc(s.label)}</span><span class="hf-cap">${esc(s.hint)}</span></span></div>`;
         }).join('');
         return box({{ t.before_start | q }}, rows);
       ]]]
@@ -767,14 +783,15 @@ hf_kpi:
   custom_fields:
     k: |
       [[[
+        {{ esc_js }}
         const tones = {neutral: ['var(--hf-inset)', 'var(--hf-text2)'], primary: ['var(--hf-primary-soft)', 'var(--hf-primary)'],
           water: ['var(--hf-water-soft)', 'var(--hf-water)'], eco: ['var(--hf-eco-soft)', 'var(--hf-eco)'],
           warn: ['var(--hf-warn-soft)', 'var(--hf-warn)']};
         const [bg, fg] = tones[variables.tone] || tones.neutral;
         return `<div class="hf-col" style="gap:10px"><span class="hf-tile" style="width:40px;height:40px;border-radius:12px;background:${bg};color:${fg}">
-          <ha-icon icon="${variables.icon}" style="--mdc-icon-size:20px"></ha-icon></span>
-          <div class="hf-col"><span style="font-size:28px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums;text-align:left">${variables.value}<span class="hf-unit"> ${variables.unit}</span></span>
-          <span class="hf-sub">${variables.label}</span></div></div>`;
+          <ha-icon icon="${esc(variables.icon)}" style="--mdc-icon-size:20px"></ha-icon></span>
+          <div class="hf-col"><span style="font-size:28px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums;text-align:left">${esc(variables.value)}<span class="hf-unit"> ${esc(variables.unit)}</span></span>
+          <span class="hf-sub">${esc(variables.label)}</span></div></div>`;
       ]]]
 
 # Today's runs per zone, from the `timeline` attribute of the IU zones.
@@ -793,6 +810,7 @@ hf_timeline:
   custom_fields:
     chart: |
       [[[
+        {{ esc_js }}
         const loc = {{ t.locale | q }};
         const hm = (d) => d.toLocaleTimeString(loc, {hour: '2-digit', minute: '2-digit'});
         const now = new Date();
@@ -843,7 +861,7 @@ hf_timeline:
         const col = {history: 'var(--hf-primary)', running: 'var(--hf-water)', fill: 'var(--hf-water-soft)', pre: 'var(--hf-warn)'};
         const edge = {fill: 'var(--hf-water)'};
         const bars = rows.map(r => `<div style="display:grid;grid-template-columns:128px minmax(0,1fr);gap:10px;align-items:center">
-          <span class="hf-cap" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${r.name}</span>
+          <span class="hf-cap" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${esc(r.name)}</span>
           <span style="position:relative;height:24px;border-radius:7px;background:var(--hf-inset)">${r.items.map(i =>
             `<i title="${hm(i.s)}–${hm(i.e)}" style="position:absolute;top:0;height:24px;border-radius:7px;box-sizing:border-box;min-width:4px;
               left:${x(+i.s)}%;width:${x(+i.e) - x(+i.s)}%;background:${col[i.st] || 'var(--hf-water)'};border:1px solid ${edge[i.st] || col[i.st] || 'var(--hf-water)'};
@@ -886,6 +904,7 @@ hf_zone_card:
   custom_fields:
     head: |
       [[[
+        {{ esc_js }}
         const a = entity?.attributes || {};
         const loc = {{ t.locale | q }};
         let when = {{ t.not_scheduled | q }};
@@ -897,15 +916,16 @@ hf_zone_card:
         }
         return `<div class="hf-row"><span class="hf-tile" style="background:var(--hf-water-soft);color:var(--hf-water)">
           <ha-icon icon="mdi:sprinkler-variant"></ha-icon></span>
-          <div class="hf-col"><span class="hf-title" style="font-size:16px">${variables.name}</span><span class="hf-sub">${when}</span></div></div>`;
+          <div class="hf-col"><span class="hf-title" style="font-size:16px">${esc(variables.name)}</span><span class="hf-sub">${esc(when)}</span></div></div>`;
       ]]]
     body: |
       [[[
+        {{ esc_js }}
         const p = states[variables.planned_entity];
         const secs = Number(p?.state) || 0;
         const mins = Math.round(secs / 60);
         const si = variables.si_entity ? states[variables.si_entity] : null;
-        const eco = si ? `<span class="hf-cap" style="color:var(--hf-eco)">SI ${p?.attributes?.si_next_hms ?? '—'} · ${ {{ t.base | q }} } ${p?.attributes?.base_minutes ?? '—'} min</span>` : '';
+        const eco = si ? `<span class="hf-cap" style="color:var(--hf-eco)">SI ${esc(p?.attributes?.si_next_hms ?? '—')} · ${ {{ t.base | q }} } ${esc(p?.attributes?.base_minutes ?? '—')} min</span>` : '';
         const h = (variables.usage || []).map(e => Math.round((Number(states[e]?.state) || 0) * 60));
         const mx = Math.max(10, ...h);
         const labels = {{ t.days3 | q }};
@@ -916,7 +936,7 @@ hf_zone_card:
         const bucket = si ? Number(si.attributes?.bucket) : NaN;
         const stats = si ? `<div class="hf-stats" style="margin-top:12px">
           <span class="hf-stat"><span class="hf-cap">Bucket</span><b>${isNaN(bucket) ? '—' : (bucket > 0 ? '+' : '') + bucket.toFixed(1) + ' mm'}</b></span>
-          <span class="hf-stat"><span class="hf-cap">${ {{ t.col_liters | q }} }</span><b>${p?.attributes?.litri ?? '—'}</b></span></div>` : '';
+          <span class="hf-stat"><span class="hf-cap">${ {{ t.col_liters | q }} }</span><b>${esc(p?.attributes?.litri ?? '—')}</b></span></div>` : '';
         return `<div style="display:flex;justify-content:space-between;align-items:flex-end;gap:12px">
           <div class="hf-col"><span class="hf-cap">${ {{ t.planned_duration | q }} }</span>
             <span class="hf-big">${mins}<span class="hf-unit"> min</span></span>${eco}</div>
@@ -1015,7 +1035,8 @@ hf_program_header:
       ]]]
     who: |
       [[[
-        if (entity?.state !== 'on') return `<div class="hf-col"><span style="font-size:22px;font-weight:700;text-align:left">${variables.name}</span>
+        {{ esc_js }}
+        if (entity?.state !== 'on') return `<div class="hf-col"><span style="font-size:22px;font-weight:700;text-align:left">${esc(variables.name)}</span>
           <span class="hf-sub">${ {{ t.disabled | q }} }</span></div>`;
         const p = variables.day_prefix;
         const months = {{ months | map(attribute=0) | list | tojson }};
@@ -1037,8 +1058,8 @@ hf_program_header:
         const total = zones.reduce((s, z) => s + (Number(hass.states[`number.${p.slice(7)}_z${z}_duration`]?.state) || 0), 0);
         const parts = [when, on.every(Boolean) ? {{ t.all_year | q }} : (ranges.join(', ') || {{ t.no_month | q }}),
           `${zones.length} ${ {{ t.zones_lc | q }} }`, `${total} min`];
-        return `<div class="hf-col"><span style="font-size:22px;font-weight:700;text-align:left">${variables.name}</span>
-          <span class="hf-sub">${parts.join(' · ')}</span></div>`;
+        return `<div class="hf-col"><span style="font-size:22px;font-weight:700;text-align:left">${esc(variables.name)}</span>
+          <span class="hf-sub">${esc(parts.join(' · '))}</span></div>`;
       ]]]
     action:
       card:
@@ -1159,10 +1180,11 @@ hf_zone_days:
             - grid-template-areas: '"k"'
     who: |
       [[[
+        {{ esc_js }}
         const p = states[variables.planned_entity]?.attributes || {};
         const sub = entity?.state === 'on' ? (p.next_duration && p.next_duration !== 'n/a' ? {{ (t.effective ~ ' ') | q }} + p.next_duration : '') : {{ t.not_in_program | q }};
-        return `<div class="hf-col"><span style="font-size:14px;font-weight:600;text-align:left">${variables.name}</span>
-          ${sub ? `<span class="hf-cap">${sub}</span>` : ''}</div>`;
+        return `<div class="hf-col"><span style="font-size:14px;font-weight:600;text-align:left">${esc(variables.name)}</span>
+          ${sub ? `<span class="hf-cap">${esc(sub)}</span>` : ''}</div>`;
       ]]]
 
 # Weekly minutes of one program, from its zone switches and durations.
@@ -1224,6 +1246,7 @@ hf_zone_detail:
   custom_fields:
     head: |
       [[[
+        {{ esc_js }}
         const a = entity?.attributes || {};
         const loc = {{ t.locale | q }};
         const inp = (variables.programs || []).some(p => states[p.enabled]?.state === 'on' && states[p.zone_enabled]?.state === 'on');
@@ -1238,16 +1261,17 @@ hf_zone_detail:
         }
         return `<div class="hf-row"><span class="hf-tile" style="width:52px;height:52px;border-radius:15px;background:var(--hf-water-soft);color:var(--hf-water)">
           <ha-icon icon="mdi:sprinkler-variant" style="--mdc-icon-size:28px"></ha-icon></span>
-          <div class="hf-col" style="gap:4px"><span style="display:flex;flex-wrap:wrap;align-items:center;gap:8px"><span class="hf-title" style="font-size:20px">${variables.name}</span>${chip}</span>
-          ${when ? `<span class="hf-sub">${when}</span>` : ''}</div></div>`;
+          <div class="hf-col" style="gap:4px"><span style="display:flex;flex-wrap:wrap;align-items:center;gap:8px"><span class="hf-title" style="font-size:20px">${esc(variables.name)}</span>${chip}</span>
+          ${when ? `<span class="hf-sub">${esc(when)}</span>` : ''}</div></div>`;
       ]]]
     si: |
       [[[
+        {{ esc_js }}
         if (!variables.si_entity) return `<div class="hf-cap" style="padding:12px;border-radius:14px;border:1px dashed var(--hf-border)">${ {{ t.si_off | q }} }</div>`;
         const p = states[variables.planned_entity]?.attributes || {};
         const si = states[variables.si_entity];
         const b = Number(si?.attributes?.bucket);
-        const s = (k, v) => `<span class="hf-stat"><span class="hf-cap">${k}</span><b>${v ?? '—'}</b></span>`;
+        const s = (k, v) => `<span class="hf-stat"><span class="hf-cap">${esc(k)}</span><b>${esc(v ?? '—')}</b></span>`;
         return `<div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:8px">
             <span style="font-size:15px;font-weight:600">Smart Irrigation</span>
             <span class="hf-cap">${ {{ t.last_si_calc | q }} }: ${p.si_calcolato_alle ? new Date(p.si_calcolato_alle).toLocaleString({{ t.locale | q }}, {day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'}) : {{ t.never | q }}}</span></div>
@@ -1271,6 +1295,7 @@ hf_zone_detail:
       ]]]
     progs: |
       [[[
+        {{ esc_js }}
         const names = {{ weekdays | map(attribute=1) | list | tojson }};
         return (variables.programs || []).map(p => {
           const pon = states[p.enabled]?.state === 'on', zon = states[p.zone_enabled]?.state === 'on';
@@ -1282,7 +1307,7 @@ hf_zone_detail:
           }).join('') : '';
           return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;margin-top:6px;
               ${pon && zon ? 'background:var(--hf-inset)' : 'border:1px dashed var(--hf-border)'}">
-            <span class="hf-col" style="flex:1 1 140px"><span style="font-size:14px;font-weight:600;text-align:left">${p.name}</span><span class="hf-cap">${sub}</span></span>
+            <span class="hf-col" style="flex:1 1 140px"><span style="font-size:14px;font-weight:600;text-align:left">${esc(p.name)}</span><span class="hf-cap">${esc(sub)}</span></span>
             <span style="display:flex;gap:4px">${days}</span></div>`;
         }).join('');
       ]]]
@@ -1317,11 +1342,12 @@ hf_system:
   custom_fields:
     x: |
       [[[
+        {{ esc_js }}
         const on = entity?.state === 'on';
         return `<div class="hf-row" style="gap:18px"><span class="hf-tile" style="width:56px;height:56px;border-radius:16px;
             background:${on ? 'var(--hf-primary-soft)' : 'var(--hf-card)'};color:${on ? 'var(--hf-primary)' : 'var(--hf-warn)'}">
             <ha-icon icon="mdi:power" style="--mdc-icon-size:28px"></ha-icon></span>
-          <div class="hf-col" style="flex:1"><span style="font-size:22px;font-weight:700;text-align:left">${variables.name} · ${on ? {{ t.on | q }} : {{ t.off | q }}}</span>
+          <div class="hf-col" style="flex:1"><span style="font-size:22px;font-weight:700;text-align:left">${esc(variables.name)} · ${on ? {{ t.on | q }} : {{ t.off | q }}}</span>
             <span class="hf-sub">${on ? {{ t.system_on_hint | q }} : {{ t.system_off_hint | q }}}</span></div>
           <span role="switch" aria-checked="${on}" style="width:64px;height:38px;border-radius:19px;padding:4px;box-sizing:border-box;display:flex;flex-shrink:0;
             justify-content:${on ? 'flex-end' : 'flex-start'};background:${on ? 'var(--hf-primary)' : 'var(--hf-inset)'};border:1px solid ${on ? 'var(--hf-primary)' : 'var(--hf-border)'}">
